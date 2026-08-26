@@ -29,6 +29,7 @@ const ProjectStudyPage = React.lazy(() => import('pages/Study/ProjectStudyPage')
 const StudiesPage = React.lazy(() => import('pages/Studies/StudiesPage'));
 
 const MetaAnalysesPage = React.lazy(() => import('pages/MetaAnalyses/MetaAnalysesPage'));
+const DecodePage = React.lazy(() => import('pages/Decode/DecodePage'));
 const MetaAnalysisPage = React.lazy(() => import('pages/MetaAnalysis/MetaAnalysisPage'));
 
 // const ProjectsPage = React.lazy(() => import('pages/Projects/ProjectsPage'));
@@ -200,6 +201,14 @@ const BaseNavigation = () => {
                         element={
                             <Box sx={BaseNavigationStyles.pagesContainer}>
                                 <MetaAnalysesPage />
+                            </Box>
+                        }
+                    />
+                    <Route
+                        path="/decode"
+                        element={
+                            <Box sx={BaseNavigationStyles.pagesContainer}>
+                                <DecodePage />
                             </Box>
                         }
                     />

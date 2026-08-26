@@ -63,6 +63,10 @@ const NavToolbar = (props: INav) => {
                                 label: 'Meta-Analyses',
                                 onClick: () => navigate('/meta-analyses'),
                             },
+                            {
+                                label: 'Decode',
+                                onClick: () => navigate('/decode'),
+                            },
                         ]}
                         buttonLabel="explore"
                     />
