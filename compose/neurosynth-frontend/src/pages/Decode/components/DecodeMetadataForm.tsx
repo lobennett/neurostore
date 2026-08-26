@@ -1,5 +1,6 @@
 import { Autocomplete, Stack, TextField } from '@mui/material';
 import { useState } from 'react';
+import { ANALYSIS_LEVEL_OPTIONS, MAP_TYPE_OPTIONS, NEUROVAULT_MODALITY_OPTIONS } from '../Decode.constants';
 import { COGNITIVE_TASK_OPTIONS } from '../Decode.fixtures';
 import type { ICognitiveTaskOption, IDecodeMetadata, IDecodeValidationErrors } from '../Decode.types';
 
@@ -7,11 +8,12 @@ interface DecodeMetadataFormProps {
     metadata: IDecodeMetadata;
     errors: IDecodeValidationErrors;
     onChange: <K extends keyof IDecodeMetadata>(key: K, value: IDecodeMetadata[K]) => void;
+    includeLegacyCognitiveFields?: boolean;
 }
 
 type RequiredMetadataKey = 'mapType' | 'analysisLevel' | 'modality' | 'subjectCount';
 
-const DecodeMetadataForm = ({ metadata, errors, onChange }: DecodeMetadataFormProps) => {
+const DecodeMetadataForm = ({ metadata, errors, onChange, includeLegacyCognitiveFields = true }: DecodeMetadataFormProps) => {
     const [touched, setTouched] = useState<Partial<Record<RequiredMetadataKey, boolean>>>({});
     const markTouched = (key: RequiredMetadataKey) => setTouched((current) => ({ ...current, [key]: true }));
     const visibleError = (key: RequiredMetadataKey) => (touched[key] ? errors[key] : undefined);
@@ -31,8 +33,11 @@ const DecodeMetadataForm = ({ metadata, errors, onChange }: DecodeMetadataFormPr
                 InputLabelProps={{ shrink: true }}
             >
                 <option value="">Select map type</option>
-                <option value="z">Z map</option>
-                <option value="t">T map</option>
+                {MAP_TYPE_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                        {label}
+                    </option>
+                ))}
             </TextField>
             <TextField
                 select
@@ -47,8 +52,11 @@ const DecodeMetadataForm = ({ metadata, errors, onChange }: DecodeMetadataFormPr
                 InputLabelProps={{ shrink: true }}
             >
                 <option value="">Select analysis level</option>
-                <option value="group">Group</option>
-                <option value="subject">Subject</option>
+                {ANALYSIS_LEVEL_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                        {label}
+                    </option>
+                ))}
             </TextField>
             <TextField
                 select
@@ -63,9 +71,11 @@ const DecodeMetadataForm = ({ metadata, errors, onChange }: DecodeMetadataFormPr
                 InputLabelProps={{ shrink: true }}
             >
                 <option value="">Select modality</option>
-                <option value="fmri-bold">fMRI BOLD</option>
-                <option value="pet">PET</option>
-                <option value="other">Other</option>
+                {NEUROVAULT_MODALITY_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                        {label}
+                    </option>
+                ))}
             </TextField>
             <TextField
                 fullWidth
@@ -78,21 +88,25 @@ const DecodeMetadataForm = ({ metadata, errors, onChange }: DecodeMetadataFormPr
                 helperText={visibleError('subjectCount')}
                 inputProps={{ min: 1, step: 1 }}
             />
-            <Autocomplete<ICognitiveTaskOption>
-                options={COGNITIVE_TASK_OPTIONS}
-                value={metadata.cognitiveTask}
-                onChange={(_, option) => onChange('cognitiveTask', option)}
-                getOptionLabel={(option) => option.label}
-                renderInput={(params) => <TextField {...params} label="Cognitive Atlas task (optional)" />}
-            />
-            <TextField
-                fullWidth
-                multiline
-                minRows={3}
-                label="What do you think this map relates to? (optional)"
-                value={metadata.interpretation}
-                onChange={(event) => onChange('interpretation', event.target.value)}
-            />
+            {includeLegacyCognitiveFields && (
+                <>
+                    <Autocomplete<ICognitiveTaskOption>
+                        options={COGNITIVE_TASK_OPTIONS}
+                        value={metadata.cognitiveTask}
+                        onChange={(_, option) => onChange('cognitiveTask', option)}
+                        getOptionLabel={(option) => option.label}
+                        renderInput={(params) => <TextField {...params} label="Cognitive Atlas task (optional)" />}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        label="What do you think this map relates to? (optional)"
+                        value={metadata.interpretation}
+                        onChange={(event) => onChange('interpretation', event.target.value)}
+                    />
+                </>
+            )}
         </Stack>
     );
 };

@@ -40,6 +40,7 @@ export interface ICognitiveTaskOption {
 export interface ICognitiveConcept {
     id: string;
     label: string;
+    vocabulary: 'Cognitive Atlas';
     definition?: string;
 }
 

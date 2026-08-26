@@ -1,9 +1,40 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { expect, it, vi } from 'vitest';
-import { EMPTY_DECODE_SUBMISSION } from '../Decode.fixtures';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { EMPTY_DECODE_DRAFT, EMPTY_DECODE_SUBMISSION } from '../Decode.fixtures';
+import type { IDecodeDraft } from '../Decode.types';
+import { COGNITIVE_ATLAS_CONCEPTS } from '../Decode.vocabulary';
+import DecodeDescriptionPanel from './DecodeDescriptionPanel';
 import DecodeInputPanel from './DecodeInputPanel';
+
+const onChange = vi.fn();
+
+beforeEach(() => onChange.mockClear());
+
+const renderDescriptionPanel = (overrides: Partial<IDecodeDraft> = {}) => {
+    const Wrapper = () => {
+        const [draft, setDraft] = useState<IDecodeDraft>({
+            ...EMPTY_DECODE_DRAFT,
+            metadata: {
+                ...EMPTY_DECODE_DRAFT.metadata,
+                mapType: 'z',
+                analysisLevel: 'group',
+                modality: 'fmri-bold',
+                subjectCount: '48',
+            },
+            ...overrides,
+        });
+        const handleChange = (nextDraft: IDecodeDraft) => {
+            onChange(nextDraft);
+            setDraft(nextDraft);
+        };
+
+        return <DecodeDescriptionPanel draft={draft} errors={{}} onChange={handleChange} />;
+    };
+
+    return render(<Wrapper />);
+};
 
 const completeRequiredFields = async ({ analysisLevel = 'group' }: { analysisLevel?: 'group' | 'subject' } = {}) => {
     await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'map.nii'));
@@ -20,6 +51,57 @@ const renderPanel = (onPreview = vi.fn()) => {
     };
     return render(<Wrapper />);
 };
+
+it('provides more than 600 unique, label-sorted Cognitive Atlas concepts including working memory', () => {
+    const labels = COGNITIVE_ATLAS_CONCEPTS.map(({ label }) => label);
+
+    expect(COGNITIVE_ATLAS_CONCEPTS.length).toBeGreaterThan(600);
+    expect(new Set(COGNITIVE_ATLAS_CONCEPTS.map(({ id }) => id)).size).toBe(COGNITIVE_ATLAS_CONCEPTS.length);
+    expect(labels).toEqual([...labels].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })));
+    expect(COGNITIVE_ATLAS_CONCEPTS.some(({ label }) => label.toLowerCase() === 'working memory')).toBe(true);
+});
+
+it('offers every agreed analysis level and NeuroVault modality', () => {
+    renderDescriptionPanel();
+
+    expect(within(screen.getByLabelText('Analysis level')).getAllByRole('option')).toHaveLength(5);
+    for (const label of [
+        'fMRI BOLD',
+        'fMRI CBF',
+        'fMRI CBV',
+        'Diffusion MRI',
+        'Structural MRI',
+        'FDG PET',
+        'Oxygen-water PET',
+        'Other PET',
+        'MEG',
+        'EEG',
+        'Other',
+    ]) {
+        expect(within(screen.getByLabelText('Modality')).getByRole('option', { name: label })).toBeInTheDocument();
+    }
+});
+
+it('starts with no concept and searches the checked-in concept snapshot', async () => {
+    const user = userEvent.setup();
+    renderDescriptionPanel();
+
+    expect(screen.getByRole('combobox', { name: 'Cognitive Atlas concepts' })).toHaveValue('');
+    await user.type(screen.getByRole('combobox', { name: 'Cognitive Atlas concepts' }), 'working memory');
+    expect(await screen.findByText('working memory')).toBeVisible();
+    expect(screen.getAllByText(/trm_/).length).toBeGreaterThan(0);
+});
+
+it('keeps a text suggestion separate until the visitor confirms it', async () => {
+    const user = userEvent.setup();
+    renderDescriptionPanel();
+
+    await user.type(screen.getByRole('textbox', { name: /What do you think/ }), 'response inhibition');
+    expect(screen.getByText('Example suggestion: response inhibition')).toBeVisible();
+    expect(screen.queryByText('Confirmed concept')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirm response inhibition' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ confirmedSuggestions: expect.any(Array) }));
+});
 
 it('starts with upload selected and no Cognitive Atlas task selected', () => {
     renderPanel();
