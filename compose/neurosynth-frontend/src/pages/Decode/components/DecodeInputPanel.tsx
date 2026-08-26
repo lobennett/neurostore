@@ -13,10 +13,14 @@ interface DecodeInputPanelProps {
 
 const DecodeInputPanel = ({ value, onChange, onPreview }: DecodeInputPanelProps) => {
     const errors = validateDecodeSubmission(value);
+    const isValid = Object.keys(errors).length === 0;
     const updateMetadata = <K extends keyof IDecodeMetadata>(key: K, nextValue: IDecodeMetadata[K]) => {
         onChange({ ...value, metadata: { ...value.metadata, [key]: nextValue } });
     };
     const changeSource = (source: DecodeSource) => onChange({ ...value, source });
+    const handlePreview = () => {
+        if (isValid) onPreview();
+    };
 
     return (
         <Paper component="section" elevation={0} sx={{ p: 3 }}>
@@ -40,7 +44,9 @@ const DecodeInputPanel = ({ value, onChange, onPreview }: DecodeInputPanelProps)
                 )}
             </Box>
             <Paper variant="outlined" sx={{ mt: 2, p: 2 }}>
-                <Typography>Provide a Z or T statistical map and the metadata needed to interpret it.</Typography>
+                <Typography>
+                    The intended input is one unthresholded, group-level, 3D z- or t-statistic map in MNI152 space.
+                </Typography>
             </Paper>
             <Box sx={{ mt: 3 }}>
                 <Typography component="h2" variant="h6" gutterBottom>
@@ -62,7 +68,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview }: DecodeInputPanelProps)
                     />
                 </Alert>
             )}
-            <Button variant="contained" disabled={Object.keys(errors).length > 0} onClick={onPreview} sx={{ mt: 3 }}>
+            <Button variant="contained" disabled={!isValid} onClick={handlePreview} sx={{ mt: 3 }}>
                 Preview results
             </Button>
         </Paper>

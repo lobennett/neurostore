@@ -13,10 +13,10 @@ const completeRequiredFields = async ({ analysisLevel = 'group' }: { analysisLev
     await userEvent.type(screen.getByLabelText('Number of subjects'), '48');
 };
 
-const renderPanel = () => {
+const renderPanel = (onPreview = vi.fn()) => {
     const Wrapper = () => {
         const [value, setValue] = useState(EMPTY_DECODE_SUBMISSION);
-        return <DecodeInputPanel value={value} onChange={setValue} onPreview={vi.fn()} />;
+        return <DecodeInputPanel value={value} onChange={setValue} onPreview={onPreview} />;
     };
     return render(<Wrapper />);
 };
@@ -25,6 +25,15 @@ it('starts with upload selected and no Cognitive Atlas task selected', () => {
     renderPanel();
     expect(screen.getByRole('tab', { name: 'Upload map' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('combobox', { name: /Cognitive Atlas task/ })).toHaveValue('');
+});
+
+it('states the required unthresholded group-level 3D MNI152 map input', () => {
+    renderPanel();
+    const requirements = screen.getByText(/intended input/i);
+    expect(requirements).toHaveTextContent(/unthresholded/i);
+    expect(requirements).toHaveTextContent(/group-level/i);
+    expect(requirements).toHaveTextContent(/3D/i);
+    expect(requirements).toHaveTextContent(/MNI152/i);
 });
 
 it('switches to the NeuroVault source without losing metadata', async () => {
@@ -41,6 +50,14 @@ it('keeps preview disabled until the source and required metadata are valid', as
     expect(preview).toBeDisabled();
     await completeRequiredFields();
     expect(preview).toBeEnabled();
+});
+
+it('previews a valid submission through the guarded preview action', async () => {
+    const onPreview = vi.fn();
+    renderPanel(onPreview);
+    await completeRequiredFields();
+    await userEvent.click(screen.getByRole('button', { name: 'Preview results' }));
+    expect(onPreview).toHaveBeenCalledOnce();
 });
 
 it('requires acknowledgement before previewing a subject-level map', async () => {
