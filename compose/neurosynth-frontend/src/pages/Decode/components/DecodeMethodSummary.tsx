@@ -1,9 +1,9 @@
+import { ExpandMore } from '@mui/icons-material';
 import { Accordion, AccordionDetails, AccordionSummary, Typography } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const DecodeMethodSummary: React.FC = () => (
     <Accordion>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="decode-method-content" id="decode-method-header">
+        <AccordionSummary expandIcon={<ExpandMore />} aria-controls="decode-method-content" id="decode-method-header">
             <Typography>About decoding</Typography>
         </AccordionSummary>
         <AccordionDetails id="decode-method-content">
