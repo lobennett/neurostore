@@ -86,6 +86,28 @@ describe('decode input helpers', () => {
         expect(buildDecodeRunRequest(draft).source).toEqual({ kind: 'neurovault', imageId: '25' });
     });
 
+    it.each([
+        ['meta-analysis', 'meta-analysis'],
+        ['other', 'other'],
+    ] as const)('omits retained participant count from a %s request', (_, analysisLevel) => {
+        const draft = completeDraft({
+            metadata: {
+                ...completeDraft().metadata,
+                analysisLevel,
+                subjectCount: '121',
+            },
+        });
+
+        expect(buildDecodeRunRequest(draft).metadata).toEqual({
+            mapType: 'z',
+            analysisLevel,
+            modality: 'fmri-bold',
+            subjectCount: '',
+            cognitiveTask: null,
+            interpretation: '',
+        });
+    });
+
     it('validates every coordinate against the displayed MNI limits', () => {
         const draft = completeDraft({
             activeSource: 'coordinates',

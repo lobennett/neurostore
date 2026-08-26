@@ -84,9 +84,13 @@ export const buildDecodeRunRequest = (draft: IDecodeDraft): IDecodeRunRequest =>
                     kind: 'coordinates' as const,
                     points: draft.coordinates.map(({ id, label, x, y, z }) => ({ id, label, x: Number(x), y: Number(y), z: Number(z) })),
                 };
+    const metadata = {
+        ...draft.metadata,
+        subjectCount: draft.metadata.analysisLevel === 'group' || draft.metadata.analysisLevel === 'subject' ? draft.metadata.subjectCount : '',
+    };
     return {
         source,
-        ...(source.kind === 'coordinates' ? {} : { metadata: { ...draft.metadata } }),
+        ...(source.kind === 'coordinates' ? {} : { metadata }),
         concepts: [...draft.concepts],
         interpretation: draft.interpretation,
         modelId: draft.modelId,

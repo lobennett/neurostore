@@ -103,6 +103,21 @@ it('keeps a text suggestion separate until the visitor confirms it', async () =>
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ confirmedSuggestions: expect.any(Array) }));
 });
 
+it('shows participant count only for group and subject maps while retaining its entered value', async () => {
+    const user = userEvent.setup();
+    renderDescriptionPanel();
+
+    expect(screen.getByLabelText('Number of subjects')).toHaveValue(48);
+    await user.selectOptions(screen.getByLabelText('Analysis level'), 'meta-analysis');
+    expect(screen.queryByLabelText('Number of subjects')).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Analysis level'), 'other');
+    expect(screen.queryByLabelText('Number of subjects')).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Analysis level'), 'group');
+    expect(screen.getByLabelText('Number of subjects')).toHaveValue(48);
+    await user.selectOptions(screen.getByLabelText('Analysis level'), 'subject');
+    expect(screen.getByLabelText('Number of subjects')).toHaveValue(48);
+});
+
 it('starts with upload selected and no Cognitive Atlas task selected', () => {
     renderPanel();
     expect(screen.getByRole('tab', { name: 'Upload map' })).toHaveAttribute('aria-selected', 'true');
@@ -125,6 +140,7 @@ it('keeps untouched required fields neutral and select labels clear of their pro
     expect(screen.queryByText('Choose a modality.')).not.toBeInTheDocument();
     expect(screen.queryByText('Enter the number of subjects.')).not.toBeInTheDocument();
 
+    await user.selectOptions(screen.getByLabelText('Analysis level'), 'group');
     await user.click(screen.getByLabelText('Number of subjects'));
     await user.tab();
     expect(screen.getByLabelText('Number of subjects')).toHaveAttribute('aria-invalid', 'true');

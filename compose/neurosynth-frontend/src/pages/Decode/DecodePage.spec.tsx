@@ -63,6 +63,6 @@ it('resets the complete workspace', async () => {
     expect(screen.queryByRole('region', { name: 'Illustrative decoder results' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Upload map' })).toHaveFocus();
     expect(screen.getByRole('status')).toHaveTextContent('Preview reset. Choose another map source.');
-    expect(screen.getByLabelText('Number of subjects')).toHaveValue(null);
+    expect(screen.queryByLabelText('Number of subjects')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preview results' })).toBeDisabled();
 });

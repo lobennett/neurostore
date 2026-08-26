@@ -17,6 +17,7 @@ const DecodeMetadataForm = ({ metadata, errors, onChange, includeLegacyCognitive
     const [touched, setTouched] = useState<Partial<Record<RequiredMetadataKey, boolean>>>({});
     const markTouched = (key: RequiredMetadataKey) => setTouched((current) => ({ ...current, [key]: true }));
     const visibleError = (key: RequiredMetadataKey) => (touched[key] ? errors[key] : undefined);
+    const hasParticipantCount = metadata.analysisLevel === 'group' || metadata.analysisLevel === 'subject';
 
     return (
         <Stack spacing={2}>
@@ -77,17 +78,19 @@ const DecodeMetadataForm = ({ metadata, errors, onChange, includeLegacyCognitive
                     </option>
                 ))}
             </TextField>
-            <TextField
-                fullWidth
-                type="number"
-                label="Number of subjects"
-                value={metadata.subjectCount}
-                onChange={(event) => onChange('subjectCount', event.target.value)}
-                onBlur={() => markTouched('subjectCount')}
-                error={Boolean(visibleError('subjectCount'))}
-                helperText={visibleError('subjectCount')}
-                inputProps={{ min: 1, step: 1 }}
-            />
+            {hasParticipantCount && (
+                <TextField
+                    fullWidth
+                    type="number"
+                    label="Number of subjects"
+                    value={metadata.subjectCount}
+                    onChange={(event) => onChange('subjectCount', event.target.value)}
+                    onBlur={() => markTouched('subjectCount')}
+                    error={Boolean(visibleError('subjectCount'))}
+                    helperText={visibleError('subjectCount')}
+                    inputProps={{ min: 1, step: 1 }}
+                />
+            )}
             {includeLegacyCognitiveFields && (
                 <>
                     <Autocomplete<ICognitiveTaskOption>
