@@ -27,6 +27,28 @@ it('starts with upload selected and no Cognitive Atlas task selected', () => {
     expect(screen.getByRole('combobox', { name: /Cognitive Atlas task/ })).toHaveValue('');
 });
 
+it('keeps untouched required fields neutral and select labels clear of their prompts', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    expect(screen.getByLabelText('Choose a NIfTI file')).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('Choose a NIfTI file.')).not.toBeInTheDocument();
+
+    for (const label of ['Map type', 'Analysis level', 'Modality']) {
+        expect(screen.getByLabelText(label)).not.toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText(label, { selector: 'label' })).toHaveAttribute('data-shrink', 'true');
+    }
+    expect(screen.queryByText('Choose a map type.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Choose an analysis level.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Choose a modality.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter the number of subjects.')).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Number of subjects'));
+    await user.tab();
+    expect(screen.getByLabelText('Number of subjects')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Enter the number of subjects.')).toBeInTheDocument();
+});
+
 it('keeps both source panels mounted with reciprocal tab relationships', () => {
     renderPanel();
 

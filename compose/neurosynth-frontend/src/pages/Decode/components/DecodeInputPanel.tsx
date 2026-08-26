@@ -18,6 +18,8 @@ const sourcePanelId = (source: DecodeSource) => `decode-source-panel-${source}`;
 const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false }: DecodeInputPanelProps) => {
     const errors = validateDecodeSubmission(value);
     const isValid = Object.keys(errors).length === 0;
+    const hasSourceValue = value.source === 'upload' ? Boolean(value.file) : Boolean(value.neurovaultReference.trim());
+    const sourceError = hasSourceValue ? errors.source : undefined;
     const updateMetadata = <K extends keyof IDecodeMetadata>(key: K, nextValue: IDecodeMetadata[K]) => {
         onChange({ ...value, metadata: { ...value.metadata, [key]: nextValue } });
     };
@@ -57,7 +59,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
             >
                 <DecodeFileInput
                     file={value.file}
-                    error={value.source === 'upload' ? errors.source : undefined}
+                    error={value.source === 'upload' ? sourceError : undefined}
                     onChange={(file) => onChange({ ...value, file })}
                 />
             </Box>
@@ -70,7 +72,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
             >
                 <DecodeNeurovaultInput
                     value={value.neurovaultReference}
-                    error={value.source === 'neurovault' ? errors.source : undefined}
+                    error={value.source === 'neurovault' ? sourceError : undefined}
                     onChange={(neurovaultReference) => onChange({ ...value, neurovaultReference })}
                 />
             </Box>
