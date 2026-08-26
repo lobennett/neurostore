@@ -15,7 +15,17 @@ const DecodeFileInput = ({ file, error, onChange }: DecodeFileInputProps) => {
     };
 
     return (
-        <Box data-testid="decode-file-dropzone" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+        <Box
+            data-testid="decode-file-dropzone"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={handleDrop}
+            sx={{
+                border: 1,
+                borderColor: error ? 'error.main' : 'divider',
+                borderRadius: 1,
+                p: 2,
+            }}
+        >
             <Button component="label" variant="outlined">
                 Choose a NIfTI file
                 <input
@@ -23,6 +33,8 @@ const DecodeFileInput = ({ file, error, onChange }: DecodeFileInputProps) => {
                     type="file"
                     accept=".nii,.nii.gz"
                     aria-label="Choose a NIfTI file"
+                    aria-invalid={error ? 'true' : undefined}
+                    aria-describedby={error ? 'decode-file-error' : undefined}
                     onChange={(event) => selectFile(event.target.files?.item(0) ?? undefined)}
                 />
             </Button>

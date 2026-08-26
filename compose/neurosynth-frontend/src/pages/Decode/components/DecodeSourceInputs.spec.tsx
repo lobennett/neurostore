@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
 import DecodeFileInput from './DecodeFileInput';
 import DecodeNeurovaultInput from './DecodeNeurovaultInput';
@@ -30,11 +31,31 @@ it('keeps an invalid file visible with correction guidance', async () => {
     );
     expect(screen.getByText('motor.zip')).toBeInTheDocument();
     expect(screen.getByText('Choose a .nii or .nii.gz file.')).toHaveAttribute('role', 'alert');
+    expect(screen.getByLabelText('Choose a NIfTI file')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Choose a NIfTI file')).toHaveAttribute('aria-describedby', 'decode-file-error');
 });
 
-it('edits a NeuroVault image reference', async () => {
-    const onChange = vi.fn();
-    render(<DecodeNeurovaultInput value="" onChange={onChange} />);
+const ControlledNeurovaultInput = ({ initialValue = '' }: { initialValue?: string }) => {
+    const [value, setValue] = useState(initialValue);
+    return <DecodeNeurovaultInput value={value} onChange={setValue} />;
+};
+
+it('edits a NeuroVault image reference through a controlled parent', async () => {
+    render(<ControlledNeurovaultInput />);
     await userEvent.type(screen.getByRole('textbox', { name: 'NeuroVault image URL or ID' }), '308');
-    expect(onChange).toHaveBeenLastCalledWith('308');
+    expect(screen.getByRole('textbox', { name: 'NeuroVault image URL or ID' })).toHaveValue('308');
+});
+
+it('forwards deletion from a controlled NeuroVault input', async () => {
+    render(<ControlledNeurovaultInput initialValue="308" />);
+    const input = screen.getByRole('textbox', { name: 'NeuroVault image URL or ID' });
+    await userEvent.clear(input);
+    expect(input).toHaveValue('');
+});
+
+it('forwards a mid-string replacement from a controlled NeuroVault input', () => {
+    render(<ControlledNeurovaultInput initialValue="318" />);
+    const input = screen.getByRole('textbox', { name: 'NeuroVault image URL or ID' });
+    fireEvent.change(input, { target: { value: '308' } });
+    expect(input).toHaveValue('308');
 });
