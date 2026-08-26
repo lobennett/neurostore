@@ -34,6 +34,8 @@ export const routeMapping = (path: string) => {
         return 'meta-analysis page';
     } else if (/^\/meta-analyses$/g.test(path)) {
         return 'meta-analyses page';
+    } else if (/^\/decode$/g.test(path)) {
+        return 'decode page';
     } else if (/^\/projects\/.*\/extraction\/studies\/.*\/edit$/g.test(path)) {
         return 'edit project study page';
     } else if (/^\/projects\/.*\/extraction\/studies\/.*$/g.test(path)) {

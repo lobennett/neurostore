@@ -4,7 +4,14 @@ export const EMPTY_DECODE_SUBMISSION: IDecodeSubmission = {
     source: 'upload',
     file: null,
     neurovaultReference: '',
-    metadata: { mapType: '', analysisLevel: '', modality: '', subjectCount: '', cognitiveTask: null, interpretation: '' },
+    metadata: {
+        mapType: '',
+        analysisLevel: '',
+        modality: '',
+        subjectCount: '',
+        cognitiveTask: null,
+        interpretation: '',
+    },
     subjectWarningAcknowledged: false,
 };
 
@@ -17,6 +24,7 @@ export const COGNITIVE_TASK_OPTIONS: ICognitiveTaskOption[] = [
 export const EXAMPLE_TERMS: IDecodedTerm[] = [
     { term: 'visual', correlation: 0.312 },
     { term: 'occipital', correlation: 0.268 },
+    { term: 'baseline', correlation: 0 },
     { term: 'language', correlation: -0.118 },
 ];
 

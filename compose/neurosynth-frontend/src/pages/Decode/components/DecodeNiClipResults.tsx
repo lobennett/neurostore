@@ -1,4 +1,4 @@
-import { Box, Chip, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import type { INiClipDomain, INiClipTask } from '../Decode.types';
 
 const evidenceLabel = (bayesFactor: number) => {
@@ -22,26 +22,28 @@ const DecodeNiClipResults: React.FC<{ domains: INiClipDomain[]; tasks: INiClipTa
                 <Chip key={domain} label={domain} title={`P(domain | map): ${probability.toFixed(2)}`} />
             ))}
         </Box>
-        <Table size="small" aria-label="NiCLIP task predictions">
-            <TableHead>
-                <TableRow>
-                    <TableCell>Task</TableCell>
-                    <TableCell align="right">P(task | map)</TableCell>
-                    <TableCell align="right">Bayes factor</TableCell>
-                    <TableCell>Evidence</TableCell>
-                </TableRow>
-            </TableHead>
-            <TableBody>
-                {tasks.map(({ task, probability, bayesFactor }) => (
-                    <TableRow key={task}>
-                        <TableCell>{task}</TableCell>
-                        <TableCell align="right">{probability.toFixed(2)}</TableCell>
-                        <TableCell align="right">{bayesFactor.toFixed(1)}</TableCell>
-                        <TableCell>{evidenceLabel(bayesFactor)}</TableCell>
+        <TableContainer>
+            <Table size="small" aria-label="NiCLIP task predictions">
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Task</TableCell>
+                        <TableCell align="right">P(task | map)</TableCell>
+                        <TableCell align="right">Bayes factor</TableCell>
+                        <TableCell>Evidence</TableCell>
                     </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                </TableHead>
+                <TableBody>
+                    {tasks.map(({ task, probability, bayesFactor }) => (
+                        <TableRow key={task}>
+                            <TableCell>{task}</TableCell>
+                            <TableCell align="right">{probability.toFixed(2)}</TableCell>
+                            <TableCell align="right">{bayesFactor.toFixed(1)}</TableCell>
+                            <TableCell>{evidenceLabel(bayesFactor)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </TableContainer>
     </Box>
 );
 

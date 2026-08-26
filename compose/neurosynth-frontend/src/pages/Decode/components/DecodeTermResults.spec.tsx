@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import DecodeTermResults from './DecodeTermResults';
 
 const terms = [
     { term: 'visual', correlation: 0.3 },
+    { term: 'baseline', correlation: 0 },
     { term: 'language', correlation: -0.15 },
 ];
 
@@ -12,7 +13,24 @@ it('renders positive and negative correlations on opposite sides of zero', () =>
     render(<DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={vi.fn()} />);
 
     expect(screen.getByLabelText('visual: positive correlation 0.300')).toHaveAttribute('data-direction', 'positive');
-    expect(screen.getByLabelText('language: negative correlation -0.150')).toHaveAttribute('data-direction', 'negative');
+    expect(screen.getByLabelText('language: negative correlation -0.150')).toHaveAttribute(
+        'data-direction',
+        'negative'
+    );
+});
+
+it('renders an exact zero correlation as neutral with no directional fill', () => {
+    render(<DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={vi.fn()} />);
+
+    const zeroBar = screen.getByLabelText('baseline: neutral correlation 0.000');
+    expect(zeroBar).toHaveAttribute('data-direction', 'neutral');
+    expect(within(zeroBar).queryByTestId('decode-correlation-fill')).not.toBeInTheDocument();
+});
+
+it('contains the correlations table in a horizontally scrollable table container', () => {
+    render(<DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={vi.fn()} />);
+
+    expect(screen.getByRole('table').parentElement).toHaveClass('MuiTableContainer-root');
 });
 
 it('selects a term with the keyboard without changing views', async () => {
@@ -29,7 +47,7 @@ it('selects a term with the keyboard without changing views', async () => {
 it('enables explicit comparison only after a term is selected', async () => {
     const onCompareSelected = vi.fn();
     const { rerender } = render(
-        <DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={onCompareSelected} />,
+        <DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={onCompareSelected} />
     );
     expect(screen.getByRole('button', { name: 'Compare selected term' })).toBeDisabled();
 
@@ -39,7 +57,7 @@ it('enables explicit comparison only after a term is selected', async () => {
             selectedTerm="visual"
             onSelectTerm={vi.fn()}
             onCompareSelected={onCompareSelected}
-        />,
+        />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Compare selected term' }));
 

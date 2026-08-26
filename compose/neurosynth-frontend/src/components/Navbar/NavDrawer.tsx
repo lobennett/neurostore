@@ -70,6 +70,12 @@ const NavDrawer = (props: INav) => {
                                     <ListItemText primary="META-ANALYSES" />
                                 </ListItemButton>
                             </ListItem>
+                            <ListItem>
+                                <ListItemButton onClick={() => navigate('/decode')}>
+                                    <ListItemIcon />
+                                    <ListItemText primary="DECODE" />
+                                </ListItemButton>
+                            </ListItem>
                         </List>
                     </DrawerToggleMenu>
                     <DrawerToggleMenu labelText="Help">

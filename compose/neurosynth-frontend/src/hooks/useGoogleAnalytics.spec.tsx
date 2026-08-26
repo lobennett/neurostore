@@ -15,6 +15,7 @@ describe('useGoogleAnalytics', () => {
         ${'/projects/new/sleuth'}                                        | ${'sleuth import page'}
         ${'/base-studies'}                                               | ${'base-studies page'}
         ${'/meta-analyses'}                                              | ${'meta-analyses page'}
+        ${'/decode'}                                                     | ${'decode page'}
         ${'/meta-analyses/BdCib6uM3QDX'}                                 | ${'meta-analysis page'}
         ${'/base-studies/FSfE96JVaPuU/5neCyoMwEvrM'}                     | ${'base-study page'}
         ${'/base-studies/FSfE96JVaPuU'}                                  | ${'base-study page'}

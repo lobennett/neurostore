@@ -22,12 +22,20 @@ const DecodeComparison: React.FC<{
             sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}
         >
             <Box sx={{ minHeight: 220, padding: 2, border: 1, borderColor: 'divider' }}>
-                <Typography variant="subtitle2">{sourceLabel}</Typography>
-                <Typography variant="body2" color="text.secondary">Submitted map placeholder</Typography>
+                <Typography variant="subtitle2" sx={{ overflowWrap: 'anywhere' }}>
+                    {sourceLabel}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Submitted map placeholder
+                </Typography>
             </Box>
             <Box sx={{ minHeight: 220, padding: 2, border: 1, borderColor: 'divider' }}>
-                <Typography variant="subtitle2">{selectedTerm} meta-analytic map</Typography>
-                <Typography variant="body2" color="text.secondary">Reference map placeholder</Typography>
+                <Typography variant="subtitle2" sx={{ overflowWrap: 'anywhere' }}>
+                    {selectedTerm} meta-analytic map
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Reference map placeholder
+                </Typography>
             </Box>
         </Box>
     );

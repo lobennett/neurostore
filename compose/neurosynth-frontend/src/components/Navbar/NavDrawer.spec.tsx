@@ -146,6 +146,14 @@ describe('NavDrawer component', () => {
         await userEvent.click(screen.getByText('EXPLORE'));
         expect(screen.getByText('STUDIES')).toBeInTheDocument();
         expect(screen.getByText('META-ANALYSES')).toBeInTheDocument();
+        expect(screen.getByText('DECODE')).toBeInTheDocument();
+    });
+
+    it('opens the public decoder from the Explore menu while signed out', async () => {
+        await userEvent.click(screen.getByText('EXPLORE'));
+        await userEvent.click(screen.getByText('DECODE'));
+
+        expect(useNavigate()).toHaveBeenCalledWith('/decode');
     });
 
     it('should hide the menu with the given menu items', async () => {
@@ -156,8 +164,10 @@ describe('NavDrawer component', () => {
         await userEvent.click(screen.getByText('EXPLORE'));
         expect(screen.getByText('STUDIES')).toBeInTheDocument();
         expect(screen.getByText('META-ANALYSES')).toBeInTheDocument();
+        expect(screen.getByText('DECODE')).toBeInTheDocument();
         await userEvent.click(screen.getByText('EXPLORE'));
         expect(screen.queryByText('STUDIES')).not.toBeInTheDocument();
         expect(screen.queryByText('META-ANALYSES')).not.toBeInTheDocument();
+        expect(screen.queryByText('DECODE')).not.toBeInTheDocument();
     });
 });

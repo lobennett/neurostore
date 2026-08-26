@@ -13,11 +13,14 @@ const completeUpload = async () => {
 
 it('reveals illustrative results from a complete public submission', async () => {
     render(<DecodePage />);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     await completeUpload();
     await userEvent.type(screen.getByLabelText(/What do you think this map relates to/), 'Motor response');
     await userEvent.click(screen.getByRole('button', { name: 'Preview results' }));
 
-    expect(screen.getByRole('region', { name: 'Illustrative decoder results' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Illustrative decoder results' })).not.toHaveAttribute('aria-live');
+    expect(screen.getByRole('tab', { name: 'Term correlations' })).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Illustrative results ready.');
     expect(screen.getByText('motor.nii.gz')).toBeInTheDocument();
     expect(screen.getByText(/no decoder was called/i)).toBeInTheDocument();
 });
@@ -55,6 +58,8 @@ it('resets the complete workspace', async () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start another preview' }));
 
     expect(screen.queryByRole('region', { name: 'Illustrative decoder results' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Upload map' })).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Preview reset. Choose another map source.');
     expect(screen.getByLabelText('Number of subjects')).toHaveValue(null);
     expect(screen.getByRole('button', { name: 'Preview results' })).toBeDisabled();
 });

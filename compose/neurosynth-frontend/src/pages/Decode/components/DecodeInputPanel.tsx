@@ -9,9 +9,13 @@ interface DecodeInputPanelProps {
     value: IDecodeSubmission;
     onChange: (value: IDecodeSubmission) => void;
     onPreview: () => void;
+    autoFocusSource?: boolean;
 }
 
-const DecodeInputPanel = ({ value, onChange, onPreview }: DecodeInputPanelProps) => {
+const sourceTabId = (source: DecodeSource) => `decode-source-tab-${source}`;
+const sourcePanelId = (source: DecodeSource) => `decode-source-panel-${source}`;
+
+const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false }: DecodeInputPanelProps) => {
     const errors = validateDecodeSubmission(value);
     const isValid = Object.keys(errors).length === 0;
     const updateMetadata = <K extends keyof IDecodeMetadata>(key: K, nextValue: IDecodeMetadata[K]) => {
@@ -24,24 +28,51 @@ const DecodeInputPanel = ({ value, onChange, onPreview }: DecodeInputPanelProps)
 
     return (
         <Paper component="section" elevation={0} sx={{ p: 3 }}>
-            <Tabs value={value.source} onChange={(_, source: DecodeSource) => changeSource(source)} aria-label="Map source">
-                <Tab value="upload" label="Upload map" />
-                <Tab value="neurovault" label="NeuroVault image" />
+            <Tabs
+                value={value.source}
+                onChange={(_, source: DecodeSource) => changeSource(source)}
+                aria-label="Map source"
+            >
+                <Tab
+                    id={sourceTabId('upload')}
+                    aria-controls={sourcePanelId('upload')}
+                    value="upload"
+                    label="Upload map"
+                    autoFocus={autoFocusSource && value.source === 'upload'}
+                />
+                <Tab
+                    id={sourceTabId('neurovault')}
+                    aria-controls={sourcePanelId('neurovault')}
+                    value="neurovault"
+                    label="NeuroVault image"
+                    autoFocus={autoFocusSource && value.source === 'neurovault'}
+                />
             </Tabs>
-            <Box sx={{ mt: 2 }}>
-                {value.source === 'upload' ? (
-                    <DecodeFileInput
-                        file={value.file}
-                        error={errors.source}
-                        onChange={(file) => onChange({ ...value, file })}
-                    />
-                ) : (
-                    <DecodeNeurovaultInput
-                        value={value.neurovaultReference}
-                        error={errors.source}
-                        onChange={(neurovaultReference) => onChange({ ...value, neurovaultReference })}
-                    />
-                )}
+            <Box
+                id={sourcePanelId('upload')}
+                role="tabpanel"
+                aria-labelledby={sourceTabId('upload')}
+                hidden={value.source !== 'upload'}
+                sx={{ mt: 2 }}
+            >
+                <DecodeFileInput
+                    file={value.file}
+                    error={value.source === 'upload' ? errors.source : undefined}
+                    onChange={(file) => onChange({ ...value, file })}
+                />
+            </Box>
+            <Box
+                id={sourcePanelId('neurovault')}
+                role="tabpanel"
+                aria-labelledby={sourceTabId('neurovault')}
+                hidden={value.source !== 'neurovault'}
+                sx={{ mt: 2 }}
+            >
+                <DecodeNeurovaultInput
+                    value={value.neurovaultReference}
+                    error={value.source === 'neurovault' ? errors.source : undefined}
+                    onChange={(neurovaultReference) => onChange({ ...value, neurovaultReference })}
+                />
             </Box>
             <Paper variant="outlined" sx={{ mt: 2, p: 2 }}>
                 <Typography>
@@ -61,7 +92,9 @@ const DecodeInputPanel = ({ value, onChange, onPreview }: DecodeInputPanelProps)
                         control={
                             <Checkbox
                                 checked={value.subjectWarningAcknowledged}
-                                onChange={(event) => onChange({ ...value, subjectWarningAcknowledged: event.target.checked })}
+                                onChange={(event) =>
+                                    onChange({ ...value, subjectWarningAcknowledged: event.target.checked })
+                                }
                             />
                         }
                         label="Continue with a subject-level map"

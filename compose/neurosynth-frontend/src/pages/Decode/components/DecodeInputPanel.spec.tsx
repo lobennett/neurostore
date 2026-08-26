@@ -27,6 +27,34 @@ it('starts with upload selected and no Cognitive Atlas task selected', () => {
     expect(screen.getByRole('combobox', { name: /Cognitive Atlas task/ })).toHaveValue('');
 });
 
+it('keeps both source panels mounted with reciprocal tab relationships', () => {
+    renderPanel();
+
+    const tabs = screen.getAllByRole('tab');
+    const panels = screen.getAllByRole('tabpanel', { hidden: true });
+
+    expect(panels).toHaveLength(2);
+    tabs.forEach((tab) => {
+        const panel = panels.find(({ id }) => id === tab.getAttribute('aria-controls'));
+        expect(tab.id).not.toBe('');
+        expect(panel).toHaveAttribute('aria-labelledby', tab.id);
+    });
+    expect(panels.find(({ id }) => id === 'decode-source-panel-upload')).not.toHaveAttribute('hidden');
+    expect(panels.find(({ id }) => id === 'decode-source-panel-neurovault')).toHaveAttribute('hidden');
+    expect(screen.getByLabelText('Choose a NIfTI file')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'NeuroVault image URL or ID', hidden: true })).toBeInTheDocument();
+});
+
+it('updates source panel visibility without unmounting either panel', async () => {
+    renderPanel();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'NeuroVault image' }));
+
+    expect(document.getElementById('decode-source-panel-upload')).toHaveAttribute('hidden');
+    expect(document.getElementById('decode-source-panel-neurovault')).not.toHaveAttribute('hidden');
+    expect(screen.getByLabelText('Choose a NIfTI file', { selector: 'input' })).toBeInTheDocument();
+});
+
 it('states the required unthresholded group-level 3D MNI152 map input', () => {
     renderPanel();
     const requirements = screen.getByText(/intended input/i);

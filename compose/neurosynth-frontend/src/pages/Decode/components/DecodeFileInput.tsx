@@ -38,7 +38,9 @@ const DecodeFileInput = ({ file, error, onChange }: DecodeFileInputProps) => {
                     onChange={(event) => selectFile(event.target.files?.item(0) ?? undefined)}
                 />
             </Button>
-            <Typography>{file?.name ?? 'Drop one .nii or .nii.gz file here'}</Typography>
+            <Typography sx={{ overflowWrap: 'anywhere' }}>
+                {file?.name ?? 'Drop one .nii or .nii.gz file here'}
+            </Typography>
             {error && (
                 <FormHelperText id="decode-file-error" error role="alert">
                     {error}

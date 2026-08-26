@@ -23,6 +23,8 @@ const DecodePage: React.FC = () => {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [activeResultView, setActiveResultView] = useState<DecodeResultView>('terms');
     const [selectedTerm, setSelectedTerm] = useState<string>();
+    const [announcement, setAnnouncement] = useState('');
+    const [autoFocusSource, setAutoFocusSource] = useState(false);
 
     usePageMetadata({
         title: 'Decode a brain map | Neurosynth Compose',
@@ -35,7 +37,7 @@ const DecodePage: React.FC = () => {
     const neurovaultImageId = parseNeurovaultImageId(submission.neurovaultReference);
     const sourceLabel =
         submission.source === 'upload'
-            ? submission.file?.name ?? 'NIfTI map'
+            ? (submission.file?.name ?? 'NIfTI map')
             : `NeuroVault image ${neurovaultImageId ?? submission.neurovaultReference}`;
     const declaredInput = [
         `${submission.metadata.analysisLevel}-level`,
@@ -48,6 +50,8 @@ const DecodePage: React.FC = () => {
         setIsPreviewOpen(true);
         setActiveResultView('terms');
         setSelectedTerm(undefined);
+        setAnnouncement('Illustrative results ready.');
+        setAutoFocusSource(false);
     };
 
     const resetPreview = () => {
@@ -55,29 +59,53 @@ const DecodePage: React.FC = () => {
         setIsPreviewOpen(false);
         setActiveResultView('terms');
         setSelectedTerm(undefined);
+        setAnnouncement('Preview reset. Choose another map source.');
+        setAutoFocusSource(true);
     };
 
     return (
         <Box component="main" sx={{ py: { xs: 2, md: 4 } }}>
+            <Box
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                sx={{
+                    border: 0,
+                    clip: 'rect(0 0 0 0)',
+                    height: 1,
+                    margin: -1,
+                    overflow: 'hidden',
+                    padding: 0,
+                    position: 'absolute',
+                    whiteSpace: 'nowrap',
+                    width: 1,
+                }}
+            >
+                {announcement}
+            </Box>
             <Box sx={{ maxWidth: isPreviewOpen ? 'none' : 800 }}>
                 <Typography component="h1" variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
                     Decode a brain map
                 </Typography>
                 <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '68ch', mb: 3 }}>
-                    Prepare a public, illustrative preview from a NIfTI map or NeuroVault image. No account, upload,
-                    or decoder request is involved.
+                    Prepare a public, illustrative preview from a NIfTI map or NeuroVault image. No account, upload, or
+                    decoder request is involved.
                 </Typography>
             </Box>
 
             {!isPreviewOpen ? (
                 <Box sx={{ maxWidth: 800 }}>
-                    <DecodeInputPanel value={submission} onChange={setSubmission} onPreview={openPreview} />
+                    <DecodeInputPanel
+                        value={submission}
+                        onChange={setSubmission}
+                        onPreview={openPreview}
+                        autoFocusSource={autoFocusSource}
+                    />
                 </Box>
             ) : (
                 <Box
                     role="region"
                     aria-label="Illustrative decoder results"
-                    aria-live="polite"
                     sx={{
                         display: 'grid',
                         gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(240px, 0.42fr) minmax(0, 1fr)' },
@@ -103,12 +131,12 @@ const DecodePage: React.FC = () => {
                             Declared input: {declaredInput}
                         </Typography>
                         {submission.metadata.cognitiveTask && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, overflowWrap: 'anywhere' }}>
                                 Cognitive Atlas task: {submission.metadata.cognitiveTask.label}
                             </Typography>
                         )}
                         {submission.metadata.interpretation && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, overflowWrap: 'anywhere' }}>
                                 Your interpretation: {submission.metadata.interpretation}
                             </Typography>
                         )}
@@ -123,6 +151,7 @@ const DecodePage: React.FC = () => {
                             sourceLabel={sourceLabel}
                             onViewChange={setActiveResultView}
                             onSelectTerm={setSelectedTerm}
+                            autoFocusActiveTab
                         />
                     </Paper>
                 </Box>
