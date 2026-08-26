@@ -1,4 +1,5 @@
 import { Box, Button, FormHelperText, TextField, Typography } from '@mui/material';
+import { MNI_LIMITS } from '../Decode.constants';
 import type { IMniPoint } from '../Decode.types';
 
 interface DecodeCoordinateInputProps {
@@ -68,16 +69,30 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
                                 onChange={(event) => updatePoint(index, 'label', event.target.value)}
                                 inputProps={{ 'aria-describedby': describedBy }}
                             />
-                            {(['x', 'y', 'z'] as const).map((axis) => (
-                                <TextField
-                                    key={axis}
-                                    label={`${axis} coordinate for point ${pointNumber}`}
-                                    type="number"
-                                    value={point[axis]}
-                                    onChange={(event) => updatePoint(index, axis, event.target.value)}
-                                    inputProps={{ 'aria-describedby': describedBy }}
-                                />
-                            ))}
+                            {(['x', 'y', 'z'] as const).map((axis) => {
+                                const limits = MNI_LIMITS[axis];
+                                const rangeId = `decode-coordinate-${point.id}-${axis}-range`;
+                                return (
+                                    <TextField
+                                        key={axis}
+                                        label={`${axis} coordinate for point ${pointNumber}`}
+                                        type="number"
+                                        value={point[axis]}
+                                        onChange={(event) => updatePoint(index, axis, event.target.value)}
+                                        helperText={
+                                            <span id={rangeId}>
+                                                Allowed range: {limits.min} to {limits.max} mm.
+                                            </span>
+                                        }
+                                        inputProps={{
+                                            min: limits.min,
+                                            max: limits.max,
+                                            step: 1,
+                                            'aria-describedby': [rangeId, describedBy].filter(Boolean).join(' '),
+                                        }}
+                                    />
+                                );
+                            })}
                         </Box>
                     </Box>
                 );

@@ -112,6 +112,26 @@ it('adds, labels, and removes an MNI coordinate', async () => {
     expect(screen.queryByRole('spinbutton', { name: 'x coordinate for point 2' })).not.toBeInTheDocument();
 });
 
+it('exposes axis-specific MNI bounds and accessible range guidance', () => {
+    renderSourcePanel({ activeSource: 'coordinates' });
+    const ranges = [
+        ['x', '-90', '90'],
+        ['y', '-126', '90'],
+        ['z', '-72', '108'],
+    ] as const;
+
+    ranges.forEach(([axis, min, max]) => {
+        const coordinate = screen.getByRole('spinbutton', { name: `${axis} coordinate for point 1` });
+        expect(coordinate).toHaveAttribute('min', min);
+        expect(coordinate).toHaveAttribute('max', max);
+        expect(coordinate).toHaveAttribute('step', '1');
+        expect(coordinate).toHaveAccessibleDescription(
+            `Allowed range: ${min} to ${max} mm. Add at least one valid MNI coordinate.`
+        );
+        expect(coordinate).toHaveAttribute('aria-describedby', expect.stringContaining('decode-coordinate-errors'));
+    });
+});
+
 it('requires explicit CC0 public-deposit consent without claiming to upload', async () => {
     const user = userEvent.setup();
     renderSourcePanel({ activeSource: 'upload', file: new File(['map'], 'map.nii.gz') });
