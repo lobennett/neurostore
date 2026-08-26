@@ -57,7 +57,24 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         version: 'fixture-v1',
         supportedSources: ['neurovault', 'upload'],
         inputRequirements: 'Provide a 3D, unthresholded z- or t-statistic map in MNI152 space.',
-        parameters: [{ key: 'prior', label: 'NiCLIP prior', kind: 'number', defaultValue: 0.1 }],
+        parameters: [
+            {
+                key: 'prior',
+                label: 'NiCLIP prior',
+                kind: 'select',
+                defaultValue: 'literature',
+                options: [
+                    { value: 'literature', label: 'Literature-derived prior' },
+                    { value: 'uniform', label: 'Uniform prior' },
+                ],
+            },
+            {
+                key: 'evidenceThreshold',
+                label: 'Evidence threshold',
+                kind: 'number',
+                defaultValue: 3,
+            },
+        ],
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:
             'Posterior probabilities include a literature-derived prior; Bayes factors show the change from that prior.',

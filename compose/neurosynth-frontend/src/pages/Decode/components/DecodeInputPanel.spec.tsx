@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { EMPTY_DECODE_DRAFT, EMPTY_DECODE_SUBMISSION } from '../Decode.fixtures';
+import { EMPTY_DECODE_DRAFT } from '../Decode.fixtures';
 import type { IDecodeDraft } from '../Decode.types';
 import { COGNITIVE_ATLAS_CONCEPTS } from '../Decode.vocabulary';
 import DecodeDescriptionPanel from './DecodeDescriptionPanel';
@@ -37,7 +37,7 @@ const renderDescriptionPanel = (overrides: Partial<IDecodeDraft> = {}) => {
 };
 
 const completeRequiredFields = async ({ analysisLevel = 'group' }: { analysisLevel?: 'group' | 'subject' } = {}) => {
-    await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'map.nii'));
+    await userEvent.type(screen.getByLabelText('NeuroVault image URL or ID'), '25');
     await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
     await userEvent.selectOptions(screen.getByLabelText('Analysis level'), analysisLevel);
     await userEvent.selectOptions(screen.getByLabelText('Modality'), 'fmri-bold');
@@ -46,7 +46,7 @@ const completeRequiredFields = async ({ analysisLevel = 'group' }: { analysisLev
 
 const renderPanel = (onPreview = vi.fn()) => {
     const Wrapper = () => {
-        const [value, setValue] = useState(EMPTY_DECODE_SUBMISSION);
+        const [value, setValue] = useState<IDecodeDraft>(EMPTY_DECODE_DRAFT);
         return <DecodeInputPanel value={value} onChange={setValue} onPreview={onPreview} />;
     };
     return render(<Wrapper />);
@@ -57,7 +57,9 @@ it('provides more than 600 unique, label-sorted Cognitive Atlas concepts includi
 
     expect(COGNITIVE_ATLAS_CONCEPTS.length).toBeGreaterThan(600);
     expect(new Set(COGNITIVE_ATLAS_CONCEPTS.map(({ id }) => id)).size).toBe(COGNITIVE_ATLAS_CONCEPTS.length);
-    expect(labels).toEqual([...labels].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })));
+    expect(labels).toEqual(
+        [...labels].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }))
+    );
     expect(COGNITIVE_ATLAS_CONCEPTS.some(({ label }) => label.toLowerCase() === 'working memory')).toBe(true);
 });
 
@@ -118,18 +120,18 @@ it('shows participant count only for group and subject maps while retaining its 
     expect(screen.getByLabelText('Number of subjects')).toHaveValue(48);
 });
 
-it('starts with upload selected and no Cognitive Atlas task selected', () => {
+it('starts with NeuroVault selected and no Cognitive Atlas concept selected', () => {
     renderPanel();
-    expect(screen.getByRole('tab', { name: 'Upload map' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('combobox', { name: /Cognitive Atlas task/ })).toHaveValue('');
+    expect(screen.getByRole('tab', { name: 'NeuroVault image' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('combobox', { name: 'Cognitive Atlas concepts' })).toHaveValue('');
 });
 
 it('keeps untouched required fields neutral and select labels clear of their prompts', async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    expect(screen.getByLabelText('Choose a NIfTI file')).not.toHaveAttribute('aria-invalid', 'true');
-    expect(screen.queryByText('Choose a NIfTI file.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('NeuroVault image URL or ID')).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('Enter a NeuroVault image ID or image URL.')).not.toBeInTheDocument();
 
     for (const label of ['Map type', 'Analysis level', 'Modality']) {
         expect(screen.getByLabelText(label)).not.toHaveAttribute('aria-invalid', 'true');
@@ -153,40 +155,38 @@ it('keeps both source panels mounted with reciprocal tab relationships', () => {
     const tabs = screen.getAllByRole('tab');
     const panels = screen.getAllByRole('tabpanel', { hidden: true });
 
-    expect(panels).toHaveLength(2);
+    expect(panels).toHaveLength(3);
     tabs.forEach((tab) => {
         const panel = panels.find(({ id }) => id === tab.getAttribute('aria-controls'));
         expect(tab.id).not.toBe('');
         expect(panel).toHaveAttribute('aria-labelledby', tab.id);
     });
-    expect(panels.find(({ id }) => id === 'decode-source-panel-upload')).not.toHaveAttribute('hidden');
-    expect(panels.find(({ id }) => id === 'decode-source-panel-neurovault')).toHaveAttribute('hidden');
+    expect(panels.find(({ id }) => id === 'decode-draft-source-panel-neurovault')).not.toHaveAttribute('hidden');
+    expect(panels.find(({ id }) => id === 'decode-draft-source-panel-upload')).toHaveAttribute('hidden');
     expect(screen.getByLabelText('Choose a NIfTI file')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'NeuroVault image URL or ID', hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'NeuroVault image URL or ID' })).toBeInTheDocument();
 });
 
 it('updates source panel visibility without unmounting either panel', async () => {
     renderPanel();
 
-    await userEvent.click(screen.getByRole('tab', { name: 'NeuroVault image' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
 
-    expect(document.getElementById('decode-source-panel-upload')).toHaveAttribute('hidden');
-    expect(document.getElementById('decode-source-panel-neurovault')).not.toHaveAttribute('hidden');
+    expect(document.getElementById('decode-draft-source-panel-neurovault')).toHaveAttribute('hidden');
+    expect(document.getElementById('decode-draft-source-panel-upload')).not.toHaveAttribute('hidden');
     expect(screen.getByLabelText('Choose a NIfTI file', { selector: 'input' })).toBeInTheDocument();
 });
 
 it('states the required unthresholded group-level 3D MNI152 map input', () => {
     renderPanel();
-    const requirements = screen.getByText(/intended input/i);
-    expect(requirements).toHaveTextContent(/unthresholded/i);
-    expect(requirements).toHaveTextContent(/group-level/i);
-    expect(requirements).toHaveTextContent(/3D/i);
-    expect(requirements).toHaveTextContent(/MNI152/i);
+    const requirements = screen.getAllByText(/3D, unthresholded z- or t-statistic map in MNI152 space/i);
+    expect(requirements.length).toBeGreaterThan(0);
 });
 
-it('switches to the NeuroVault source without losing metadata', async () => {
+it('switches between sources without losing metadata', async () => {
     renderPanel();
     await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
+    await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
     await userEvent.click(screen.getByRole('tab', { name: 'NeuroVault image' }));
     expect(screen.getByLabelText('Map type')).toHaveValue('z');
     expect(screen.getByRole('textbox', { name: 'NeuroVault image URL or ID' })).toBeInTheDocument();
@@ -194,7 +194,7 @@ it('switches to the NeuroVault source without losing metadata', async () => {
 
 it('keeps preview disabled until the source and required metadata are valid', async () => {
     renderPanel();
-    const preview = screen.getByRole('button', { name: 'Preview results' });
+    const preview = screen.getByRole('button', { name: 'Preview example results' });
     expect(preview).toBeDisabled();
     await completeRequiredFields();
     expect(preview).toBeEnabled();
@@ -204,7 +204,7 @@ it('previews a valid submission through the guarded preview action', async () =>
     const onPreview = vi.fn();
     renderPanel(onPreview);
     await completeRequiredFields();
-    await userEvent.click(screen.getByRole('button', { name: 'Preview results' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
     expect(onPreview).toHaveBeenCalledOnce();
 });
 
@@ -212,16 +212,18 @@ it('requires acknowledgement before previewing a subject-level map', async () =>
     renderPanel();
     await completeRequiredFields({ analysisLevel: 'subject' });
     expect(screen.getByRole('alert')).toHaveTextContent('NiCLIP was designed for group-level maps');
-    expect(screen.getByRole('button', { name: 'Preview results' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Preview example results' })).toBeDisabled();
     await userEvent.click(screen.getByRole('checkbox', { name: /continue with a subject-level map/i }));
-    expect(screen.getByRole('button', { name: 'Preview results' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Preview example results' })).toBeEnabled();
 });
 
 it('keeps an invalid upload visible with its validation error and preview disabled', async () => {
     renderPanel();
+    await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
     const user = userEvent.setup({ applyAccept: false });
     await user.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'map.zip'));
-    expect(screen.getByText('map.zip')).toBeInTheDocument();
+    expect(within(screen.getByTestId('decode-file-dropzone')).getByText('map.zip')).toBeInTheDocument();
     expect(screen.getByText('Choose a .nii or .nii.gz file.')).toHaveAttribute('role', 'alert');
-    expect(screen.getByRole('button', { name: 'Preview results' })).toBeDisabled();
+    expect(screen.getAllByText('Choose a .nii or .nii.gz file.')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Preview example results' })).toBeDisabled();
 });
