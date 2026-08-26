@@ -4,6 +4,11 @@ import type { IDecodeDraft, IDecodeRunRequest, IDecodeSubmission, IDecodeValidat
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const NEUROVAULT_HOSTS = new Set(['neurovault.org', 'www.neurovault.org']);
+const SOURCE_LABELS = {
+    neurovault: 'NeuroVault images',
+    upload: 'uploaded NIfTI files',
+    coordinates: 'MNI coordinates',
+} as const;
 
 export const isAcceptedNiftiFilename = (filename: string): boolean => /\.nii(?:\.gz)?$/i.test(filename);
 
@@ -30,6 +35,11 @@ const coordinateErrors = (point: IMniPoint): string[] =>
 
 export const validateDecodeDraft = (draft: IDecodeDraft): IDecodeValidationErrors => {
     const errors: IDecodeValidationErrors = {};
+    const model = DECODE_MODELS.find(({ id }) => id === draft.modelId);
+    if (!model) errors.modelId = 'Choose a supported decoder model.';
+    else if (!model.supportedSources.includes(draft.activeSource)) {
+        errors.modelId = `${model.name} does not support ${SOURCE_LABELS[draft.activeSource]}.`;
+    }
     if (draft.activeSource === 'upload') {
         if (!draft.file) errors.source = 'Choose a NIfTI file.';
         else if (!isAcceptedNiftiFilename(draft.file.name)) errors.source = 'Choose a .nii or .nii.gz file.';

@@ -187,6 +187,7 @@ export interface IDecodeComparableResult {
 
 export interface IDecodeValidationErrors {
     source?: string;
+    modelId?: string;
     coordinates?: string[];
     depositConsent?: string;
     mapType?: string;

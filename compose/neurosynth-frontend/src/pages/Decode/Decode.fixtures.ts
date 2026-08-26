@@ -43,7 +43,8 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         purpose: 'Ranks cognitive concepts associated with an input map or location.',
         version: 'fixture-v1',
         supportedSources: ['neurovault', 'upload', 'coordinates'],
-        inputRequirements: 'An MNI statistical map or MNI coordinate.',
+        inputRequirements:
+            'For map sources, provide a 3D, unthresholded z- or t-statistic map in MNI152 space; for coordinate sources, provide MNI coordinates.',
         parameters: [{ key: 'resultLimit', label: 'Number of term results', kind: 'integer', defaultValue: 50 }],
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:
@@ -55,7 +56,7 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         purpose: 'Summarizes domain and task associations for statistical maps.',
         version: 'fixture-v1',
         supportedSources: ['neurovault', 'upload'],
-        inputRequirements: 'An MNI statistical map.',
+        inputRequirements: 'Provide a 3D, unthresholded z- or t-statistic map in MNI152 space.',
         parameters: [{ key: 'prior', label: 'NiCLIP prior', kind: 'number', defaultValue: 0.1 }],
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:

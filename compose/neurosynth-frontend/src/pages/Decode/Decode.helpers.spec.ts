@@ -109,6 +109,16 @@ describe('decode input helpers', () => {
         expect(validateDecodeDraft(completeDraft({ activeSource: 'neurovault' })).depositConsent).toBeUndefined();
     });
 
+    it('rejects a model that does not support the active source', () => {
+        const draft = completeDraft({
+            activeSource: 'coordinates',
+            coordinates: [{ id: 'p1', label: '', x: '0', y: '0', z: '0' }],
+            modelId: 'niclip',
+        });
+        expect(validateDecodeDraft(draft).modelId).toBe('NiCLIP does not support MNI coordinates.');
+        expect(() => buildDecodeRunRequest(draft)).toThrow('Cannot build a decoder request from an invalid draft.');
+    });
+
     it('marks scientific input changes stale but ignores viewer display changes', () => {
         const draft = completeDraft({ modelId: 'neurovlm' });
         const request = buildDecodeRunRequest(draft);
