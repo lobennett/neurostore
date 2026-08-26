@@ -1,23 +1,27 @@
-import { Box, Button, Divider, Link, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Box, Button, Divider, Paper, Typography } from '@mui/material';
 import { useState } from 'react';
 import { usePageMetadata, usePrerenderReady } from '../../../seo/hooks';
-import DecodeTermResults from './components/DecodeTermResults';
+import { EMPTY_DECODE_SUBMISSION } from './Decode.fixtures';
+import { parseNeurovaultImageId } from './Decode.helpers';
+import type { DecodeResultView, IDecodeSubmission } from './Decode.types';
+import DecodeInputPanel from './components/DecodeInputPanel';
+import DecodeResults from './components/DecodeResults';
 
-// Wireframe only: no decoding service is wired up yet, so the results tabs render
-// example output to make the layout reviewable. See #1270 for the service.
-const EXAMPLE_TERMS = [
-    { term: 'visual', correlation: 0.312 },
-    { term: 'occipital', correlation: 0.268 },
-    { term: 'v1', correlation: 0.213 },
-    { term: 'fusiform', correlation: 0.207 },
-    { term: 'objects', correlation: 0.207 },
-    { term: 'precuneus', correlation: 0.179 },
-];
+const mapTypeLabel = (mapType: IDecodeSubmission['metadata']['mapType']) =>
+    mapType === 'z' ? 'z statistic' : 't statistic';
+
+const modalityLabel = (modality: IDecodeSubmission['metadata']['modality']) => {
+    if (modality === 'fmri-bold') return 'fMRI-BOLD';
+    if (modality === 'pet') return 'PET';
+    return 'Other modality';
+};
+
+const subjectCountLabel = (subjectCount: string) => `${subjectCount} ${subjectCount === '1' ? 'subject' : 'subjects'}`;
 
 const DecodePage: React.FC = () => {
-    const [tab, setTab] = useState(0);
-    const [neurovaultUrl, setNeurovaultUrl] = useState('');
-    const [mapDescription, setMapDescription] = useState('');
+    const [submission, setSubmission] = useState<IDecodeSubmission>(EMPTY_DECODE_SUBMISSION);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [activeResultView, setActiveResultView] = useState<DecodeResultView>('terms');
     const [selectedTerm, setSelectedTerm] = useState<string>();
 
     usePageMetadata({
@@ -28,101 +32,98 @@ const DecodePage: React.FC = () => {
     });
     usePrerenderReady(true);
 
+    const neurovaultImageId = parseNeurovaultImageId(submission.neurovaultReference);
+    const sourceLabel = submission.file?.name ?? `NeuroVault image ${neurovaultImageId ?? submission.neurovaultReference}`;
+    const declaredInput = [
+        `${submission.metadata.analysisLevel}-level`,
+        mapTypeLabel(submission.metadata.mapType),
+        modalityLabel(submission.metadata.modality),
+        subjectCountLabel(submission.metadata.subjectCount),
+    ].join(' · ');
+
+    const openPreview = () => {
+        setIsPreviewOpen(true);
+        setActiveResultView('terms');
+        setSelectedTerm(undefined);
+    };
+
+    const resetPreview = () => {
+        setSubmission(EMPTY_DECODE_SUBMISSION);
+        setIsPreviewOpen(false);
+        setActiveResultView('terms');
+        setSelectedTerm(undefined);
+    };
+
     return (
-        <Box sx={{ padding: '1rem 0' }}>
-            <Typography variant="h5" sx={{ fontWeight: 600, marginBottom: 1 }}>
-                Decode a brain map
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '70ch', marginBottom: 3 }}>
-                Give us an unthresholded group-level statistical map and we will show you the cognitive
-                terms and tasks it resembles across the literature. No account needed.
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: '560px' }}>
-                <Button variant="contained" disableElevation sx={{ alignSelf: 'flex-start' }}>
-                    Upload a map
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                    or give us a NeuroVault image
+        <Box component="main" sx={{ py: { xs: 2, md: 4 } }}>
+            <Box sx={{ maxWidth: isPreviewOpen ? 'none' : 800 }}>
+                <Typography component="h1" variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+                    Decode a brain map
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <TextField
-                        fullWidth
-                        size="small"
-                        label="NeuroVault image URL or ID"
-                        value={neurovaultUrl}
-                        onChange={(event) => setNeurovaultUrl(event.target.value)}
-                    />
-                    <Button variant="contained" disableElevation sx={{ whiteSpace: 'nowrap' }}>
-                        Decode
-                    </Button>
+                <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '68ch', mb: 3 }}>
+                    Prepare a public, illustrative preview from a NIfTI map or NeuroVault image. No account, upload,
+                    or decoder request is involved.
+                </Typography>
+            </Box>
+
+            {!isPreviewOpen ? (
+                <Box sx={{ maxWidth: 800 }}>
+                    <DecodeInputPanel value={submission} onChange={setSubmission} onPreview={openPreview} />
                 </Box>
-                <TextField
-                    fullWidth
-                    multiline
-                    minRows={2}
-                    size="small"
-                    label="What do you think this map shows? (optional)"
-                    helperText="We compare this against what the decoder finds, and it travels with the map if you deposit it."
-                    value={mapDescription}
-                    onChange={(event) => setMapDescription(event.target.value)}
-                />
-            </Box>
-
-            <Divider sx={{ margin: '2rem 0' }} />
-
-            <Tabs value={tab} onChange={(_event, newTab: number) => setTab(newTab)}>
-                <Tab value={0} label="Terms" />
-                <Tab value={1} label="Compare" />
-                <Tab value={2} label="About" />
-            </Tabs>
-
-            <Box sx={{ marginTop: 2 }}>
-                {tab === 0 && (
-                    <DecodeTermResults
-                        terms={EXAMPLE_TERMS}
-                        selectedTerm={selectedTerm}
-                        onSelectTerm={setSelectedTerm}
-                        onCompareSelected={() => setTab(1)}
-                    />
-                )}
-                {tab === 1 && (
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 2 }}>
-                            {selectedTerm
-                                ? `Your map next to the meta-analytic map for "${selectedTerm}".`
-                                : 'Pick a term in the Terms tab to compare it against your map.'}
+            ) : (
+                <Box
+                    role="region"
+                    aria-label="Illustrative decoder results"
+                    aria-live="polite"
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(240px, 0.42fr) minmax(0, 1fr)' },
+                        gap: { xs: 2, md: 3 },
+                        alignItems: 'start',
+                    }}
+                >
+                    <Paper component="aside" variant="outlined" sx={{ p: 2.5 }}>
+                        <Typography component="h2" variant="h6" sx={{ fontWeight: 700 }}>
+                            Submitted map
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                            <Box sx={{ flex: '1 1 320px', minHeight: '260px', border: '1px dashed', borderColor: 'divider', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
-                                your map
-                            </Box>
-                            <Box sx={{ flex: '1 1 320px', minHeight: '260px', border: '1px dashed', borderColor: 'divider', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
-                                {selectedTerm ? `${selectedTerm} meta-analytic map` : 'no term selected'}
-                            </Box>
-                        </Box>
-                    </Box>
-                )}
-                {tab === 2 && (
-                    <Box sx={{ maxWidth: '70ch' }}>
-                        <Typography variant="body1" sx={{ marginBottom: 2 }}>
-                            Decoding compares your map against meta-analytic maps built from the literature.
-                            The result tells you which terms have been reported in similar patterns of
-                            activation, which is a starting point for interpretation rather than a label for
-                            your data.
+                        <Typography sx={{ mt: 1, overflowWrap: 'anywhere' }}>{sourceLabel}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {submission.source === 'upload'
+                                ? 'Local NIfTI file selected in this browser'
+                                : `NeuroVault image ID ${neurovaultImageId}`}
                         </Typography>
-                        <Typography variant="body1" sx={{ marginBottom: 2 }}>
-                            Your map needs to be unthresholded and in MNI152 space. Thresholded maps still
-                            produce numbers, but the numbers mean less, so we check what we can and warn you.
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Declared input
                         </Typography>
-                        <Typography variant="body1">
-                            Results are associations, not evidence that your participants performed a task.
-                            See the <Link href="https://neurostuff.github.io/compose-docs/">documentation</Link> for
-                            the longer version.
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Declared input: {declaredInput}
                         </Typography>
-                    </Box>
-                )}
-            </Box>
+                        {submission.metadata.cognitiveTask && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                Cognitive Atlas task: {submission.metadata.cognitiveTask.label}
+                            </Typography>
+                        )}
+                        {submission.metadata.interpretation && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                Your interpretation: {submission.metadata.interpretation}
+                            </Typography>
+                        )}
+                        <Button variant="outlined" onClick={resetPreview} sx={{ mt: 2 }}>
+                            Start another preview
+                        </Button>
+                    </Paper>
+                    <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
+                        <DecodeResults
+                            activeView={activeResultView}
+                            selectedTerm={selectedTerm}
+                            sourceLabel={sourceLabel}
+                            onViewChange={setActiveResultView}
+                            onSelectTerm={setSelectedTerm}
+                        />
+                    </Paper>
+                </Box>
+            )}
         </Box>
     );
 };
