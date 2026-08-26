@@ -124,12 +124,31 @@ it('exposes axis-specific MNI bounds and accessible range guidance', () => {
         const coordinate = screen.getByRole('spinbutton', { name: `${axis} coordinate for point 1` });
         expect(coordinate).toHaveAttribute('min', min);
         expect(coordinate).toHaveAttribute('max', max);
-        expect(coordinate).toHaveAttribute('step', '1');
+        expect(coordinate).toHaveAttribute('step', 'any');
         expect(coordinate).toHaveAccessibleDescription(
             `Allowed range: ${min} to ${max} mm. Add at least one valid MNI coordinate.`
         );
         expect(coordinate).toHaveAttribute('aria-describedby', expect.stringContaining('decode-coordinate-errors'));
     });
+});
+
+it('keeps a decimal MNI coordinate valid and editable', async () => {
+    const user = userEvent.setup();
+    renderSourcePanel({ activeSource: 'coordinates' });
+    const coordinate = screen.getByRole('spinbutton', { name: 'x coordinate for point 1' });
+    await user.type(coordinate, '12.5');
+    expect(coordinate).toHaveValue(12.5);
+    expect(coordinate).toBeValid();
+});
+
+it('retains an out-of-range MNI coordinate with the shared validator error', async () => {
+    const user = userEvent.setup();
+    renderSourcePanel({ activeSource: 'coordinates' });
+    const coordinate = screen.getByRole('spinbutton', { name: 'x coordinate for point 1' });
+    await user.type(coordinate, '999');
+    expect(coordinate).toHaveValue(999);
+    expect(screen.getByRole('alert')).toHaveTextContent('x must be between -90 and 90');
+    expect(coordinate).toHaveAccessibleDescription(/x must be between -90 and 90/);
 });
 
 it('requires explicit CC0 public-deposit consent without claiming to upload', async () => {

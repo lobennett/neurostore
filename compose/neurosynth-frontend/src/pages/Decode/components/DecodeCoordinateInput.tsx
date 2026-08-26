@@ -87,7 +87,7 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
                                         inputProps={{
                                             min: limits.min,
                                             max: limits.max,
-                                            step: 1,
+                                            step: 'any',
                                             'aria-describedby': [rangeId, describedBy].filter(Boolean).join(' '),
                                         }}
                                     />
