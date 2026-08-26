@@ -14,7 +14,13 @@ const DecodeNeurovaultInput = ({ value, error, onChange }: DecodeNeurovaultInput
             value={value}
             onChange={(event) => onChange(event.target.value)}
             error={Boolean(error)}
-            helperText={error ?? 'Paste an image ID, such as 308, or a neurovault.org/images/… URL.'}
+            helperText={
+                <>
+                    {error ? `${error} ` : ''}
+                    Paste an image ID, such as 308, or a neurovault.org/images/… URL. Only NeuroVault image links are
+                    supported; arbitrary NIfTI URLs are not.
+                </>
+            }
         />
     );
 };

@@ -8,6 +8,10 @@ interface DecodeFileInputProps {
 
 const DecodeFileInput = ({ file, error, onChange }: DecodeFileInputProps) => {
     const selectFile = (nextFile?: File) => onChange(nextFile ?? null);
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        selectFile(event.target.files?.item(0) ?? undefined);
+        event.target.value = '';
+    };
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         const files = event.dataTransfer.files;
@@ -35,12 +39,17 @@ const DecodeFileInput = ({ file, error, onChange }: DecodeFileInputProps) => {
                     aria-label="Choose a NIfTI file"
                     aria-invalid={error ? 'true' : undefined}
                     aria-describedby={error ? 'decode-file-error' : undefined}
-                    onChange={(event) => selectFile(event.target.files?.item(0) ?? undefined)}
+                    onChange={handleFileChange}
                 />
             </Button>
             <Typography sx={{ overflowWrap: 'anywhere' }}>
                 {file?.name ?? 'Drop one .nii or .nii.gz file here'}
             </Typography>
+            {file ? (
+                <Button color="inherit" onClick={() => selectFile()} size="small">
+                    Clear selected file
+                </Button>
+            ) : null}
             {error && (
                 <FormHelperText id="decode-file-error" error role="alert">
                     {error}
