@@ -33,7 +33,10 @@ const DecodePage: React.FC = () => {
     usePrerenderReady(true);
 
     const neurovaultImageId = parseNeurovaultImageId(submission.neurovaultReference);
-    const sourceLabel = submission.file?.name ?? `NeuroVault image ${neurovaultImageId ?? submission.neurovaultReference}`;
+    const sourceLabel =
+        submission.source === 'upload'
+            ? submission.file?.name ?? 'NIfTI map'
+            : `NeuroVault image ${neurovaultImageId ?? submission.neurovaultReference}`;
     const declaredInput = [
         `${submission.metadata.analysisLevel}-level`,
         mapTypeLabel(submission.metadata.mapType),

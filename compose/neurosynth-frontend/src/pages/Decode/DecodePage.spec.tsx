@@ -22,6 +22,23 @@ it('reveals illustrative results from a complete public submission', async () =>
     expect(screen.getByText(/no decoder was called/i)).toBeInTheDocument();
 });
 
+it('uses the active NeuroVault source in the preview and comparison', async () => {
+    render(<DecodePage />);
+    await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'motor.nii.gz'));
+    await userEvent.click(screen.getByRole('tab', { name: 'NeuroVault image' }));
+    await userEvent.type(screen.getByLabelText('NeuroVault image URL or ID'), 'https://neurovault.org/images/308/');
+    await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
+    await userEvent.selectOptions(screen.getByLabelText('Analysis level'), 'group');
+    await userEvent.selectOptions(screen.getByLabelText('Modality'), 'fmri-bold');
+    await userEvent.type(screen.getByLabelText('Number of subjects'), '48');
+    await userEvent.click(screen.getByRole('button', { name: 'Preview results' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Select visual for comparison' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Compare selected term' }));
+
+    expect(screen.getAllByText('NeuroVault image 308')).toHaveLength(2);
+    expect(screen.queryByText('motor.nii.gz')).not.toBeInTheDocument();
+});
+
 it('summarizes declared metadata without claiming it was verified', async () => {
     render(<DecodePage />);
     await completeUpload();
