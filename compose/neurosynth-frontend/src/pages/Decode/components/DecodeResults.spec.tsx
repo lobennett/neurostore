@@ -36,6 +36,17 @@ it('switches from correlations to NiCLIP predictions explicitly', async () => {
     expect(screen.getByText('Perception')).toBeInTheDocument();
 });
 
+it('associates the active tab with its result panel', () => {
+    render(<ResultHarness />);
+
+    const activeTab = screen.getByRole('tab', { name: 'Term correlations' });
+    const resultPanel = screen.getByRole('tabpanel');
+
+    expect(activeTab).toHaveAttribute('aria-selected', 'true');
+    expect(activeTab).toHaveAttribute('aria-controls', resultPanel.id);
+    expect(resultPanel).toHaveAttribute('aria-labelledby', activeTab.id);
+});
+
 it('opens comparison only after selecting a term and choosing compare', async () => {
     const user = userEvent.setup();
     render(<ResultHarness />);

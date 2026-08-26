@@ -6,6 +6,9 @@ import DecodeMethodSummary from './DecodeMethodSummary';
 import DecodeNiClipResults from './DecodeNiClipResults';
 import DecodeTermResults from './DecodeTermResults';
 
+const tabId = (view: DecodeResultView) => `decode-result-tab-${view}`;
+const panelId = (view: DecodeResultView) => `decode-result-panel-${view}`;
+
 const DecodeResults: React.FC<{
     activeView: DecodeResultView;
     selectedTerm?: string;
@@ -16,11 +19,11 @@ const DecodeResults: React.FC<{
     <Box>
         <Alert severity="info" sx={{ marginBottom: 2 }}>Illustrative example — no decoder was called</Alert>
         <Tabs value={activeView} onChange={(_event, view: DecodeResultView) => onViewChange(view)} aria-label="Decoder result views">
-            <Tab value="terms" label="Term correlations" />
-            <Tab value="niclip" label="NiCLIP predictions" />
-            <Tab value="compare" label="Compare maps" />
+            <Tab id={tabId('terms')} aria-controls={panelId('terms')} value="terms" label="Term correlations" />
+            <Tab id={tabId('niclip')} aria-controls={panelId('niclip')} value="niclip" label="NiCLIP predictions" />
+            <Tab id={tabId('compare')} aria-controls={panelId('compare')} value="compare" label="Compare maps" />
         </Tabs>
-        <Box sx={{ paddingY: 2 }}>
+        <Box id={panelId(activeView)} role="tabpanel" aria-labelledby={tabId(activeView)} sx={{ paddingY: 2 }}>
             {activeView === 'terms' && (
                 <DecodeTermResults
                     terms={EXAMPLE_TERMS}
