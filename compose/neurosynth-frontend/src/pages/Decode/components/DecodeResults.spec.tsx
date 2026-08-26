@@ -36,6 +36,25 @@ it('switches from correlations to NiCLIP predictions explicitly', async () => {
     expect(screen.getByText('Perception')).toBeInTheDocument();
 });
 
+it('explains NiCLIP probabilities and Bayes factors in relation to the literature-derived prior', async () => {
+    const user = userEvent.setup();
+    render(<ResultHarness />);
+
+    await user.click(screen.getByRole('tab', { name: 'NiCLIP predictions' }));
+
+    expect(screen.getByText(/posterior probabilities incorporate a literature-derived prior/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bayes factors express the change in evidence from that prior/i)).toBeInTheDocument();
+});
+
+it('states the expected map input in the expanded decoding guidance', async () => {
+    const user = userEvent.setup();
+    render(<ResultHarness />);
+
+    await user.click(screen.getByRole('button', { name: 'About decoding' }));
+
+    expect(screen.getByText(/one unthresholded, group-level, 3D z- or t-statistic map in MNI152 space/i)).toBeInTheDocument();
+});
+
 it('associates the active tab with its result panel', () => {
     render(<ResultHarness />);
 

@@ -13,6 +13,10 @@ const DecodeNiClipResults: React.FC<{ domains: INiClipDomain[]; tasks: INiClipTa
         <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 1 }}>
             Cognitive domains highlighted by this illustrative NiCLIP example.
         </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 2 }}>
+            Posterior probabilities incorporate a literature-derived prior. Bayes factors express the change in evidence
+            from that prior.
+        </Typography>
         <Box aria-label="NiCLIP domains" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 2 }}>
             {domains.map(({ domain, probability }) => (
                 <Chip key={domain} label={domain} title={`P(domain | map): ${probability.toFixed(2)}`} />
