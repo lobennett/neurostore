@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it } from 'vitest';
 import DecodePage from './DecodePage';
@@ -18,7 +18,10 @@ it('reveals illustrative results from a complete public submission', async () =>
     await userEvent.type(screen.getByLabelText(/What do you think this map relates to/), 'Motor response');
     await userEvent.click(screen.getByRole('button', { name: 'Preview results' }));
 
-    expect(screen.getByRole('region', { name: 'Illustrative decoder results' })).not.toHaveAttribute('aria-live');
+    const results = screen.getByRole('region', { name: 'Illustrative decoder results' });
+    expect(results).not.toHaveAttribute('aria-live');
+    expect(within(results).getByRole('note')).toHaveTextContent('Illustrative example — no decoder was called');
+    expect(within(results).queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Term correlations' })).toHaveFocus();
     expect(screen.getByRole('status')).toHaveTextContent('Illustrative results ready.');
     expect(screen.getByText('motor.nii.gz')).toBeInTheDocument();

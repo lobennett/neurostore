@@ -19,7 +19,7 @@ const DecodeResults: React.FC<{
     autoFocusActiveTab?: boolean;
 }> = ({ activeView, selectedTerm, sourceLabel, onViewChange, onSelectTerm, autoFocusActiveTab = false }) => {
     const tabRefs = useRef<Partial<Record<DecodeResultView, HTMLDivElement | null>>>({});
-    const pendingFocusView = useRef<DecodeResultView>();
+    const pendingFocusView = useRef<DecodeResultView | undefined>(undefined);
 
     const changeViewAndFocusTab = (view: DecodeResultView) => {
         pendingFocusView.current = view;
@@ -35,7 +35,7 @@ const DecodeResults: React.FC<{
 
     return (
         <Box>
-            <Alert severity="info" sx={{ marginBottom: 2 }}>
+            <Alert severity="info" role="note" sx={{ marginBottom: 2 }}>
                 Illustrative example — no decoder was called
             </Alert>
             <Tabs
