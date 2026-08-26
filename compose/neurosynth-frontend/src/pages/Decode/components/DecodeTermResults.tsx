@@ -1,15 +1,12 @@
-import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
-
-export interface IDecodedTerm {
-    term: string;
-    correlation: number;
-}
+import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { IDecodedTerm } from '../Decode.types';
 
 const DecodeTermResults: React.FC<{
     terms: IDecodedTerm[];
     selectedTerm?: string;
     onSelectTerm: (term: string) => void;
-}> = ({ terms, selectedTerm, onSelectTerm }) => {
+    onCompareSelected: () => void;
+}> = ({ terms, selectedTerm, onSelectTerm, onCompareSelected }) => {
     const strongest = Math.max(...terms.map((term) => Math.abs(term.correlation)), 0.01);
 
     return (
@@ -31,20 +28,44 @@ const DecodeTermResults: React.FC<{
                             key={term}
                             hover
                             selected={term === selectedTerm}
-                            onClick={() => onSelectTerm(term)}
-                            sx={{ cursor: 'pointer' }}
                         >
-                            <TableCell>{term}</TableCell>
+                            <TableCell>
+                                <Button
+                                    variant="text"
+                                    aria-pressed={term === selectedTerm}
+                                    aria-label={`Select ${term} for comparison`}
+                                    onClick={() => onSelectTerm(term)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    {term}
+                                </Button>
+                            </TableCell>
                             <TableCell>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Box sx={{ flex: 1, height: '9px', backgroundColor: 'grey.100', borderRadius: '5px' }}>
+                                    <Box
+                                        aria-label={`${term}: ${correlation < 0 ? 'negative' : 'positive'} correlation ${correlation.toFixed(3)}`}
+                                        data-direction={correlation < 0 ? 'negative' : 'positive'}
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 1fr',
+                                            position: 'relative',
+                                            flex: 1,
+                                            backgroundColor: 'grey.100',
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', minHeight: 8 }}>
+                                            {correlation < 0 && (
+                                                <Box sx={{ width: `${(Math.abs(correlation) / strongest) * 100}%`, bgcolor: 'primary.dark', height: 8 }} />
+                                            )}
+                                        </Box>
+                                        <Box sx={{ minHeight: 8 }}>
+                                            {correlation >= 0 && (
+                                                <Box sx={{ width: `${(Math.abs(correlation) / strongest) * 100}%`, bgcolor: 'primary.main', height: 8 }} />
+                                            )}
+                                        </Box>
                                         <Box
-                                            sx={{
-                                                width: `${(Math.abs(correlation) / strongest) * 100}%`,
-                                                height: '100%',
-                                                backgroundColor: 'primary.main',
-                                                borderRadius: '5px',
-                                            }}
+                                            aria-hidden="true"
+                                            sx={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '1px solid', borderColor: 'text.secondary' }}
                                         />
                                     </Box>
                                     <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -56,6 +77,9 @@ const DecodeTermResults: React.FC<{
                     ))}
                 </TableBody>
             </Table>
+            <Button variant="contained" disabled={!selectedTerm} onClick={onCompareSelected} sx={{ marginTop: 2 }}>
+                Compare selected term
+            </Button>
         </Box>
     );
 };

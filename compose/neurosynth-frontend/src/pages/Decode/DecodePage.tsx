@@ -82,10 +82,8 @@ const DecodePage: React.FC = () => {
                     <DecodeTermResults
                         terms={EXAMPLE_TERMS}
                         selectedTerm={selectedTerm}
-                        onSelectTerm={(term) => {
-                            setSelectedTerm(term);
-                            setTab(1);
-                        }}
+                        onSelectTerm={setSelectedTerm}
+                        onCompareSelected={() => setTab(1)}
                     />
                 )}
                 {tab === 1 && (
