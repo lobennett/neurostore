@@ -22,6 +22,7 @@ export type DecodeModality =
     | 'eeg'
     | 'other';
 export type DecodeResultView = 'terms' | 'studies' | 'model-summary' | 'compare';
+export type DecodeComparisonMode = 'side-by-side' | 'overlay';
 
 export interface ISelectOption<T extends string = string> {
     value: T;

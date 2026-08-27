@@ -265,6 +265,7 @@ const DecodeResults: React.FC<{
                     <DecodeComparison
                         sourceLabel={sourceLabel}
                         selectedResult={selectedResult}
+                        visualization={preview.visualization}
                         viewerState={viewerState}
                         onChooseTerm={() => changeViewAndFocusTab('terms')}
                         onViewerStateChange={onViewerStateChange}
