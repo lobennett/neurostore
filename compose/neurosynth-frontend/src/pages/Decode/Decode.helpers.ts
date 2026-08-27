@@ -1,5 +1,6 @@
 import { MNI_LIMITS } from './Decode.constants';
-import { DECODE_MODELS } from './Decode.fixtures';
+import { DECODE_MODELS, RECORDED_PEARSON_MODEL } from './Decode.fixtures';
+import { makeGoldenWalkthroughDraft } from './Decode.golden';
 import type {
     IDecodeDraft,
     IDecodeParameterDefinition,
@@ -77,6 +78,23 @@ export const parseNeurovaultImageId = (value: string): string | null => {
     }
 };
 
+export const isCanonicalGoldenDraft = (draft: IDecodeDraft): boolean => {
+    const canonical = makeGoldenWalkthroughDraft('');
+    return (
+        draft.activeSource === canonical.activeSource &&
+        draft.neurovaultReference === canonical.neurovaultReference &&
+        draft.metadata.mapType === canonical.metadata.mapType &&
+        draft.metadata.analysisLevel === canonical.metadata.analysisLevel &&
+        draft.metadata.modality === canonical.metadata.modality &&
+        draft.metadata.subjectCount === canonical.metadata.subjectCount &&
+        JSON.stringify(draft.metadata.cognitiveTask) === JSON.stringify(canonical.metadata.cognitiveTask) &&
+        JSON.stringify(draft.concepts) === JSON.stringify(canonical.concepts) &&
+        draft.exampleId === canonical.exampleId &&
+        draft.modelId === canonical.modelId &&
+        JSON.stringify(draft.modelParameters) === JSON.stringify(canonical.modelParameters)
+    );
+};
+
 const coordinateErrors = (
     point: IMniPoint,
     index: number
@@ -134,7 +152,9 @@ export const validateDecodeDraft = (draft: IDecodeDraft): IDecodeValidationError
     const model = DECODE_MODELS.find(({ id }) => id === draft.modelId);
     if (!model) errors.modelId = 'Choose a supported decoder model.';
     else {
-        if (!model.supportedSources.includes(draft.activeSource)) {
+        if (model.id === RECORDED_PEARSON_MODEL.id && !isCanonicalGoldenDraft(draft)) {
+            errors.modelId = 'The recorded example is available only for the canonical NeuroVault 308 walkthrough.';
+        } else if (!model.supportedSources.includes(draft.activeSource)) {
             errors.modelId = `${model.name} does not support ${SOURCE_LABELS[draft.activeSource]}.`;
         }
         const modelParameters = Object.fromEntries(

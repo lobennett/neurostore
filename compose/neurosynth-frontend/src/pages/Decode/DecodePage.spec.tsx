@@ -1,7 +1,8 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { createFixtureDecodeAdapter } from './Decode.adapter';
+import { makeExamplePreview } from './Decode.fixtures';
 import type { DecodeFixtureScenario, IDecodeFrontendAdapter } from './Decode.types';
 import DecodePage from './DecodePage';
 
@@ -38,6 +39,7 @@ it('defaults to NeuroVLM and shows only its parameters', () => {
     expect(screen.getByRole('radio', { name: /NeuroVLM/ })).toBeChecked();
     expect(screen.getByLabelText('Number of term results')).toHaveValue(50);
     expect(screen.queryByLabelText('NiCLIP prior')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Neurosynth Pearson/ })).not.toBeInTheDocument();
 });
 
 it('blocks the decoder workspace from Sentry Replay capture without changing its content', () => {
@@ -72,6 +74,66 @@ it('places the explicit fixture action beside its no-upload disclosure', () => {
 
     const disclosure = screen.getByText('No map is uploaded and no decoder is run.');
     expect(within(disclosure.parentElement!).getByRole('button', { name: 'Preview example results' })).toBeDisabled();
+});
+
+it('offers the recorded walkthrough for a manually entered image 308 without loading it', async () => {
+    const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
+    render(<DecodePage adapter={{ preview }} />);
+
+    await userEvent.type(screen.getByLabelText('NeuroVault image URL or ID'), '308');
+
+    expect(screen.getByText('A recorded walkthrough is available for this image')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Load real walkthrough' })).toBeVisible();
+    expect(preview).not.toHaveBeenCalled();
+});
+
+it('loads canonical walkthrough inputs without running until explicitly opened', async () => {
+    const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
+    render(<DecodePage adapter={{ preview }} />);
+
+    await userEvent.type(screen.getByLabelText(/What do you think this map relates to/), 'My notes');
+    await userEvent.click(screen.getByRole('button', { name: 'Load real walkthrough' }));
+
+    expect(screen.getByLabelText('NeuroVault image URL or ID')).toHaveValue('https://neurovault.org/images/308/');
+    expect(screen.getByLabelText('Map type')).toHaveValue('t');
+    expect(screen.getByLabelText('Number of subjects')).toHaveValue(10);
+    expect(screen.getByLabelText(/What do you think this map relates to/)).toHaveValue('My notes');
+    expect(screen.getByRole('radio', { name: /Neurosynth Pearson/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Neurosynth Pearson/ })).toBeDisabled();
+    expect(screen.getByText('Recorded example')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Open recorded walkthrough' })).toBeEnabled();
+    expect(
+        screen.getByText('Uses bundled public maps and a recorded result; no decoder runs and nothing is uploaded.')
+    ).toBeVisible();
+    expect(preview).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open recorded walkthrough' }));
+    expect(preview).toHaveBeenCalledTimes(1);
+});
+
+it('restores and opens the canonical walkthrough from its public query parameter', async () => {
+    window.history.replaceState({}, '', '/decode?example=neurovault-308');
+    const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
+    render(<DecodePage adapter={{ preview }} />);
+
+    await screen.findByRole('region', { name: 'Illustrative decoder results' });
+    expect(preview).toHaveBeenCalledWith(
+        expect.objectContaining({ exampleId: 'neurovault-308', modelId: 'neurosynth-pearson-recorded' }),
+        'success'
+    );
+});
+
+it('marks edited recorded inputs stale and offers canonical restoration', async () => {
+    window.history.replaceState({}, '', '/decode?example=neurovault-308');
+    const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
+    render(<DecodePage adapter={{ preview }} />);
+
+    await screen.findByRole('region', { name: 'Illustrative decoder results' });
+    await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
+    await userEvent.selectOptions(screen.getByLabelText('Modality'), 'eeg');
+
+    expect(screen.getByText('This example preview is out of date.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Restore walkthrough values' })).toBeVisible();
 });
 
 it('records model version and non-default parameters in the preview summary', async () => {

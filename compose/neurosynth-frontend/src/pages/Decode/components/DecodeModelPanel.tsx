@@ -19,6 +19,7 @@ import { DECODE_COLORS } from '../Decode.styles';
 import type {
     DecodeModelId,
     DecodeSourceKind,
+    DecodeExampleId,
     IDecodeModelDefinition,
     IDecodeParameterErrors,
     IDecodeParameterDefinition,
@@ -29,6 +30,7 @@ interface DecodeModelPanelProps {
     parameters: Record<string, string | number | boolean>;
     parameterErrors?: IDecodeParameterErrors;
     sourceKind: DecodeSourceKind;
+    exampleId?: DecodeExampleId | null;
     onChange: (modelId: DecodeModelId, parameters: Record<string, string | number | boolean>) => void;
 }
 
@@ -127,11 +129,20 @@ const DecodeParameterControl = ({
     }
 };
 
-const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, onChange }: DecodeModelPanelProps) => {
+const DecodeModelPanel = ({
+    modelId,
+    parameters,
+    parameterErrors,
+    sourceKind,
+    exampleId = null,
+    onChange,
+}: DecodeModelPanelProps) => {
     const [touchedParameters, setTouchedParameters] = useState<Partial<Record<string, boolean>>>({});
     const model = DECODE_MODELS.find(({ id }) => id === modelId) ?? DECODE_MODELS[0];
     const compatible = model.supportedSources.includes(sourceKind);
     const neuroVlm = DECODE_MODELS.find(({ id }) => id === 'neurovlm');
+    const models = DECODE_MODELS.filter((candidate) => !candidate.exampleOnly || candidate.exampleOnly === exampleId);
+    const isRecordedExample = model.exampleOnly === exampleId;
 
     const selectModel = (nextModelId: string) => {
         const nextModel = DECODE_MODELS.find(({ id }) => id === nextModelId);
@@ -151,7 +162,7 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                 onChange={(event) => selectModel(event.target.value)}
                 sx={{ gap: 1.25, mt: 1.5 }}
             >
-                {DECODE_MODELS.map((candidate) => {
+                {models.map((candidate) => {
                     const selected = candidate.id === modelId;
                     return (
                         <Paper
@@ -167,7 +178,7 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                         >
                             <FormControlLabel
                                 value={candidate.id}
-                                control={<Radio />}
+                                control={<Radio disabled={selected && candidate.exampleOnly === exampleId} />}
                                 sx={{ alignItems: 'flex-start', m: 0, width: '100%' }}
                                 label={
                                     <Box sx={{ pt: 0.75 }}>
@@ -183,6 +194,11 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                                             >
                                                 {candidate.version}
                                             </Typography>
+                                            {candidate.exampleOnly ? (
+                                                <Typography component="span" variant="caption" sx={{ fontWeight: 700 }}>
+                                                    Recorded example
+                                                </Typography>
+                                            ) : null}
                                         </Stack>
                                         <Typography variant="body2" sx={{ mt: 0.5 }}>
                                             {candidate.purpose}
@@ -234,30 +250,36 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                 </Alert>
             ) : null}
 
-            <Stack spacing={1.5} sx={{ mt: 2 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                    <Typography variant="subtitle2">{model.name} parameters</Typography>
-                    <Button
-                        size="small"
-                        onClick={() => {
-                            setTouchedParameters({});
-                            onChange(model.id, defaultParameters(model));
-                        }}
-                    >
-                        Reset parameters
-                    </Button>
+            {model.parameters.length ? (
+                <Stack spacing={1.5} sx={{ mt: 2 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Typography variant="subtitle2">{model.name} parameters</Typography>
+                        <Button
+                            size="small"
+                            onClick={() => {
+                                setTouchedParameters({});
+                                onChange(model.id, defaultParameters(model));
+                            }}
+                        >
+                            Reset parameters
+                        </Button>
+                    </Stack>
+                    {model.parameters.map((parameter) => (
+                        <DecodeParameterControl
+                            key={parameter.key}
+                            definition={parameter}
+                            value={parameters[parameter.key] ?? parameter.defaultValue}
+                            error={touchedParameters[parameter.key] ? parameterErrors?.[parameter.key] : undefined}
+                            onChange={(value) => onChange(model.id, { ...parameters, [parameter.key]: value })}
+                            onBlur={() => setTouchedParameters((current) => ({ ...current, [parameter.key]: true }))}
+                        />
+                    ))}
                 </Stack>
-                {model.parameters.map((parameter) => (
-                    <DecodeParameterControl
-                        key={parameter.key}
-                        definition={parameter}
-                        value={parameters[parameter.key] ?? parameter.defaultValue}
-                        error={touchedParameters[parameter.key] ? parameterErrors?.[parameter.key] : undefined}
-                        onChange={(value) => onChange(model.id, { ...parameters, [parameter.key]: value })}
-                        onBlur={() => setTouchedParameters((current) => ({ ...current, [parameter.key]: true }))}
-                    />
-                ))}
-            </Stack>
+            ) : isRecordedExample ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    This recorded example has no editable decoder parameters.
+                </Typography>
+            ) : null}
         </FormControl>
     );
 };

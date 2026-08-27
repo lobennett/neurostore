@@ -1,9 +1,10 @@
 import { Alert, Box, Button, Collapse, Divider, Paper, Stack, Typography } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePageMetadata, usePrerenderReady } from '../../../seo/hooks';
 import { createFixtureDecodeAdapter, DecodePreviewError } from './Decode.adapter';
 import { MAP_TYPE_OPTIONS, NEUROVAULT_MODALITY_OPTIONS } from './Decode.constants';
 import { DECODE_MODELS, EMPTY_DECODE_DRAFT } from './Decode.fixtures';
+import { makeGoldenWalkthroughDraft } from './Decode.golden';
 import { buildDecodeRunRequest, isPreviewStale } from './Decode.helpers';
 import { DECODE_COLORS } from './Decode.styles';
 import type {
@@ -48,6 +49,9 @@ const developmentFixtureScenario = (): DecodeFixtureScenario => {
         : 'success';
 };
 
+const hasGoldenWalkthroughQuery = (): boolean =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('example') === 'neurovault-308';
+
 const labelForValue = <T extends string>(options: Array<{ value: T; label: string }>, value: T) =>
     options.find((option) => option.value === value)?.label ?? value;
 
@@ -73,10 +77,13 @@ const declaredInputForRequest = (request: IDecodeRunRequest) => {
 };
 
 const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixtureScenario }: DecodePageProps) => {
+    const [openGoldenWalkthrough] = useState(hasGoldenWalkthroughQuery);
     const [activeFixtureScenario] = useState<DecodeFixtureScenario>(
         () => initialFixtureScenario ?? fixtureScenario ?? developmentFixtureScenario()
     );
-    const [draft, setDraft] = useState(EMPTY_DECODE_DRAFT);
+    const [draft, setDraft] = useState(() =>
+        openGoldenWalkthrough ? makeGoldenWalkthroughDraft('') : EMPTY_DECODE_DRAFT
+    );
     const [previewState, setPreviewState] = useState<IDecodePreviewState | null>(null);
     const [inputsExpanded, setInputsExpanded] = useState(true);
     const [activeResultView, setActiveResultView] = useState<DecodeResultView>('terms');
@@ -153,6 +160,14 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
         setViewerState(DEFAULT_VIEWER_STATE);
         setWorkspaceVersion((version) => version + 1);
     };
+
+    const loadWalkthrough = () => {
+        changeDraft(makeGoldenWalkthroughDraft(draft.interpretation));
+    };
+
+    useEffect(() => {
+        if (openGoldenWalkthrough) void openPreview();
+    }, []);
 
     const previewRequest = previewState?.request;
     const sourceLabel = previewRequest ? sourceLabelForRequest(previewRequest) : '';
@@ -231,6 +246,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                         value={draft}
                         onChange={changeDraft}
                         onPreview={openPreview}
+                        onLoadWalkthrough={loadWalkthrough}
                         autoFocusSource={autoFocusSource}
                     />
                 </Collapse>

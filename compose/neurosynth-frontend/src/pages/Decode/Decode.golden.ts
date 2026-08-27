@@ -96,6 +96,7 @@ export const makeGoldenWalkthroughDraft = (interpretation: string): IDecodeDraft
         analysisLevel: 'group',
         modality: 'fmri-bold',
         subjectCount: '10',
+        cognitiveTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
     },
     interpretation,
     modelId: 'neurosynth-pearson-recorded',

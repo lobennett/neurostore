@@ -10,12 +10,19 @@ interface DecodeSourcePanelProps {
     errors: IDecodeValidationErrors;
     onChange: (draft: IDecodeDraft) => void;
     autoFocusSource?: boolean;
+    onLoadWalkthrough?: () => void;
 }
 
 const tabId = (source: DecodeSourceKind) => `decode-draft-source-tab-${source}`;
 const panelId = (source: DecodeSourceKind) => `decode-draft-source-panel-${source}`;
 
-const DecodeSourcePanel = ({ draft, errors, onChange, autoFocusSource = false }: DecodeSourcePanelProps) => {
+const DecodeSourcePanel = ({
+    draft,
+    errors,
+    onChange,
+    autoFocusSource = false,
+    onLoadWalkthrough,
+}: DecodeSourcePanelProps) => {
     const changeSource = (activeSource: DecodeSourceKind) => onChange({ ...draft, activeSource });
 
     return (
@@ -58,6 +65,7 @@ const DecodeSourcePanel = ({ draft, errors, onChange, autoFocusSource = false }:
                 <DecodeNeurovaultInput
                     error={draft.activeSource === 'neurovault' ? errors.source : undefined}
                     onChange={(neurovaultReference) => onChange({ ...draft, neurovaultReference })}
+                    onLoadWalkthrough={onLoadWalkthrough}
                     value={draft.neurovaultReference}
                 />
             </Box>

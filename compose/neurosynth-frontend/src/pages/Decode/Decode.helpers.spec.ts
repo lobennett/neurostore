@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_DECODE_DRAFT, EMPTY_DECODE_SUBMISSION } from './Decode.fixtures';
+import { makeGoldenWalkthroughDraft } from './Decode.golden';
 import {
     buildDecodeRunRequest,
     isAcceptedNiftiFilename,
+    isCanonicalGoldenDraft,
     isPreviewStale,
     parseNeurovaultImageId,
     validateDecodeDraft,
@@ -25,6 +27,34 @@ const completeDraft = (overrides: Partial<IDecodeDraft> = {}): IDecodeDraft => (
 });
 
 describe('decode input helpers', () => {
+    it('recognizes canonical walkthrough inputs while preserving free-text interpretation', () => {
+        const draft = makeGoldenWalkthroughDraft('reviewer notes');
+
+        expect(draft.metadata.cognitiveTask).toEqual({ id: 'trm_5346938eed092', label: 'Landmark task' });
+        expect(isCanonicalGoldenDraft(draft)).toBe(true);
+        expect(isCanonicalGoldenDraft({ ...draft, interpretation: 'different notes' })).toBe(true);
+        expect(
+            isCanonicalGoldenDraft({
+                ...draft,
+                metadata: { ...draft.metadata, subjectCount: '11' },
+            })
+        ).toBe(false);
+    });
+
+    it('rejects the recorded model outside the canonical walkthrough state', () => {
+        const draft = makeGoldenWalkthroughDraft('');
+
+        expect(validateDecodeDraft({ ...draft, exampleId: null }).modelId).toBe(
+            'The recorded example is available only for the canonical NeuroVault 308 walkthrough.'
+        );
+        expect(
+            validateDecodeDraft({
+                ...draft,
+                metadata: { ...draft.metadata, modality: 'eeg' },
+            }).modelId
+        ).toBe('The recorded example is available only for the canonical NeuroVault 308 walkthrough.');
+    });
+
     it.each(['map.nii', 'map.nii.gz', 'MAP.NII.GZ'])('accepts the supported NIfTI filename %s', (filename) => {
         expect(isAcceptedNiftiFilename(filename)).toBe(true);
     });

@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Paper, Stack, Typography } from '@mui/material';
-import { validateDecodeDraft } from '../Decode.helpers';
+import { isCanonicalGoldenDraft, validateDecodeDraft } from '../Decode.helpers';
 import type { DecodeModelId, IDecodeDraft } from '../Decode.types';
 import DecodeDescriptionPanel from './DecodeDescriptionPanel';
 import DecodeModelPanel from './DecodeModelPanel';
@@ -10,10 +10,17 @@ interface DecodeInputPanelProps {
     value: IDecodeDraft;
     onChange: (value: IDecodeDraft) => void;
     onPreview: () => void;
+    onLoadWalkthrough?: () => void;
     autoFocusSource?: boolean;
 }
 
-const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false }: DecodeInputPanelProps) => {
+const DecodeInputPanel = ({
+    value,
+    onChange,
+    onPreview,
+    onLoadWalkthrough,
+    autoFocusSource = false,
+}: DecodeInputPanelProps) => {
     const errors = validateDecodeDraft(value);
     const isValid = Object.keys(errors).length === 0;
     const hasActiveSourceAttempt =
@@ -23,8 +30,9 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
               ? Boolean(value.file)
               : value.coordinates.length > 0;
     const visibleErrors = hasActiveSourceAttempt ? errors : { ...errors, source: undefined, coordinates: undefined };
+    const canonicalWalkthrough = isCanonicalGoldenDraft(value);
     const changeModel = (modelId: DecodeModelId, modelParameters: Record<string, string | number | boolean>) =>
-        onChange({ ...value, modelId, modelParameters });
+        onChange({ ...value, exampleId: modelId === value.modelId ? value.exampleId : null, modelId, modelParameters });
 
     return (
         <Paper component="section" elevation={0} sx={{ bgcolor: DECODE_COLORS.surface, p: { xs: 2, md: 2.5 } }}>
@@ -38,6 +46,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
                         errors={visibleErrors}
                         onChange={onChange}
                         autoFocusSource={autoFocusSource}
+                        onLoadWalkthrough={onLoadWalkthrough}
                     />
                 </Box>
                 <DecodeDescriptionPanel draft={value} errors={errors} onChange={onChange} />
@@ -46,6 +55,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
                     parameters={value.modelParameters}
                     parameterErrors={errors.modelParameters}
                     sourceKind={value.activeSource}
+                    exampleId={value.exampleId}
                     onChange={changeModel}
                 />
                 <Stack
@@ -54,11 +64,18 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
                     alignItems={{ xs: 'stretch', sm: 'center' }}
                 >
                     <Button variant="contained" disabled={!isValid} onClick={onPreview}>
-                        Preview example results
+                        {canonicalWalkthrough ? 'Open recorded walkthrough' : 'Preview example results'}
                     </Button>
                     <Typography variant="body2" color="text.secondary">
-                        No map is uploaded and no decoder is run.
+                        {canonicalWalkthrough
+                            ? 'Uses bundled public maps and a recorded result; no decoder runs and nothing is uploaded.'
+                            : 'No map is uploaded and no decoder is run.'}
                     </Typography>
+                    {value.exampleId === 'neurovault-308' && !canonicalWalkthrough && onLoadWalkthrough ? (
+                        <Button variant="outlined" onClick={onLoadWalkthrough}>
+                            Restore walkthrough values
+                        </Button>
+                    ) : null}
                 </Stack>
             </Stack>
         </Paper>
