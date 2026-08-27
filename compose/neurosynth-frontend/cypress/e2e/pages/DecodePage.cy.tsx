@@ -1,4 +1,6 @@
 describe('DecodePage', () => {
+    const GOLDEN_ASSET_PREFIX = '/decoder/examples/neurovault-308/';
+
     const blockApiRequests = () => {
         cy.intercept({ hostname: 'localhost', pathname: '/api/**', resourceType: 'xhr' }, (request) =>
             request.destroy()
@@ -11,6 +13,53 @@ describe('DecodePage', () => {
     const expectNoBlockedApiRequests = () => {
         cy.get('@blockedApiXhr.all').should('have.length', 0);
         cy.get('@blockedApiFetch.all').should('have.length', 0);
+    };
+
+    const guardRecordedWalkthroughNetwork = () => {
+        const successfulLocalAssets: string[] = [];
+
+        cy.intercept('GET', `${GOLDEN_ASSET_PREFIX}**`, (request) => {
+            delete request.headers['if-modified-since'];
+            delete request.headers['if-none-match'];
+            request.headers['cache-control'] = 'no-cache';
+            request.continue((response) => {
+                expect(response.statusCode, `${new URL(request.url).pathname} status`).to.equal(200);
+                successfulLocalAssets.push(new URL(request.url).pathname);
+            });
+        }).as('goldenAsset');
+        cy.intercept({ hostname: 'localhost', pathname: '/api/**' }, (request) => request.destroy()).as(
+            'blockedGoldenApi'
+        );
+        cy.intercept(/^https?:\/\/(?:[^./]+\.)*(?:neurovault|neurosynth)\.org\/.*/, (request) => request.destroy()).as(
+            'blockedGoldenExternal'
+        );
+
+        return successfulLocalAssets;
+    };
+
+    const expectNoRecordedWalkthroughBackendRequests = () => {
+        cy.get('@blockedGoldenApi.all').should('have.length', 0);
+        cy.get('@blockedGoldenExternal.all').should('have.length', 0);
+    };
+
+    const expectSuccessfulAsset = (successfulLocalAssets: string[], filename: string) => {
+        cy.wrap(successfulLocalAssets, { log: false }).should('include', `${GOLDEN_ASSET_PREFIX}${filename}`);
+    };
+
+    const fieldByLabel = (label: string) =>
+        cy
+            .contains('label', label)
+            .invoke('attr', 'for')
+            .then((id) => cy.get(`#${id}`));
+
+    const setRangeValue = (ariaLabel: string, value: string) => {
+        cy.get(`input[aria-label="${ariaLabel}"]`).then(($input) => {
+            const input = $input[0] as HTMLInputElement;
+            const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            nativeValueSetter?.call(input, value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
     };
 
     const previewPublicNeurovaultImage = () => {
@@ -75,5 +124,73 @@ describe('DecodePage', () => {
             expect(document.documentElement.scrollWidth).to.equal(document.documentElement.clientWidth);
         });
         expectNoBlockedApiRequests();
+    });
+
+    it('reviews the recorded NeuroVault 308 maps without contacting a backend', () => {
+        cy.viewport(1440, 900);
+        const successfulLocalAssets = guardRecordedWalkthroughNetwork();
+        cy.visit('/decode?example=neurovault-308');
+
+        cy.contains('Recorded Neurosynth Pearson example').should('be.visible');
+        cy.contains('terms_20k reference dataset').should('be.visible');
+        cy.contains('NeuroVault image 308').should('be.visible');
+        cy.get('#decode-result-panel-terms tbody tr').should('have.length', 20);
+        expectSuccessfulAsset(successfulLocalAssets, 'manifest.json');
+        expectSuccessfulAsset(successfulLocalAssets, 'generic-mni.nii.gz');
+        expectSuccessfulAsset(successfulLocalAssets, 'response-control.nii.gz');
+
+        cy.get('button[aria-label="Select premotor for comparison"]').click();
+        cy.contains('button', 'Compare selected result').click();
+        cy.contains('premotor association map').should('be.visible');
+        expectSuccessfulAsset(successfulLocalAssets, 'premotor-association-z.nii.gz');
+
+        fieldByLabel('Comparison x coordinate').clear().type('12');
+        cy.contains('label', 'Overlay').click();
+        setRangeValue('Input map opacity', '0.45');
+        setRangeValue('Comparison map opacity', '0.35');
+        cy.get('input[aria-label="Input map opacity"]').should('have.value', '0.45');
+        cy.get('input[aria-label="Comparison map opacity"]').should('have.value', '0.35');
+
+        cy.contains('[role="tab"]', 'Terms').click();
+        cy.get('button[aria-label="Select visual for comparison"]').click();
+        cy.contains('[role="tab"]', 'Compare maps').click();
+        cy.contains('Comparison layer · visual association map').should('be.visible');
+        cy.contains('Comparison layer · premotor association map').should('not.exist');
+        fieldByLabel('Comparison x coordinate').should('have.value', '12');
+        cy.get('input[aria-label="Input map opacity"]').should('have.value', '0.45');
+        expectSuccessfulAsset(successfulLocalAssets, 'visual-association-z.nii.gz');
+        expectNoRecordedWalkthroughBackendRequests();
+    });
+
+    it('keeps the negative recorded comparison readable and ordered on mobile', () => {
+        cy.viewport(390, 844);
+        const successfulLocalAssets = guardRecordedWalkthroughNetwork();
+        cy.visit('/decode?example=neurovault-308');
+
+        cy.get('button[aria-label="Select posterior cingulate for comparison"]')
+            .scrollIntoView()
+            .parents('tr')
+            .within(() => cy.contains('-0.307').scrollIntoView().should('be.visible'));
+        cy.get('button[aria-label="Select posterior cingulate for comparison"]').click();
+        cy.contains('button', 'Compare selected result').click();
+        cy.contains(/^Submitted map$/)
+            .should('be.visible')
+            .then(($submitted) => {
+                cy.contains(/^posterior cingulate association map$/)
+                    .should('be.visible')
+                    .then(($comparison) => {
+                        expect($comparison[0].getBoundingClientRect().top).to.be.at.least(
+                            $submitted[0].getBoundingClientRect().bottom
+                        );
+                    });
+            });
+        expectSuccessfulAsset(successfulLocalAssets, 'posterior-cingulate-association-z.nii.gz');
+
+        cy.contains('label', 'Overlay').click();
+        cy.contains('Comparison layer · posterior cingulate association map').should('be.visible');
+        cy.document().then((document) => {
+            expect(document.documentElement.scrollWidth).to.equal(document.documentElement.clientWidth);
+        });
+        expectNoRecordedWalkthroughBackendRequests();
     });
 });
