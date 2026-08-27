@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import { createFixtureDecodeAdapter } from '../Decode.adapter';
-import { DECODE_MODELS, EXAMPLE_TERMS } from '../Decode.fixtures';
+import { DECODE_MODELS, EXAMPLE_TERMS, makeExamplePreview } from '../Decode.fixtures';
+import { COGNITIVE_ATLAS_CONCEPTS } from '../Decode.vocabulary';
 import type {
     DecodeModelId,
     DecodeResultView,
@@ -25,7 +25,7 @@ const requestFor = (modelId: DecodeModelId, prior: 'literature' | 'uniform' = 'l
         cognitiveTask: null,
         interpretation: '',
     },
-    concepts: [{ id: 'trm_visual', label: 'visual perception', vocabulary: 'Cognitive Atlas' }],
+    concepts: [{ id: 'trm_4a3fd79d0b4b5', label: 'visual perception', vocabulary: 'Cognitive Atlas' }],
     interpretation: 'Visual processing',
     modelId,
     modelVersion: 'fixture-v1',
@@ -33,17 +33,16 @@ const requestFor = (modelId: DecodeModelId, prior: 'literature' | 'uniform' = 'l
 });
 
 const successfulPreview = (modelId: DecodeModelId = 'neurovlm', prior: 'literature' | 'uniform' = 'literature') => {
-    const state = createFixtureDecodeAdapter().preview(requestFor(modelId, prior), 'success');
-    if (state.status !== 'success') throw new Error('Expected successful fixture preview');
-    return state;
+    const request = requestFor(modelId, prior);
+    return { status: 'success' as const, request, preview: makeExamplePreview(request, 'success') };
 };
 
-const visualFixture = EXAMPLE_TERMS.find(({ id }) => id === 'trm_visual')!;
+const visualFixture = EXAMPLE_TERMS.find(({ label }) => label === 'visual perception')!;
 const visualTerm: IDecodeComparableResult = {
     id: visualFixture.id,
     kind: 'term',
     label: visualFixture.label,
-    mapLabel: 'visual meta-analytic map',
+    mapLabel: 'visual perception meta-analytic map',
     mapUrl: visualFixture.mapUrl,
 };
 const onChooseTerm = vi.fn();
@@ -109,15 +108,21 @@ it('makes terms the first and default result view', () => {
     expect(screen.getByRole('columnheader', { name: 'Correlation' })).toBeVisible();
 });
 
+it('uses enough official Cognitive Atlas fixture terms to exercise pagination', () => {
+    const officialIds = new Set(COGNITIVE_ATLAS_CONCEPTS.map(({ id }) => id));
+    expect(EXAMPLE_TERMS).toHaveLength(65);
+    expect(EXAMPLE_TERMS.every(({ id }) => officialIds.has(id))).toBe(true);
+});
+
 it('states whether each study matches the input, selected concept, or both', async () => {
     const user = userEvent.setup();
     renderResults();
 
     await user.click(screen.getByRole('tab', { name: 'Associated studies' }));
 
-    expect(screen.getByText('Matches input and selected concept')).toBeVisible();
+    expect(screen.getAllByText('Matches input and selected concept').length).toBeGreaterThan(0);
     expect(screen.getByText(/Example et al\..*2024/)).toBeVisible();
-    const relatedMap = screen.getByRole('link', { name: 'Open related map' });
+    const relatedMap = screen.getAllByRole('link', { name: 'Open related map' })[0];
     expect(relatedMap).toHaveAttribute('href', 'https://neurovault.org/images/25/');
     expect(relatedMap).toHaveAttribute('target', '_blank');
     expect(relatedMap).toHaveAttribute('rel', 'noopener noreferrer');
@@ -132,7 +137,17 @@ it('uses the same search, sort, page-size, and pagination pattern for studies', 
     expect(screen.getByRole('combobox', { name: 'Sort associated studies' })).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Study results per page' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByText('51–55 of 55')).toBeVisible();
+});
+
+it('derives study provenance from the concepts in the immutable request', async () => {
+    const request = { ...requestFor('neurovlm'), concepts: [] };
+    renderResults({ status: 'success', request, preview: makeExamplePreview(request, 'success') });
+    await userEvent.click(screen.getByRole('tab', { name: 'Associated studies' }));
+    expect(screen.getAllByText('Matches input only').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Matches input and selected concept')).not.toBeInTheDocument();
 });
 
 it('keeps fixture provenance and the reverse-inference limit visible in every view', async () => {
@@ -159,7 +174,7 @@ it('shows NeuroVLM ranked concepts and its example narrative in the model summar
     expect(screen.getByText('Illustrative model summary — no decoder was called.')).toBeVisible();
     expect(screen.getByRole('list', { name: 'NeuroVLM ranked concepts' })).toBeVisible();
     expect(screen.getByText(/Correlation values describe signed spatial association/i)).toBeVisible();
-    expect(screen.getByText(/visual · correlation 0\.312/i)).toBeVisible();
+    expect(screen.getByText(/visual perception · correlation 0\.312/i)).toBeVisible();
     expect(screen.getByText(/About NeuroVLM decoding/)).toBeVisible();
     expect(screen.getByText(DECODE_MODELS[0].interpretationNote)).toBeVisible();
 });
@@ -187,6 +202,12 @@ it('explains NiCLIP quantities relative to a uniform preview prior', async () =>
     expect(screen.getByText(/posterior probabilities incorporate the selected uniform prior/i)).toBeVisible();
     expect(screen.getByText(/Bayes factors express the change in evidence from that uniform prior/i)).toBeVisible();
     expect(screen.queryByText(/literature-derived prior/i)).not.toBeInTheDocument();
+});
+
+it('distinguishes a Bayes factor of exactly one from weak evidence', async () => {
+    renderResults(successfulPreview('niclip'));
+    await userEvent.click(screen.getByRole('tab', { name: 'Model summary' }));
+    expect(screen.getByRole('cell', { name: 'no evidence change' })).toBeVisible();
 });
 
 it('renders model, metric, parameters, and fixture provenance from the preview snapshot', () => {
@@ -242,13 +263,13 @@ it('opens comparison only after selecting a result and choosing compare', async 
     const user = userEvent.setup();
     renderResults();
 
-    await user.click(screen.getByRole('button', { name: 'Select visual for comparison' }));
+    await user.click(screen.getByRole('button', { name: 'Select visual perception for comparison' }));
     expect(screen.getByRole('tab', { name: 'Terms' })).toHaveAttribute('aria-selected', 'true');
 
     await user.click(screen.getByRole('button', { name: 'Compare selected result' }));
     expect(screen.getByRole('tab', { name: 'Compare maps' })).toHaveFocus();
     expect(screen.getByText('NeuroVault image 25')).toBeVisible();
-    expect(screen.getByText('visual meta-analytic map')).toBeVisible();
+    expect(screen.getByText('visual perception meta-analytic map')).toBeVisible();
 });
 
 it('renders a selected study related-map label verbatim in both comparison modes', async () => {
@@ -284,10 +305,10 @@ it('directs an empty comparison back to term selection', async () => {
 it('preserves the selected result while switching comparison modes', async () => {
     renderComparison({ selectedResult: visualTerm });
 
-    expect(screen.getByText('visual meta-analytic map')).toBeVisible();
+    expect(screen.getByText('visual perception meta-analytic map')).toBeVisible();
     await userEvent.click(screen.getByRole('radio', { name: 'Overlay' }));
 
-    expect(screen.getByText('visual meta-analytic map')).toBeVisible();
+    expect(screen.getByText('visual perception meta-analytic map')).toBeVisible();
     expect(screen.getByRole('slider', { name: 'Input map opacity' })).toBeVisible();
     expect(screen.getByRole('slider', { name: 'Comparison map opacity' })).toBeVisible();
 });
@@ -341,6 +362,6 @@ it('keeps overlay title text at theme contrast while retaining cyan for the comp
 
     await userEvent.click(screen.getByRole('radio', { name: 'Overlay' }));
 
-    expect(screen.getByText('visual meta-analytic map')).toHaveStyle({ color: 'rgba(0, 0, 0, 0.87)' });
+    expect(screen.getByText('visual perception meta-analytic map')).toHaveStyle({ color: 'rgba(0, 0, 0, 0.87)' });
     expect(screen.getByRole('combobox', { name: 'Comparison map color' })).toHaveValue('slice-cyan');
 });

@@ -1,7 +1,9 @@
 import { Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import type { IDecodeModelSummary } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 const evidenceLabel = (bayesFactor: number) => {
+    if (bayesFactor === 1) return 'no evidence change';
     if (bayesFactor >= 10) return 'strong';
     if (bayesFactor >= 3) return 'moderate';
     if (bayesFactor >= 1) return 'weak';
@@ -45,7 +47,7 @@ const DecodeNiClipResults: React.FC<
         </Box>
         <TableContainer sx={{ border: 1, borderColor: 'divider' }}>
             <Table size="small" aria-label="NiCLIP task predictions">
-                <TableHead sx={{ bgcolor: '#f4f8fb' }}>
+                <TableHead sx={{ bgcolor: DECODE_COLORS.surface }}>
                     <TableRow>
                         <TableCell>Task</TableCell>
                         <TableCell align="right">Posterior probability</TableCell>

@@ -15,6 +15,7 @@ import { useMemo, useState } from 'react';
 import { filterTerms, paginate, sortTerms } from '../Decode.helpers';
 import type { DecodeSortDirection, DecodeTermSort } from '../Decode.helpers';
 import type { DecodeMetric, IDecodeComparableResult, IDecodeTerm } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 const METRIC_LABELS: Record<DecodeMetric, string> = {
     similarity: 'Similarity',
@@ -33,7 +34,7 @@ const directionOptions = (sort: DecodeTermSort, metricLabel: string) => {
             desc: `Highest ${metricLabel.toLocaleLowerCase()} first`,
         };
     }
-    return { asc: 'Best rank first', desc: 'Lowest rank first' };
+    return { asc: 'Best rank first', desc: 'Worst rank first' };
 };
 
 const DecodeTermResults: React.FC<{
@@ -130,7 +131,7 @@ const DecodeTermResults: React.FC<{
 
             <TableContainer sx={{ border: 1, borderColor: 'divider' }}>
                 <Table size="small">
-                    <TableHead sx={{ bgcolor: '#f4f8fb' }}>
+                    <TableHead sx={{ bgcolor: DECODE_COLORS.surface }}>
                         <TableRow>
                             <TableCell width="64px">Rank</TableCell>
                             <TableCell>Term</TableCell>
@@ -200,7 +201,7 @@ const DecodeTermResults: React.FC<{
                                                     position: 'relative',
                                                     flex: 1,
                                                     minWidth: 96,
-                                                    bgcolor: '#f4f8fb',
+                                                    bgcolor: DECODE_COLORS.surface,
                                                 }}
                                             >
                                                 {signedMetric ? (
@@ -217,7 +218,7 @@ const DecodeTermResults: React.FC<{
                                                                     data-testid="decode-correlation-fill"
                                                                     sx={{
                                                                         width: `${(Math.abs(term.value) / scaleMaximum) * 100}%`,
-                                                                        bgcolor: '#023e8a',
+                                                                        bgcolor: DECODE_COLORS.navy,
                                                                         height: 8,
                                                                     }}
                                                                 />
@@ -229,7 +230,7 @@ const DecodeTermResults: React.FC<{
                                                                     data-testid="decode-correlation-fill"
                                                                     sx={{
                                                                         width: `${(Math.abs(term.value) / scaleMaximum) * 100}%`,
-                                                                        bgcolor: '#0096c7',
+                                                                        bgcolor: DECODE_COLORS.cyan,
                                                                         height: 8,
                                                                     }}
                                                                 />
@@ -243,7 +244,7 @@ const DecodeTermResults: React.FC<{
                                                                 left: '50%',
                                                                 top: -2,
                                                                 bottom: -2,
-                                                                borderLeft: '1px solid #263238',
+                                                                borderLeft: `1px solid ${DECODE_COLORS.ink}`,
                                                             }}
                                                         />
                                                     </>
@@ -253,7 +254,7 @@ const DecodeTermResults: React.FC<{
                                                             data-testid="decode-measure-fill"
                                                             sx={{
                                                                 width: `${Math.min(100, Math.max(0, term.value / scaleMaximum) * 100)}%`,
-                                                                bgcolor: '#0096c7',
+                                                                bgcolor: DECODE_COLORS.cyan,
                                                                 height: 8,
                                                             }}
                                                         />
@@ -294,7 +295,7 @@ const DecodeTermResults: React.FC<{
                 <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                     {navigated.start}–{navigated.end} of {navigated.total}
                 </Typography>
-                <Stack direction="row" spacing={1}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                     <Button variant="outlined" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
                         Previous page
                     </Button>

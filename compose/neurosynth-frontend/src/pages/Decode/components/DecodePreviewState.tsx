@@ -1,6 +1,7 @@
 import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 import type { IDecodePreviewState } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 type SuccessfulPreviewState = Extract<IDecodePreviewState, { status: 'success' }>;
 
@@ -21,9 +22,9 @@ const DecodePreviewState = ({ state, onRetry, onEditInputs, children }: DecodePr
                     aria-label="Decoder preview loading"
                     aria-busy="true"
                     variant="outlined"
-                    sx={{ borderLeft: '4px solid #0077b6', p: { xs: 2, md: 3 } }}
+                    sx={{ borderLeft: `4px solid ${DECODE_COLORS.blue}`, p: { xs: 2, md: 3 } }}
                 >
-                    <Typography component="h2" variant="h6" sx={{ color: '#263238', fontWeight: 700 }}>
+                    <Typography component="h2" variant="h6" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
                         Preparing illustrative preview…
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
@@ -41,7 +42,14 @@ const DecodePreviewState = ({ state, onRetry, onEditInputs, children }: DecodePr
                         </Typography>
                         <Typography variant="body2">{message}</Typography>
                     </Alert>
-                    <Box sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a', mt: 2, p: 2 }}>
+                    <Box
+                        sx={{
+                            bgcolor: DECODE_COLORS.surface,
+                            borderLeft: `4px solid ${DECODE_COLORS.navy}`,
+                            mt: 2,
+                            p: 2,
+                        }}
+                    >
                         <Typography variant="body2">
                             Your draft is unchanged. Retry this illustrative operation or reopen the inputs to correct
                             it.

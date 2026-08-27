@@ -77,16 +77,23 @@ export const parseNeurovaultImageId = (value: string): string | null => {
     }
 };
 
-const coordinateErrors = (point: IMniPoint): string[] =>
-    (
-        Object.entries(MNI_LIMITS) as Array<[keyof typeof MNI_LIMITS, (typeof MNI_LIMITS)[keyof typeof MNI_LIMITS]]>
-    ).flatMap(([axis, limits]) => {
-        const value = Number(point[axis]);
-        if (!point[axis].trim() || !Number.isFinite(value)) return [`${axis} must be a finite number`];
-        return value < limits.min || value > limits.max
-            ? [`${axis} must be between ${limits.min} and ${limits.max}`]
-            : [];
-    });
+const coordinateErrors = (
+    point: IMniPoint,
+    index: number
+): NonNullable<IDecodeValidationErrors['coordinates']>[string] =>
+    Object.fromEntries(
+        (
+            Object.entries(MNI_LIMITS) as Array<[keyof typeof MNI_LIMITS, (typeof MNI_LIMITS)[keyof typeof MNI_LIMITS]]>
+        ).flatMap(([axis, limits]) => {
+            const value = Number(point[axis]);
+            const pointName = point.label.trim() || `Point ${index + 1}`;
+            if (!point[axis].trim() || !Number.isFinite(value))
+                return [[axis, `${pointName}: ${axis} must be a finite number.`]];
+            return value < limits.min || value > limits.max
+                ? [[axis, `${pointName}: ${axis} must be between ${limits.min} and ${limits.max}.`]]
+                : [];
+        })
+    );
 
 const validateModelParameter = (
     definition: IDecodeParameterDefinition,
@@ -147,9 +154,16 @@ export const validateDecodeDraft = (draft: IDecodeDraft): IDecodeValidationError
         errors.source = 'Enter a NeuroVault image ID or image URL.';
     }
     if (draft.activeSource === 'coordinates') {
-        const errorsByPoint = draft.coordinates.flatMap(coordinateErrors);
-        if (draft.coordinates.length === 0) errors.coordinates = ['Add at least one valid MNI coordinate.'];
-        else if (errorsByPoint.length) errors.coordinates = errorsByPoint;
+        if (draft.coordinates.length === 0) errors.source = 'Add at least one valid MNI coordinate.';
+        else {
+            const errorsByPoint = Object.fromEntries(
+                draft.coordinates.flatMap((point, index) => {
+                    const pointErrors = coordinateErrors(point, index);
+                    return Object.keys(pointErrors).length ? [[point.id, pointErrors]] : [];
+                })
+            );
+            if (Object.keys(errorsByPoint).length) errors.coordinates = errorsByPoint;
+        }
         return errors;
     }
     if (!draft.metadata.mapType) errors.mapType = 'Choose a map type.';
@@ -177,7 +191,14 @@ export const buildDecodeRunRequest = (draft: IDecodeDraft): IDecodeRunRequest =>
         draft.activeSource === 'neurovault'
             ? { kind: 'neurovault' as const, imageId: parseNeurovaultImageId(draft.neurovaultReference)! }
             : draft.activeSource === 'upload'
-              ? { kind: 'upload' as const, filename: draft.file!.name, license: 'CC0' as const }
+              ? {
+                    kind: 'upload' as const,
+                    filename: draft.file!.name,
+                    license: 'CC0' as const,
+                    size: draft.file!.size,
+                    mediaType: draft.file!.type,
+                    lastModified: draft.file!.lastModified,
+                }
               : {
                     kind: 'coordinates' as const,
                     points: draft.coordinates.map(({ id, label, x, y, z }) => ({

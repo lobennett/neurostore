@@ -71,6 +71,12 @@ it('resets pagination when the direction or page size changes', async () => {
     expect(screen.getByText('1–25 of 65')).toBeVisible();
 });
 
+it('describes descending numeric rank as worst rank first', async () => {
+    renderTermResults();
+    const direction = screen.getByRole('combobox', { name: 'Sort direction' });
+    expect(within(direction).getByRole('option', { name: 'Worst rank first' })).toBeInTheDocument();
+});
+
 it('keeps a comparable selection while navigating away from its page', async () => {
     const user = userEvent.setup();
     renderTermResults({ terms: makeTerms(65) });

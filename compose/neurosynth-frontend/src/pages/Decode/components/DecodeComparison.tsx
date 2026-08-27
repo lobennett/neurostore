@@ -1,18 +1,20 @@
 import { Box, Button, FormControlLabel, Radio, RadioGroup, Slider, Stack, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import type { IDecodeComparableResult, IViewerState } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 type ComparisonMode = 'side-by-side' | 'overlay';
 type ColorPreset = 'deep-navy' | 'atlas-blue' | 'slice-cyan';
 type CoordinateAxis = 'x' | 'y' | 'z';
 
 const COLOR_PRESETS: Array<{ value: ColorPreset; label: string; color: string }> = [
-    { value: 'deep-navy', label: 'Deep coordinate navy', color: '#023e8a' },
-    { value: 'atlas-blue', label: 'Atlas blue', color: '#0077b6' },
-    { value: 'slice-cyan', label: 'Slice cyan', color: '#0096c7' },
+    { value: 'deep-navy', label: 'Deep coordinate navy', color: DECODE_COLORS.navy },
+    { value: 'atlas-blue', label: 'Atlas blue', color: DECODE_COLORS.blue },
+    { value: 'slice-cyan', label: 'Slice cyan', color: DECODE_COLORS.cyan },
 ];
 
-const colorForPreset = (preset: ColorPreset) => COLOR_PRESETS.find(({ value }) => value === preset)?.color ?? '#023e8a';
+const colorForPreset = (preset: ColorPreset) =>
+    COLOR_PRESETS.find(({ value }) => value === preset)?.color ?? DECODE_COLORS.navy;
 
 const signedValue = (value: number) => (value < 0 ? `−${Math.abs(value)}` : String(value));
 
@@ -20,7 +22,7 @@ const ViewerStateLabel = ({ viewerState }: { viewerState: IViewerState }) => (
     <Typography
         variant="caption"
         sx={{
-            color: '#263238',
+            color: DECODE_COLORS.ink,
             display: 'block',
             fontFamily: 'monospace',
             fontVariantNumeric: 'tabular-nums',
@@ -42,13 +44,13 @@ const MapPlaceholder: React.FC<{
         aria-label={ariaLabel}
         sx={{ border: '1px solid rgba(2, 62, 138, 0.28)', minHeight: 240, p: 2, overflowWrap: 'anywhere' }}
     >
-        <Typography variant="subtitle2" sx={{ color: '#263238', fontWeight: 700 }}>
+        <Typography variant="subtitle2" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
             {label}
         </Typography>
         <Box
             aria-hidden="true"
             sx={{
-                backgroundColor: '#f4f8fb',
+                backgroundColor: DECODE_COLORS.surface,
                 backgroundImage:
                     'linear-gradient(rgba(0, 119, 182, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 119, 182, 0.08) 1px, transparent 1px)',
                 backgroundSize: '20px 20px',
@@ -59,8 +61,8 @@ const MapPlaceholder: React.FC<{
                 position: 'relative',
             }}
         >
-            <Box sx={{ bgcolor: '#023e8a', height: 1, left: 0, position: 'absolute', right: 0, top: '50%' }} />
-            <Box sx={{ bgcolor: '#0096c7', bottom: 0, left: '50%', position: 'absolute', top: 0, width: 1 }} />
+            <Box sx={{ bgcolor: DECODE_COLORS.navy, height: 1, left: 0, position: 'absolute', right: 0, top: '50%' }} />
+            <Box sx={{ bgcolor: DECODE_COLORS.cyan, bottom: 0, left: '50%', position: 'absolute', top: 0, width: 1 }} />
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1.25 }}>
             Map placeholder — no image loaded
@@ -93,7 +95,7 @@ const DecodeComparison: React.FC<{
 
     if (!selectedResult) {
         return (
-            <Box sx={{ borderLeft: '4px solid #023e8a', bgcolor: '#f4f8fb', p: 2 }}>
+            <Box sx={{ borderLeft: `4px solid ${DECODE_COLORS.navy}`, bgcolor: DECODE_COLORS.surface, p: 2 }}>
                 <Typography>
                     Select a mapped term or study to compare with the input. Return to Terms to choose one.
                 </Typography>
@@ -115,7 +117,7 @@ const DecodeComparison: React.FC<{
     return (
         <Stack spacing={2.5} aria-label="Map comparison">
             <Box>
-                <Typography component="h2" variant="h6" sx={{ color: '#263238', fontWeight: 700 }}>
+                <Typography component="h2" variant="h6" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
                     Compare maps
                 </Typography>
                 <RadioGroup
@@ -130,7 +132,7 @@ const DecodeComparison: React.FC<{
                 </RadioGroup>
             </Box>
 
-            <Box sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a', p: 2 }}>
+            <Box sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
                     Synchronized display controls
                 </Typography>
@@ -169,7 +171,7 @@ const DecodeComparison: React.FC<{
                             threshold: Array.isArray(threshold) ? threshold[0] : threshold,
                         })
                     }
-                    sx={{ color: '#0077b6' }}
+                    sx={{ color: DECODE_COLORS.blue }}
                 />
                 <Typography variant="caption" color="text.secondary">
                     Display only · the same coordinate and threshold apply to both placeholders
@@ -222,7 +224,7 @@ const DecodeComparison: React.FC<{
                         </Stack>
                         <Box
                             sx={{
-                                bgcolor: '#f4f8fb',
+                                bgcolor: DECODE_COLORS.surface,
                                 border: '1px solid rgba(2, 62, 138, 0.16)',
                                 minHeight: 230,
                                 overflow: 'hidden',

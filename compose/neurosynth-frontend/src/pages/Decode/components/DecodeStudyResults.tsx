@@ -2,6 +2,7 @@ import { Box, Button, Link, Paper, Stack, TextField, Typography } from '@mui/mat
 import { useMemo, useState } from 'react';
 import { paginate } from '../Decode.helpers';
 import type { IDecodeComparableResult, IDecodeStudy } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 type StudySort = 'year' | 'title' | 'authors';
 type SortDirection = 'asc' | 'desc';
@@ -121,7 +122,7 @@ const DecodeStudyResults: React.FC<{
                             sx={{
                                 p: 2,
                                 borderLeftWidth: selected ? 4 : 1,
-                                borderLeftColor: selected ? '#023e8a' : 'divider',
+                                borderLeftColor: selected ? DECODE_COLORS.navy : 'divider',
                             }}
                         >
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -180,7 +181,7 @@ const DecodeStudyResults: React.FC<{
                 <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                     {navigated.start}–{navigated.end} of {navigated.total}
                 </Typography>
-                <Stack direction="row" spacing={1}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                     <Button variant="outlined" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
                         Previous page
                     </Button>

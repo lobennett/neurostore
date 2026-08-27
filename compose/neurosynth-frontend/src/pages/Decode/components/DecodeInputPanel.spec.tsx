@@ -111,7 +111,13 @@ it('keeps a text suggestion separate until the visitor confirms it', async () =>
     expect(screen.getByText('Example suggestion: response inhibition')).toBeVisible();
     expect(screen.queryByText('Confirmed concept')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirm response inhibition' }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ confirmedSuggestions: expect.any(Array) }));
+    const confirmed = onChange.mock.calls.at(-1)?.[0] as IDecodeDraft;
+    expect(confirmed.confirmedSuggestions).toEqual([
+        expect.objectContaining({ id: 'trm_4a3fd79d0af66', label: 'response inhibition' }),
+    ]);
+    expect(confirmed.concepts).toEqual([
+        expect.objectContaining({ id: 'trm_4a3fd79d0af66', label: 'response inhibition' }),
+    ]);
 });
 
 it('shows participant count only for group and subject maps while retaining its entered value', async () => {
@@ -267,7 +273,8 @@ it('keeps subject acknowledgement neutral until interaction and shows one correc
     const user = userEvent.setup();
     renderPanel();
     await completeRequiredFields({ analysisLevel: 'subject' });
-    expect(screen.getByRole('alert')).toHaveTextContent('NiCLIP was designed for group-level maps');
+    expect(screen.getByRole('alert')).toHaveTextContent('identifiable patterns or sensitive information');
+    expect(screen.getByRole('alert')).toHaveTextContent("NeuroVLM's suitability for subject-level maps");
     expect(screen.queryByText('Acknowledge the subject-level warning to continue.')).not.toBeInTheDocument();
     const acknowledgement = screen.getByRole('checkbox', { name: /continue with a subject-level map/i });
     const preview = screen.getByRole('button', { name: 'Preview example results' });
@@ -279,6 +286,14 @@ it('keeps subject acknowledgement neutral until interaction and shows one correc
     expect(preview).toBeDisabled();
     expect(screen.getAllByText('Acknowledge the subject-level warning to continue.')).toHaveLength(1);
     expect(acknowledgement).toHaveAccessibleDescription('Acknowledge the subject-level warning to continue.');
+});
+
+it('uses selected-model suitability copy in the subject-level caution', async () => {
+    renderPanel();
+    await completeRequiredFields({ analysisLevel: 'subject' });
+    await userEvent.click(screen.getByRole('radio', { name: /NiCLIP/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent("NiCLIP's suitability for subject-level maps");
+    expect(screen.getByRole('alert')).not.toHaveTextContent("NeuroVLM's suitability");
 });
 
 it('keeps an invalid upload visible with its validation error and preview disabled', async () => {

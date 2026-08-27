@@ -4,6 +4,7 @@ import type { DecodeModelId, IDecodeDraft } from '../Decode.types';
 import DecodeDescriptionPanel from './DecodeDescriptionPanel';
 import DecodeModelPanel from './DecodeModelPanel';
 import DecodeSourcePanel from './DecodeSourcePanel';
+import { DECODE_COLORS } from '../Decode.styles';
 
 interface DecodeInputPanelProps {
     value: IDecodeDraft;
@@ -26,7 +27,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
         onChange({ ...value, modelId, modelParameters });
 
     return (
-        <Paper component="section" elevation={0} sx={{ bgcolor: '#f4f8fb', p: { xs: 2, md: 2.5 } }}>
+        <Paper component="section" elevation={0} sx={{ bgcolor: DECODE_COLORS.surface, p: { xs: 2, md: 2.5 } }}>
             <Stack spacing={2.5} divider={<Divider flexItem />}>
                 <Box>
                     <Typography component="h2" variant="h6" sx={{ fontWeight: 700, mb: 1 }}>

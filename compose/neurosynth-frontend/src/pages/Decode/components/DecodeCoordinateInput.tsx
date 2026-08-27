@@ -1,10 +1,12 @@
 import { Box, Button, FormHelperText, TextField, Typography } from '@mui/material';
 import { MNI_LIMITS } from '../Decode.constants';
-import type { IMniPoint } from '../Decode.types';
+import type { IDecodeCoordinateErrors, IMniPoint } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 interface DecodeCoordinateInputProps {
     points: IMniPoint[];
-    errors?: string[];
+    errors?: IDecodeCoordinateErrors;
+    groupError?: string;
     onChange: (points: IMniPoint[]) => void;
 }
 
@@ -18,10 +20,9 @@ const emptyPoint = (index: number): IMniPoint => ({
     z: '',
 });
 
-const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInputProps) => {
+const DecodeCoordinateInput = ({ points, errors, groupError, onChange }: DecodeCoordinateInputProps) => {
     const displayedPoints = points.length ? points : [emptyPoint(0)];
-    const errorId = 'decode-coordinate-errors';
-    const describedBy = errors?.length ? errorId : undefined;
+    const groupErrorId = 'decode-coordinate-group-error';
 
     const updatePoint = <K extends keyof Pick<IMniPoint, 'label' | 'x' | 'y' | 'z'>>(
         index: number,
@@ -39,7 +40,7 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
 
     return (
         <Box component="fieldset" sx={{ border: 0, m: 0, minWidth: 0, p: 0 }}>
-            <Typography component="legend" variant="subtitle2" sx={{ color: '#263238', fontWeight: 700 }}>
+            <Typography component="legend" variant="subtitle2" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
                 MNI coordinates
             </Typography>
             <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
@@ -53,7 +54,11 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
                         sx={{ borderTop: index ? 1 : 0, borderColor: 'divider', pt: index ? 2 : 0, mt: index ? 2 : 0 }}
                     >
                         <Box sx={{ alignItems: 'center', display: 'flex', gap: 1, mb: 1 }}>
-                            <Typography component="h3" variant="subtitle2" sx={{ color: '#263238', fontWeight: 700 }}>
+                            <Typography
+                                component="h3"
+                                variant="subtitle2"
+                                sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}
+                            >
                                 {point.label || `Point ${pointNumber}`}
                             </Typography>
                             {index > 0 && (
@@ -67,11 +72,12 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
                                 label={`Point ${pointNumber} name (optional)`}
                                 value={point.label}
                                 onChange={(event) => updatePoint(index, 'label', event.target.value)}
-                                inputProps={{ 'aria-describedby': describedBy }}
                             />
                             {(['x', 'y', 'z'] as const).map((axis) => {
                                 const limits = MNI_LIMITS[axis];
                                 const rangeId = `decode-coordinate-${point.id}-${axis}-range`;
+                                const fieldError = errors?.[point.id]?.[axis];
+                                const fieldErrorId = `decode-coordinate-${point.id}-${axis}-error`;
                                 return (
                                     <TextField
                                         key={axis}
@@ -79,16 +85,26 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
                                         type="number"
                                         value={point[axis]}
                                         onChange={(event) => updatePoint(index, axis, event.target.value)}
+                                        error={Boolean(fieldError)}
                                         helperText={
-                                            <span id={rangeId}>
-                                                Allowed range: {limits.min} to {limits.max} mm.
-                                            </span>
+                                            <>
+                                                <span id={rangeId}>
+                                                    Allowed range: {limits.min} to {limits.max} mm.
+                                                </span>
+                                                {fieldError ? (
+                                                    <span id={fieldErrorId} role="alert" style={{ display: 'block' }}>
+                                                        {fieldError}
+                                                    </span>
+                                                ) : null}
+                                            </>
                                         }
                                         inputProps={{
                                             min: limits.min,
                                             max: limits.max,
                                             step: 'any',
-                                            'aria-describedby': [rangeId, describedBy].filter(Boolean).join(' '),
+                                            'aria-describedby': [rangeId, fieldError ? fieldErrorId : undefined]
+                                                .filter(Boolean)
+                                                .join(' '),
                                         }}
                                     />
                                 );
@@ -97,9 +113,9 @@ const DecodeCoordinateInput = ({ points, errors, onChange }: DecodeCoordinateInp
                     </Box>
                 );
             })}
-            {errors?.length ? (
-                <FormHelperText error id={errorId} role="alert" sx={{ mt: 1 }}>
-                    {errors.join('. ')}
+            {groupError ? (
+                <FormHelperText error id={groupErrorId} role="alert" sx={{ mt: 1 }}>
+                    {groupError}
                 </FormHelperText>
             ) : null}
             <Button onClick={addPoint} sx={{ mt: 2 }} variant="outlined">

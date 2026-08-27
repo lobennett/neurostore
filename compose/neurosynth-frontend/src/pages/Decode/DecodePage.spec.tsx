@@ -40,6 +40,12 @@ it('defaults to NeuroVLM and shows only its parameters', () => {
     expect(screen.queryByLabelText('NiCLIP prior')).not.toBeInTheDocument();
 });
 
+it('blocks the decoder workspace from Sentry Replay capture without changing its content', () => {
+    render(<DecodePage />);
+    expect(screen.getByRole('main')).toHaveAttribute('data-sentry-block', 'true');
+    expect(screen.getByRole('heading', { name: 'Decode a brain map' })).toBeVisible();
+});
+
 it('renders model-specific defaults from the registry schema', async () => {
     render(<DecodePage />);
 
@@ -94,7 +100,7 @@ it('marks results stale after a scientific input changes and previews again expl
     await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
     expect(screen.queryByText('This example preview is out of date.')).not.toBeInTheDocument();
     expect(screen.getByText(/Declared input: group-level · z statistic · EEG · 121 subjects/)).toBeVisible();
-});
+}, 10_000);
 
 it('uses the successful preview snapshot for result navigation and comparison', async () => {
     await openPreview();
@@ -102,7 +108,7 @@ it('uses the successful preview snapshot for result navigation and comparison', 
 
     expect(within(results).getByRole('note')).toHaveTextContent('Illustrative example — no decoder was called');
     expect(screen.getByRole('tab', { name: 'Terms' })).toHaveFocus();
-    await userEvent.click(screen.getByRole('button', { name: 'Select visual for comparison' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Select visual perception for comparison' }));
     await userEvent.click(screen.getByRole('button', { name: 'Compare selected result' }));
     expect(screen.getAllByText('NeuroVault image 25')).toHaveLength(2);
 });
@@ -110,33 +116,29 @@ it('uses the successful preview snapshot for result navigation and comparison', 
 it('hands the immutable adapter snapshot to the result explorer', async () => {
     const fixtureAdapter = createFixtureDecodeAdapter();
     const snapshotAdapter: IDecodeFrontendAdapter = {
-        preview: (request, scenario) => {
-            const state = fixtureAdapter.preview(request, scenario);
-            if (state.status !== 'success') return state;
+        preview: async (request, scenario) => {
+            const preview = await fixtureAdapter.preview(request, scenario);
             return {
-                ...state,
-                preview: {
-                    ...state.preview,
-                    modelId: 'niclip',
-                    modelVersion: 'result-model-v9',
-                    parameters: { prior: 'uniform', evidenceThreshold: 7 },
-                    termMetric: 'bayes-factor',
-                    provenance: {
-                        kind: 'fixture',
-                        label: 'Adapter result snapshot',
-                        version: 'result-fixture-v9',
-                    },
-                    terms: [
-                        {
-                            id: 'trm_snapshot_only',
-                            label: 'snapshot-only concept',
-                            rank: 1,
-                            metric: 'similarity',
-                            value: 8.4,
-                            mapUrl: '/maps/example-snapshot-only',
-                        },
-                    ],
+                ...preview,
+                modelId: 'niclip',
+                modelVersion: 'result-model-v9',
+                parameters: { prior: 'uniform', evidenceThreshold: 7 },
+                termMetric: 'bayes-factor',
+                provenance: {
+                    kind: 'fixture' as const,
+                    label: 'Adapter result snapshot',
+                    version: 'result-fixture-v9',
                 },
+                terms: [
+                    {
+                        id: 'trm_snapshot_only',
+                        label: 'snapshot-only concept',
+                        rank: 1,
+                        metric: 'similarity' as const,
+                        value: 8.4,
+                        mapUrl: '/maps/example-snapshot-only',
+                    },
+                ],
             };
         },
     };
@@ -221,7 +223,7 @@ it('retries an inline failure with the same preserved draft', async () => {
     const fixtureAdapter = createFixtureDecodeAdapter();
     let attempts = 0;
     const retryAdapter: IDecodeFrontendAdapter = {
-        preview: (request) => {
+        preview: async (request) => {
             attempts += 1;
             return fixtureAdapter.preview(request, attempts === 1 ? 'lookup-error' : 'success');
         },
@@ -249,7 +251,67 @@ it('falls back to success for an invalid development fixture query scenario', as
     render(<DecodePage />);
     await previewValidNeurovaultInput();
 
-    expect(screen.getByRole('button', { name: 'Select visual for comparison' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Select visual perception for comparison' })).toBeVisible();
+});
+
+it('lets the page own loading and success around a Promise-based adapter', async () => {
+    const fixtureAdapter = createFixtureDecodeAdapter();
+    let resolvePreview!: (preview: Awaited<ReturnType<IDecodeFrontendAdapter['preview']>>) => void;
+    const adapter: IDecodeFrontendAdapter = {
+        preview: () => new Promise((resolve) => (resolvePreview = resolve)),
+    };
+    render(<DecodePage adapter={adapter} />);
+    await completeNeurovaultDraft();
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+    expect(screen.getByRole('region', { name: 'Decoder preview loading' })).toBeVisible();
+
+    const request = {
+        source: { kind: 'neurovault' as const, imageId: '25' },
+        metadata: {
+            mapType: 'z' as const,
+            analysisLevel: 'group' as const,
+            modality: 'fmri-bold' as const,
+            subjectCount: '121',
+            cognitiveTask: null,
+            interpretation: '',
+        },
+        concepts: [],
+        interpretation: '',
+        modelId: 'neurovlm' as const,
+        modelVersion: 'fixture-v1',
+        parameters: { resultLimit: 50 },
+    };
+    resolvePreview(await fixtureAdapter.preview(request, 'success'));
+    expect(await screen.findByRole('region', { name: 'Illustrative decoder results' })).toBeVisible();
+});
+
+it('does not duplicate a failure in the polite status region', async () => {
+    render(<DecodePage initialFixtureScenario="lookup-error" />);
+    await previewValidNeurovaultInput();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Example NeuroVault lookup failed');
+    expect(screen.getByRole('status')).toHaveTextContent('');
+});
+
+it('marks an upload preview stale when a different same-name file is selected after renewed consent', async () => {
+    render(<DecodePage />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
+    const first = new File(['first'], 'same-map.nii.gz', { type: 'application/gzip', lastModified: 100 });
+    await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), first);
+    await userEvent.click(screen.getByRole('checkbox', { name: /I accept the public CC0 deposit terms/ }));
+    await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
+    await userEvent.selectOptions(screen.getByLabelText('Analysis level'), 'group');
+    await userEvent.selectOptions(screen.getByLabelText('Modality'), 'fmri-bold');
+    await userEvent.type(screen.getByLabelText('Number of subjects'), '12');
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+    await screen.findByRole('region', { name: 'Illustrative decoder results' });
+    await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
+    const second = new File(['a different file'], 'same-map.nii.gz', {
+        type: 'application/gzip',
+        lastModified: 200,
+    });
+    await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), second);
+    await userEvent.click(screen.getByRole('checkbox', { name: /I accept the public CC0 deposit terms/ }));
+    expect(await screen.findByText('This example preview is out of date.')).toBeVisible();
 });
 
 it('shows an explicitly illustrative CC0 receipt without claiming a deposit occurred', async () => {

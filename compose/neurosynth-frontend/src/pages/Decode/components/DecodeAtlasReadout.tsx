@@ -1,5 +1,6 @@
 import { Box, Stack, Typography } from '@mui/material';
 import type { IAtlasReadout, IViewerState } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 const EXAMPLE_COORDINATE_KEY = '-42,0,0';
 
@@ -17,9 +18,9 @@ const DecodeAtlasReadout: React.FC<{
             role="region"
             aria-label="Example atlas readout"
             aria-describedby="decode-atlas-provenance"
-            sx={{ borderLeft: '2px solid #0077b6', pl: 2 }}
+            sx={{ borderLeft: `2px solid ${DECODE_COLORS.blue}`, pl: 2 }}
         >
-            <Typography component="h3" variant="subtitle1" sx={{ color: '#263238', fontWeight: 700 }}>
+            <Typography component="h3" variant="subtitle1" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
                 Example atlas readout
             </Typography>
             <Typography id="decode-atlas-provenance" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -33,12 +34,12 @@ const DecodeAtlasReadout: React.FC<{
                                 {atlas} · example
                             </Typography>
                             <Stack direction="row" justifyContent="space-between" spacing={2} sx={{ mt: 0.25 }}>
-                                <Typography variant="body2" sx={{ color: '#263238', fontWeight: 500 }}>
+                                <Typography variant="body2" sx={{ color: DECODE_COLORS.ink, fontWeight: 500 }}>
                                     {region}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    sx={{ color: '#023e8a', fontFamily: 'monospace', fontWeight: 700 }}
+                                    sx={{ color: DECODE_COLORS.navy, fontFamily: 'monospace', fontWeight: 700 }}
                                 >
                                     {percentage}%
                                 </Typography>

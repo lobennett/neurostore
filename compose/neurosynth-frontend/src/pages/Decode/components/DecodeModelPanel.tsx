@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { DECODE_MODELS } from '../Decode.fixtures';
+import { DECODE_COLORS } from '../Decode.styles';
 import type {
     DecodeModelId,
     DecodeSourceKind,
@@ -157,9 +158,9 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                             key={candidate.id}
                             variant="outlined"
                             sx={{
-                                borderColor: selected ? '#023e8a' : 'divider',
+                                borderColor: selected ? DECODE_COLORS.navy : 'divider',
                                 borderLeftWidth: selected ? 3 : 1,
-                                bgcolor: selected ? '#f4f8fb' : 'background.paper',
+                                bgcolor: selected ? DECODE_COLORS.surface : 'background.paper',
                                 px: 1.5,
                                 py: 1.25,
                             }}
@@ -223,11 +224,7 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                     sx={{ mt: 1.5 }}
                     action={
                         neuroVlm ? (
-                            <Button
-                                color="inherit"
-                                size="small"
-                                onClick={() => selectModel(neuroVlm.id)}
-                            >
+                            <Button color="inherit" size="small" onClick={() => selectModel(neuroVlm.id)}>
                                 Use NeuroVLM instead
                             </Button>
                         ) : undefined
@@ -257,9 +254,7 @@ const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, on
                         value={parameters[parameter.key] ?? parameter.defaultValue}
                         error={touchedParameters[parameter.key] ? parameterErrors?.[parameter.key] : undefined}
                         onChange={(value) => onChange(model.id, { ...parameters, [parameter.key]: value })}
-                        onBlur={() =>
-                            setTouchedParameters((current) => ({ ...current, [parameter.key]: true }))
-                        }
+                        onBlur={() => setTouchedParameters((current) => ({ ...current, [parameter.key]: true }))}
                     />
                 ))}
             </Stack>

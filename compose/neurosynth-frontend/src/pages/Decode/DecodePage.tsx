@@ -1,10 +1,11 @@
 import { Alert, Box, Button, Collapse, Divider, Paper, Stack, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePageMetadata, usePrerenderReady } from '../../../seo/hooks';
-import { createFixtureDecodeAdapter } from './Decode.adapter';
+import { createFixtureDecodeAdapter, DecodePreviewError } from './Decode.adapter';
 import { MAP_TYPE_OPTIONS, NEUROVAULT_MODALITY_OPTIONS } from './Decode.constants';
 import { DECODE_MODELS, EMPTY_DECODE_DRAFT } from './Decode.fixtures';
 import { buildDecodeRunRequest, isPreviewStale } from './Decode.helpers';
+import { DECODE_COLORS } from './Decode.styles';
 import type {
     DecodeFixtureScenario,
     DecodeResultView,
@@ -84,6 +85,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
     const [autoFocusSource, setAutoFocusSource] = useState(false);
     const [workspaceVersion, setWorkspaceVersion] = useState(0);
     const [viewerState, setViewerState] = useState<IViewerState>(DEFAULT_VIEWER_STATE);
+    const previewAttempt = useRef(0);
 
     usePageMetadata({
         title: 'Decode a brain map | Neurosynth Compose',
@@ -103,10 +105,10 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
         setDraft(nextDraft);
     };
 
-    const openPreview = () => {
+    const openPreview = async () => {
         const request = buildDecodeRunRequest(draft);
-        const nextPreviewState = adapter.preview(request, activeFixtureScenario);
-        setPreviewState(nextPreviewState);
+        const attempt = ++previewAttempt.current;
+        setPreviewState({ status: 'loading', request });
         const initialCoordinate = request.source.kind === 'coordinates' ? request.source.points[0] : undefined;
         setViewerState(
             initialCoordinate
@@ -117,16 +119,30 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
         setActiveResultView('terms');
         setSelectedResult(undefined);
         setAutoFocusSource(false);
-        setAnnouncement(
-            nextPreviewState.status === 'success'
-                ? 'Example decoder results ready.'
-                : nextPreviewState.status === 'loading'
-                  ? 'Illustrative preview loading.'
-                  : `${nextPreviewState.operation} failed. ${nextPreviewState.message}`
-        );
+        setAnnouncement('Illustrative preview loading.');
+        try {
+            const preview = await adapter.preview(request, activeFixtureScenario);
+            if (attempt !== previewAttempt.current) return;
+            setPreviewState({ status: 'success', request, preview });
+            setAnnouncement('Example decoder results ready.');
+        } catch (error) {
+            if (attempt !== previewAttempt.current) return;
+            const previewError =
+                error instanceof DecodePreviewError
+                    ? error
+                    : new DecodePreviewError('Decoder preview', 'The illustrative preview could not be prepared.');
+            setPreviewState({
+                status: 'error',
+                operation: previewError.operation,
+                request,
+                message: previewError.message,
+            });
+            setAnnouncement('');
+        }
     };
 
     const resetPreview = () => {
+        previewAttempt.current += 1;
         setDraft(EMPTY_DECODE_DRAFT);
         setPreviewState(null);
         setInputsExpanded(true);
@@ -154,7 +170,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
             : [];
 
     return (
-        <Box component="main" sx={{ py: { xs: 2, md: 4 } }}>
+        <Box component="main" data-sentry-block sx={{ py: { xs: 2, md: 4 } }}>
             <Box
                 role="status"
                 aria-live="polite"
@@ -190,7 +206,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                     alignItems="center"
                     justifyContent="space-between"
                     spacing={2}
-                    sx={{ borderLeft: '4px solid #023e8a', px: { xs: 2, md: 2.5 }, py: 1.5 }}
+                    sx={{ borderLeft: `4px solid ${DECODE_COLORS.navy}`, px: { xs: 2, md: 2.5 }, py: 1.5 }}
                 >
                     <Box>
                         <Typography component="h2" variant="h6" sx={{ fontWeight: 700 }}>
@@ -250,7 +266,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                                 <Paper
                                     component="aside"
                                     variant="outlined"
-                                    sx={{ p: 2.5, borderTop: '3px solid #023e8a' }}
+                                    sx={{ p: 2.5, borderTop: `3px solid ${DECODE_COLORS.navy}` }}
                                 >
                                     {previewIsStale ? (
                                         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -279,7 +295,12 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                                         <Box
                                             role="region"
                                             aria-label="Example deposit receipt"
-                                            sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #0096c7', mt: 2, p: 1.5 }}
+                                            sx={{
+                                                bgcolor: DECODE_COLORS.surface,
+                                                borderLeft: `4px solid ${DECODE_COLORS.cyan}`,
+                                                mt: 2,
+                                                p: 1.5,
+                                            }}
                                         >
                                             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                                 Example deposit receipt

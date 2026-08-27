@@ -48,7 +48,14 @@ export interface IMniPoint {
 
 export type DecodeRunSource =
     | { kind: 'neurovault'; imageId: string }
-    | { kind: 'upload'; filename: string; license: 'CC0' }
+    | {
+          kind: 'upload';
+          filename: string;
+          license: 'CC0';
+          size: number;
+          mediaType: string;
+          lastModified: number;
+      }
     | { kind: 'coordinates'; points: Array<{ id: string; label: string; x: number; y: number; z: number }> };
 
 export interface IDecodeMetadata {
@@ -108,8 +115,9 @@ export interface IDecodeModelDefinition {
     supportedSources: DecodeSourceKind[];
     inputRequirements: string;
     parameters: IDecodeParameterDefinition[];
-    outputViews: string[];
+    outputViews: DecodeResultView[];
     interpretationNote: string;
+    subjectLevelSuitability: string;
 }
 
 export interface IDecodeTerm {
@@ -168,7 +176,7 @@ export type IDecodePreviewState =
     | { status: 'success'; request: IDecodeRunRequest; preview: IDecodePreview };
 
 export interface IDecodeFrontendAdapter {
-    preview(request: IDecodeRunRequest, scenario: DecodeFixtureScenario): IDecodePreviewState;
+    preview(request: IDecodeRunRequest, scenario: DecodeFixtureScenario): Promise<IDecodePreview>;
 }
 
 export interface IViewerState {
@@ -187,11 +195,13 @@ export interface IDecodeComparableResult {
 }
 
 export type IDecodeParameterErrors = Partial<Record<string, string>>;
+export type DecodeCoordinateAxis = 'x' | 'y' | 'z';
+export type IDecodeCoordinateErrors = Record<string, Partial<Record<DecodeCoordinateAxis, string>>>;
 
 export interface IDecodeValidationErrors {
     source?: string;
     modelId?: string;
-    coordinates?: string[];
+    coordinates?: IDecodeCoordinateErrors;
     depositConsent?: string;
     mapType?: string;
     analysisLevel?: string;

@@ -1,6 +1,7 @@
 import { Box, Checkbox, FormControlLabel, FormHelperText, Typography } from '@mui/material';
 import { useState } from 'react';
 import type { IDecodeMetadata } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 
 interface DecodeDepositDisclosureProps {
     file: File;
@@ -17,8 +18,8 @@ const DecodeDepositDisclosure = ({ file, metadata, consent, error, onConsentChan
     const errorId = 'decode-deposit-consent-error';
     const visibleError = consentTouched ? error : undefined;
     return (
-        <Box sx={{ bgcolor: '#f4f8fb', borderLeft: 3, borderColor: '#0077b6', mt: 2, p: 2 }}>
-            <Typography component="h3" sx={{ color: '#263238', fontWeight: 700 }} variant="subtitle2">
+        <Box sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: 3, borderColor: DECODE_COLORS.blue, mt: 2, p: 2 }}>
+            <Typography component="h3" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }} variant="subtitle2">
                 Public deposit terms (illustrative preview)
             </Typography>
             <Typography sx={{ overflowWrap: 'anywhere' }}>

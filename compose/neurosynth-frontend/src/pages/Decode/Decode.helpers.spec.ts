@@ -113,7 +113,9 @@ describe('decode input helpers', () => {
             activeSource: 'coordinates',
             coordinates: [{ id: 'p1', label: '', x: '91', y: '0', z: '0' }],
         });
-        expect(validateDecodeDraft(draft).coordinates).toContain('x must be between -90 and 90');
+        expect(validateDecodeDraft(draft).coordinates).toEqual({
+            p1: { x: 'Point 1: x must be between -90 and 90.' },
+        });
     });
 
     it('requires every MNI coordinate value to be a finite number', () => {
@@ -121,13 +123,13 @@ describe('decode input helpers', () => {
             activeSource: 'coordinates',
             coordinates: [{ id: 'p1', label: '', x: '', y: '0', z: '0' }],
         });
-        expect(validateDecodeDraft(draft).coordinates).toContain('x must be a finite number');
+        expect(validateDecodeDraft(draft).coordinates).toEqual({ p1: { x: 'Point 1: x must be a finite number.' } });
     });
 
     it('requires deposit consent only for a local file', () => {
-        expect(validateDecodeDraft(completeDraft({ activeSource: 'upload', depositConsent: false })).depositConsent).toBe(
-            'Accept the public CC0 deposit terms to continue.'
-        );
+        expect(
+            validateDecodeDraft(completeDraft({ activeSource: 'upload', depositConsent: false })).depositConsent
+        ).toBe('Accept the public CC0 deposit terms to continue.');
         expect(validateDecodeDraft(completeDraft({ activeSource: 'neurovault' })).depositConsent).toBeUndefined();
     });
 
@@ -167,5 +169,40 @@ describe('decode input helpers', () => {
         const request = buildDecodeRunRequest(draft);
         expect(isPreviewStale({ ...draft, modelParameters: { resultLimit: 100 } }, request)).toBe(true);
         expect(isPreviewStale(draft, request)).toBe(false);
+    });
+
+    it('serializes confirmed official concepts and treats confirmation as a stale scientific change', () => {
+        const draft = completeDraft();
+        const request = buildDecodeRunRequest(draft);
+        const suggestion = {
+            id: 'trm_4a3fd79d0af66',
+            label: 'response inhibition',
+            vocabulary: 'Cognitive Atlas' as const,
+        };
+        const confirmed = { ...draft, concepts: [suggestion], confirmedSuggestions: [suggestion] };
+        expect(buildDecodeRunRequest(confirmed).concepts).toEqual([suggestion]);
+        expect(isPreviewStale(confirmed, request)).toBe(true);
+    });
+
+    it('includes non-content file metadata in upload identity', () => {
+        const first = completeDraft({
+            activeSource: 'upload',
+            file: new File(['a'], 'same.nii.gz', { type: 'application/gzip', lastModified: 10 }),
+            depositConsent: true,
+        });
+        const request = buildDecodeRunRequest(first);
+        const second = {
+            ...first,
+            file: new File(['different'], 'same.nii.gz', { type: 'application/gzip', lastModified: 20 }),
+        };
+        expect(request.source).toEqual(
+            expect.objectContaining({
+                filename: 'same.nii.gz',
+                size: 1,
+                mediaType: 'application/gzip',
+                lastModified: 10,
+            })
+        );
+        expect(isPreviewStale(second, request)).toBe(true);
     });
 });

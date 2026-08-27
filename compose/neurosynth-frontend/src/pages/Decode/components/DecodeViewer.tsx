@@ -1,6 +1,7 @@
 import { Box, Slider, Stack, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import type { DecodeRunSource, IAtlasReadout, IViewerState } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 import DecodeAtlasReadout from './DecodeAtlasReadout';
 
 type CoordinateAxis = 'x' | 'y' | 'z';
@@ -24,7 +25,7 @@ const PlanePlaceholder: React.FC<{
     vertical: { axis: CoordinateAxis; value: number };
 }> = ({ label, horizontal, vertical }) => (
     <Box>
-        <Typography variant="caption" sx={{ color: '#263238', fontWeight: 700, letterSpacing: '0.04em' }}>
+        <Typography variant="caption" sx={{ color: DECODE_COLORS.ink, fontWeight: 700, letterSpacing: '0.04em' }}>
             {label} plane
         </Typography>
         <Box
@@ -34,7 +35,7 @@ const PlanePlaceholder: React.FC<{
             )}, ${vertical.axis} ${signedCoordinate(vertical.value)}. No map image is loaded.`}
             sx={{
                 aspectRatio: '1.16 / 1',
-                backgroundColor: '#f4f8fb',
+                backgroundColor: DECODE_COLORS.surface,
                 backgroundImage:
                     'linear-gradient(rgba(0, 119, 182, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 119, 182, 0.08) 1px, transparent 1px)',
                 backgroundSize: '18px 18px',
@@ -47,7 +48,7 @@ const PlanePlaceholder: React.FC<{
             <Box
                 aria-hidden="true"
                 sx={{
-                    backgroundColor: '#023e8a',
+                    backgroundColor: DECODE_COLORS.navy,
                     height: '1px',
                     left: 0,
                     position: 'absolute',
@@ -58,7 +59,7 @@ const PlanePlaceholder: React.FC<{
             <Box
                 aria-hidden="true"
                 sx={{
-                    backgroundColor: '#0096c7',
+                    backgroundColor: DECODE_COLORS.cyan,
                     bottom: 0,
                     left: `${coordinatePercent(horizontal.value, horizontal.axis)}%`,
                     position: 'absolute',
@@ -70,7 +71,7 @@ const PlanePlaceholder: React.FC<{
                 aria-hidden="true"
                 sx={{
                     backgroundColor: '#ffffff',
-                    border: '2px solid #023e8a',
+                    border: `2px solid ${DECODE_COLORS.navy}`,
                     borderRadius: '50%',
                     height: 8,
                     left: `${coordinatePercent(horizontal.value, horizontal.axis)}%`,
@@ -128,15 +129,15 @@ const DecodeViewer: React.FC<{
             sx={{
                 backgroundColor: '#ffffff',
                 border: '1px solid rgba(2, 62, 138, 0.24)',
-                borderTop: '3px solid #023e8a',
+                borderTop: `3px solid ${DECODE_COLORS.navy}`,
                 p: { xs: 2, md: 3 },
             }}
         >
             <Stack spacing={0.5} sx={{ mb: 2.5 }}>
-                <Typography component="h2" variant="h6" sx={{ color: '#263238', fontWeight: 700 }}>
+                <Typography component="h2" variant="h6" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
                     Spatial workspace
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#023e8a', fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ color: DECODE_COLORS.navy, fontWeight: 500 }}>
                     Example viewer — this prototype has not loaded or inspected your map
                 </Typography>
             </Stack>
@@ -173,7 +174,12 @@ const DecodeViewer: React.FC<{
                         />
                     </Box>
                     <Typography
-                        sx={{ color: '#263238', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', mt: 2 }}
+                        sx={{
+                            color: DECODE_COLORS.ink,
+                            fontFamily: 'monospace',
+                            fontVariantNumeric: 'tabular-nums',
+                            mt: 2,
+                        }}
                     >
                         Selected MNI coordinate: x {signedCoordinate(value.x)}, y {signedCoordinate(value.y)}, z{' '}
                         {signedCoordinate(value.z)}
@@ -196,7 +202,7 @@ const DecodeViewer: React.FC<{
                                     backgroundColor: '#ffffff',
                                     border: '1px solid rgba(38, 50, 56, 0.38)',
                                     borderRadius: 1,
-                                    color: '#263238',
+                                    color: DECODE_COLORS.ink,
                                     font: 'inherit',
                                     mt: 0.75,
                                     p: 0.75,
@@ -261,7 +267,7 @@ const DecodeViewer: React.FC<{
                             onChange={(_event, threshold) =>
                                 onChange({ ...value, threshold: Array.isArray(threshold) ? threshold[0] : threshold })
                             }
-                            sx={{ color: '#0077b6', mt: 0.5 }}
+                            sx={{ color: DECODE_COLORS.blue, mt: 0.5 }}
                         />
                         <Typography variant="caption" color="text.secondary">
                             Display only · does not change decoder results

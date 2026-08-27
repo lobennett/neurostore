@@ -8,6 +8,7 @@ import type {
     IDecodePreview,
     IViewerState,
 } from '../Decode.types';
+import { DECODE_COLORS } from '../Decode.styles';
 import DecodeComparison from './DecodeComparison';
 import DecodeMethodSummary from './DecodeMethodSummary';
 import DecodeNiClipResults from './DecodeNiClipResults';
@@ -71,6 +72,7 @@ const DecodeResults: React.FC<{
     const tabRefs = useRef<Partial<Record<DecodeResultView, HTMLDivElement | null>>>({});
     const pendingFocusView = useRef<DecodeResultView | undefined>(undefined);
     const termMetricSummary = METRIC_SUMMARIES[preview.termMetric];
+    const availableResultViews = RESULT_VIEWS.filter(({ value }) => model.outputViews.includes(value));
     const changeViewAndFocusTab = (view: DecodeResultView) => {
         pendingFocusView.current = view;
         onViewChange(view);
@@ -86,7 +88,7 @@ const DecodeResults: React.FC<{
     return (
         <Box>
             <Stack spacing={1} sx={{ mb: 2 }}>
-                <Alert severity="info" role="note" sx={{ borderLeft: '4px solid #0077b6' }}>
+                <Alert severity="info" role="note" sx={{ borderLeft: `4px solid ${DECODE_COLORS.blue}` }}>
                     <Box component="span">{preview.provenance.label}</Box> · {preview.provenance.version}
                 </Alert>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.5, sm: 2 }} sx={{ px: 1.5 }}>
@@ -104,7 +106,14 @@ const DecodeResults: React.FC<{
                         </Typography>
                     ))}
                 </Stack>
-                <Box sx={{ px: 1.5, py: 1, bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a' }}>
+                <Box
+                    sx={{
+                        px: 1.5,
+                        py: 1,
+                        bgcolor: DECODE_COLORS.surface,
+                        borderLeft: `4px solid ${DECODE_COLORS.navy}`,
+                    }}
+                >
                     <Typography variant="body2" color="text.secondary">
                         Ranked associations do not establish the cognitive state that produced the input. They support
                         interpretation, not reverse-inference proof.
@@ -121,7 +130,7 @@ const DecodeResults: React.FC<{
                 allowScrollButtonsMobile
                 sx={{ borderBottom: 1, borderColor: 'divider' }}
             >
-                {RESULT_VIEWS.map(({ value, label }) => (
+                {availableResultViews.map(({ value, label }) => (
                     <Tab
                         key={value}
                         ref={(element) => {
@@ -144,7 +153,7 @@ const DecodeResults: React.FC<{
                 sx={{ py: 2 }}
             >
                 {preview.terms.length === 0 ? (
-                    <Box sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a', p: 2 }}>
+                    <Box sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}>
                         <Typography>No example term results are available for this preview.</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             Edit the inputs or try the preview again to inspect a different fixture state.
@@ -168,7 +177,7 @@ const DecodeResults: React.FC<{
                 sx={{ py: 2 }}
             >
                 {preview.studies.length === 0 ? (
-                    <Box sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a', p: 2 }}>
+                    <Box sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}>
                         <Typography>No example associated studies are available for this preview.</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             The Terms and Model summary tabs remain available for this preview.

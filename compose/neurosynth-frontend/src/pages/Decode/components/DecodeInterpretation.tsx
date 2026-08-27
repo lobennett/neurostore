@@ -1,6 +1,6 @@
 import { Button, Stack, TextField, Typography } from '@mui/material';
-import { COGNITIVE_TASK_OPTIONS } from '../Decode.fixtures';
 import type { ICognitiveConcept } from '../Decode.types';
+import { COGNITIVE_ATLAS_CONCEPTS } from '../Decode.vocabulary';
 
 interface DecodeInterpretationProps {
     interpretation: string;
@@ -16,10 +16,10 @@ const DecodeInterpretation = ({
     onConfirmSuggestion,
 }: DecodeInterpretationProps) => {
     const suggestionLabel = interpretation.trim();
-    const matchingTask = COGNITIVE_TASK_OPTIONS.find(({ label }) => label.toLocaleLowerCase() === suggestionLabel.toLocaleLowerCase());
-    const suggestion = matchingTask
-        ? { id: `fixture-${matchingTask.id}`, label: suggestionLabel, vocabulary: 'Cognitive Atlas' as const }
-        : null;
+    const suggestion =
+        COGNITIVE_ATLAS_CONCEPTS.find(
+            ({ label }) => label.toLocaleLowerCase() === suggestionLabel.toLocaleLowerCase()
+        ) ?? null;
     const isConfirmed = suggestion ? confirmedSuggestions.some(({ id }) => id === suggestion.id) : false;
 
     return (
@@ -40,7 +40,9 @@ const DecodeInterpretation = ({
                     </Button>
                 </Stack>
             )}
-            {suggestion && isConfirmed && <Typography variant="body2">Confirmed concept: {suggestion.label}</Typography>}
+            {suggestion && isConfirmed && (
+                <Typography variant="body2">Confirmed concept: {suggestion.label}</Typography>
+            )}
         </Stack>
     );
 };

@@ -1,5 +1,6 @@
 import { Alert, Checkbox, FormControlLabel, FormHelperText, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
+import { DECODE_MODELS } from '../Decode.fixtures';
 import type { IDecodeDraft, IDecodeMetadata, IDecodeValidationErrors } from '../Decode.types';
 import DecodeConceptSelector from './DecodeConceptSelector';
 import DecodeInterpretation from './DecodeInterpretation';
@@ -19,10 +20,9 @@ const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPa
     };
     const isMapInput = draft.activeSource !== 'coordinates';
     const isSubjectMap = isMapInput && draft.metadata.analysisLevel === 'subject';
-    const subjectAcknowledgementError = subjectAcknowledgementTouched
-        ? errors.subjectWarningAcknowledged
-        : undefined;
+    const subjectAcknowledgementError = subjectAcknowledgementTouched ? errors.subjectWarningAcknowledged : undefined;
     const subjectAcknowledgementErrorId = 'decode-subject-acknowledgement-error';
+    const selectedModel = DECODE_MODELS.find(({ id }) => id === draft.modelId);
 
     return (
         <Stack component="section" spacing={2} aria-label="Map description">
@@ -39,7 +39,8 @@ const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPa
             )}
             {isSubjectMap && (
                 <Alert severity="warning" role="alert">
-                    NiCLIP was designed for group-level maps. Subject-level results may be unreliable.
+                    Subject-level maps may contain identifiable patterns or sensitive information. Review them before
+                    any future public deposit. {selectedModel?.subjectLevelSuitability}
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -64,7 +65,10 @@ const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPa
                     ) : null}
                 </Alert>
             )}
-            <DecodeConceptSelector concepts={draft.concepts} onChange={(concepts) => onChange({ ...draft, concepts })} />
+            <DecodeConceptSelector
+                concepts={draft.concepts}
+                onChange={(concepts) => onChange({ ...draft, concepts })}
+            />
             <DecodeInterpretation
                 interpretation={draft.interpretation}
                 confirmedSuggestions={draft.confirmedSuggestions}
@@ -75,6 +79,9 @@ const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPa
                         confirmedSuggestions: draft.confirmedSuggestions.some(({ id }) => id === suggestion.id)
                             ? draft.confirmedSuggestions
                             : [...draft.confirmedSuggestions, suggestion],
+                        concepts: draft.concepts.some(({ id }) => id === suggestion.id)
+                            ? draft.concepts
+                            : [...draft.concepts, suggestion],
                     })
                 }
             />

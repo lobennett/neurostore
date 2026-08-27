@@ -13,6 +13,7 @@ import type {
     INiClipDomain,
     INiClipTask,
 } from './Decode.types';
+import { COGNITIVE_ATLAS_CONCEPTS } from './Decode.vocabulary';
 
 export const EMPTY_DECODE_DRAFT: IDecodeDraft = {
     activeSource: 'neurovault',
@@ -51,6 +52,8 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:
             'An association or high rank is evidence for interpretation, not proof of the cognitive state that produced the input.',
+        subjectLevelSuitability:
+            "This interface has not established NeuroVLM's suitability for subject-level maps; interpret the example cautiously.",
     },
     {
         id: 'niclip',
@@ -80,6 +83,8 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:
             'Posterior probabilities depend on the selected prior; Bayes factors show the change in evidence relative to that prior.',
+        subjectLevelSuitability:
+            "This interface has not established NiCLIP's suitability for subject-level maps; interpret the example cautiously.",
     },
 ];
 
@@ -89,60 +94,41 @@ export const FIXTURE_PROVENANCE: IDecodeProvenance = {
     version: 'fixture-v1',
 };
 
-export const EXAMPLE_TERMS: Array<IDecodeTerm & IDecodedTerm> = [
-    {
-        id: 'trm_visual',
-        label: 'visual',
-        rank: 1,
-        metric: 'correlation',
-        value: 0.312,
-        mapUrl: '/maps/example-visual',
-        term: 'visual',
-        correlation: 0.312,
-    },
-    {
-        id: 'trm_occipital',
-        label: 'occipital',
-        rank: 2,
-        metric: 'correlation',
-        value: 0.268,
-        mapUrl: '/maps/example-occipital',
-        term: 'occipital',
-        correlation: 0.268,
-    },
-    {
-        id: 'trm_baseline',
-        label: 'baseline',
-        rank: 3,
-        metric: 'correlation',
-        value: 0,
-        mapUrl: '/maps/example-baseline',
-        term: 'baseline',
-        correlation: 0,
-    },
-    {
-        id: 'trm_language',
-        label: 'language',
-        rank: 4,
-        metric: 'correlation',
-        value: -0.118,
-        mapUrl: '/maps/example-language',
-        term: 'language',
-        correlation: -0.118,
-    },
-];
+const preferredFixtureConcepts = ['visual perception', 'working memory', 'response inhibition'];
+const fixtureConcepts = [
+    ...preferredFixtureConcepts.flatMap((label) =>
+        COGNITIVE_ATLAS_CONCEPTS.filter((concept) => concept.label.toLocaleLowerCase() === label)
+    ),
+    ...COGNITIVE_ATLAS_CONCEPTS.filter(
+        (concept) => !preferredFixtureConcepts.includes(concept.label.toLocaleLowerCase())
+    ),
+].slice(0, 65);
 
-export const EXAMPLE_STUDIES: IDecodeStudy[] = [
-    {
-        id: 'example-study-001',
-        title: 'Illustrative visual processing study',
-        authors: 'Example et al.',
-        year: 2024,
-        matchBasis: 'Matches input and selected concept',
+export const EXAMPLE_TERMS: Array<IDecodeTerm & IDecodedTerm> = fixtureConcepts.map((concept, index) => {
+    const rank = index + 1;
+    const correlation = index === 2 ? 0 : Number((0.312 - index * 0.007).toFixed(3));
+    return {
+        id: concept.id,
+        label: concept.label,
+        rank,
+        metric: 'correlation',
+        value: correlation,
+        mapUrl: index === 0 ? 'https://neurovault.org/images/25/' : `/maps/example-term-${rank}`,
+        term: concept.label,
+        correlation,
+    };
+});
+
+const makeExampleStudies = (request: IDecodeRunRequest): IDecodeStudy[] =>
+    Array.from({ length: 55 }, (_, index) => ({
+        id: `example-study-${String(index + 1).padStart(3, '0')}`,
+        title: index === 0 ? 'Illustrative visual processing study' : `Illustrative associated study ${index + 1}`,
+        authors: index === 0 ? 'Example et al.' : `Example authors ${index + 1}`,
+        year: 2024 - (index % 12),
+        matchBasis: request.concepts.length ? 'Matches input and selected concept' : 'Matches input only',
         url: 'https://neurovault.org/images/25/',
         mapUrl: 'https://neurovault.org/images/25/',
-    },
-];
+    }));
 
 export const EXAMPLE_NICLIP_DOMAINS: INiClipDomain[] = [
     { domain: 'Perception', probability: 0.78 },
@@ -153,7 +139,7 @@ export const EXAMPLE_NICLIP_DOMAINS: INiClipDomain[] = [
 export const EXAMPLE_NICLIP_TASKS: INiClipTask[] = [
     { task: 'Visual perception', probability: 0.21, bayesFactor: 14.2 },
     { task: 'Motion detection', probability: 0.14, bayesFactor: 7.1 },
-    { task: 'Spatial attention', probability: 0.09, bayesFactor: 4.3 },
+    { task: 'Spatial attention', probability: 0.09, bayesFactor: 1 },
 ];
 
 export const EXAMPLE_ATLAS_READOUTS: IAtlasReadout[] = [
@@ -168,7 +154,7 @@ export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeF
     termMetric: 'correlation',
     provenance: FIXTURE_PROVENANCE,
     terms: scenario === 'empty-terms' ? [] : EXAMPLE_TERMS,
-    studies: scenario === 'empty-studies' ? [] : EXAMPLE_STUDIES,
+    studies: scenario === 'empty-studies' ? [] : makeExampleStudies(request),
     modelSummary: {
         narrative: 'Illustrative model summary — no decoder was called.',
         domains: EXAMPLE_NICLIP_DOMAINS.map(({ domain, probability }) => ({ label: domain, probability })),
@@ -182,7 +168,7 @@ export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeF
 });
 
 /** @deprecated Use EMPTY_DECODE_DRAFT. Kept until input components migrate. */
-export const EMPTY_DECODE_SUBMISSION = {
+export const EMPTY_DECODE_SUBMISSION: import('./Decode.types').IDecodeSubmission = {
     source: 'upload' as const,
     file: null,
     neurovaultReference: '',

@@ -92,6 +92,7 @@ const DecodeSourcePanel = ({ draft, errors, onChange, autoFocusSource = false }:
             >
                 <DecodeCoordinateInput
                     errors={draft.activeSource === 'coordinates' ? errors.coordinates : undefined}
+                    groupError={draft.activeSource === 'coordinates' ? errors.source : undefined}
                     onChange={(coordinates) => onChange({ ...draft, coordinates })}
                     points={draft.coordinates}
                 />

@@ -35,7 +35,7 @@ describe('DecodePage', () => {
 
         cy.contains('Example viewer').should('be.visible');
         cy.contains('Illustrative example').should('be.visible');
-        cy.get('button[aria-label="Select visual for comparison"]').click();
+        cy.get('button[aria-label="Select visual perception for comparison"]').click();
         cy.contains('[role="tab"]', 'Associated studies').click();
         cy.contains('Matches input').should('be.visible');
         cy.contains('[role="tab"]', 'Compare maps').click();
@@ -50,7 +50,18 @@ describe('DecodePage', () => {
         cy.visit('/decode');
 
         previewPublicNeurovaultImage();
-        cy.get('button[aria-label="Select visual for comparison"]').click();
+        cy.contains('button', 'Previous page')
+            .should('be.visible')
+            .then(($previous) => {
+                cy.contains('button', 'Compare selected result')
+                    .should('be.visible')
+                    .then(($compare) => {
+                        expect($compare[0].getBoundingClientRect().top).to.be.at.least(
+                            $previous[0].getBoundingClientRect().bottom
+                        );
+                    });
+            });
+        cy.get('button[aria-label="Select visual perception for comparison"]').click();
         cy.contains('button', 'Compare selected result').click();
         cy.get('[role="region"][aria-label="Input map pane"], [role="region"][aria-label="Comparison map pane"]')
             .should('be.visible')

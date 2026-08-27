@@ -125,10 +125,8 @@ it('exposes axis-specific MNI bounds and accessible range guidance', () => {
         expect(coordinate).toHaveAttribute('min', min);
         expect(coordinate).toHaveAttribute('max', max);
         expect(coordinate).toHaveAttribute('step', 'any');
-        expect(coordinate).toHaveAccessibleDescription(
-            `Allowed range: ${min} to ${max} mm. Add at least one valid MNI coordinate.`
-        );
-        expect(coordinate).toHaveAttribute('aria-describedby', expect.stringContaining('decode-coordinate-errors'));
+        expect(coordinate).toHaveAccessibleDescription(`Allowed range: ${min} to ${max} mm.`);
+        expect(coordinate).not.toHaveAttribute('aria-invalid', 'true');
     });
 });
 
@@ -146,9 +144,37 @@ it('retains an out-of-range MNI coordinate with the shared validator error', asy
     renderSourcePanel({ activeSource: 'coordinates' });
     const coordinate = screen.getByRole('spinbutton', { name: 'x coordinate for point 1' });
     await user.type(coordinate, '999');
+    await user.type(screen.getByRole('spinbutton', { name: 'y coordinate for point 1' }), '0');
+    await user.type(screen.getByRole('spinbutton', { name: 'z coordinate for point 1' }), '0');
     expect(coordinate).toHaveValue(999);
-    expect(screen.getByRole('alert')).toHaveTextContent('x must be between -90 and 90');
-    expect(coordinate).toHaveAccessibleDescription(/x must be between -90 and 90/);
+    expect(screen.getByRole('alert')).toHaveTextContent('Point 1: x must be between -90 and 90');
+    expect(coordinate).toHaveAccessibleDescription(/Point 1: x must be between -90 and 90/);
+    expect(screen.getByRole('spinbutton', { name: 'y coordinate for point 1' })).not.toHaveAttribute(
+        'aria-invalid',
+        'true'
+    );
+});
+
+it('associates a mixed-validity error only with the affected point and axis', () => {
+    renderSourcePanel({
+        activeSource: 'coordinates',
+        coordinates: [
+            { id: 'valid', label: 'Seed', x: '0', y: '0', z: '0' },
+            { id: 'invalid', label: 'Target', x: '0', y: '-999', z: '0' },
+        ],
+    });
+    const invalid = screen.getByRole('spinbutton', { name: 'y coordinate for point 2' });
+    expect(invalid).toHaveAttribute('aria-invalid', 'true');
+    expect(invalid).toHaveAccessibleDescription(/Target: y must be between -126 and 90/);
+    expect(screen.getByRole('spinbutton', { name: 'x coordinate for point 2' })).not.toHaveAttribute(
+        'aria-invalid',
+        'true'
+    );
+    expect(screen.getByRole('spinbutton', { name: 'y coordinate for point 1' })).not.toHaveAttribute(
+        'aria-invalid',
+        'true'
+    );
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
 });
 
 it('requires explicit CC0 public-deposit consent without claiming to upload', async () => {
