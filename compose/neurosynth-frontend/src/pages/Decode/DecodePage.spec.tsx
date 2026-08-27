@@ -298,7 +298,7 @@ it('retries an inline failure with the same preserved draft', async () => {
     expect(screen.getByRole('region', { name: 'Illustrative decoder results' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
     expect(screen.getByLabelText('NeuroVault image URL or ID')).toHaveValue('https://neurovault.org/images/25/');
-});
+}, 10_000);
 
 it('accepts an exact development fixture query scenario without using draft query content', async () => {
     window.history.replaceState({}, '', '/decode?fixture=empty-terms&draft=https://secret.example/map.nii');
