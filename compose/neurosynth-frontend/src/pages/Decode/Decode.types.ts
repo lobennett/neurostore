@@ -55,6 +55,8 @@ export type DecodeRunSource =
           size: number;
           mediaType: string;
           lastModified: number;
+          /** Opaque local identity for this file-selection event; no file content is read. */
+          selectionId: number;
       }
     | { kind: 'coordinates'; points: Array<{ id: string; label: string; x: number; y: number; z: number }> };
 
@@ -73,6 +75,7 @@ export interface IDecodeDraft {
     activeSource: DecodeSourceKind;
     neurovaultReference: string;
     file: File | null;
+    fileSelectionId: number;
     coordinates: IMniPoint[];
     depositConsent: boolean;
     metadata: IDecodeMetadata;

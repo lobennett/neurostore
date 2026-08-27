@@ -188,12 +188,14 @@ describe('decode input helpers', () => {
         const first = completeDraft({
             activeSource: 'upload',
             file: new File(['a'], 'same.nii.gz', { type: 'application/gzip', lastModified: 10 }),
+            fileSelectionId: 1,
             depositConsent: true,
         });
         const request = buildDecodeRunRequest(first);
         const second = {
             ...first,
-            file: new File(['different'], 'same.nii.gz', { type: 'application/gzip', lastModified: 20 }),
+            file: new File(['b'], 'same.nii.gz', { type: 'application/gzip', lastModified: 10 }),
+            fileSelectionId: 2,
         };
         expect(request.source).toEqual(
             expect.objectContaining({
@@ -201,6 +203,7 @@ describe('decode input helpers', () => {
                 size: 1,
                 mediaType: 'application/gzip',
                 lastModified: 10,
+                selectionId: 1,
             })
         );
         expect(isPreviewStale(second, request)).toBe(true);

@@ -42,7 +42,7 @@ const MapPlaceholder: React.FC<{
     <Box
         role="region"
         aria-label={ariaLabel}
-        sx={{ border: '1px solid rgba(2, 62, 138, 0.28)', minHeight: 240, p: 2, overflowWrap: 'anywhere' }}
+        sx={{ border: `1px solid ${DECODE_COLORS.navyBorderStrong}`, minHeight: 240, p: 2, overflowWrap: 'anywhere' }}
     >
         <Typography variant="subtitle2" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
             {label}
@@ -51,10 +51,9 @@ const MapPlaceholder: React.FC<{
             aria-hidden="true"
             sx={{
                 backgroundColor: DECODE_COLORS.surface,
-                backgroundImage:
-                    'linear-gradient(rgba(0, 119, 182, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 119, 182, 0.08) 1px, transparent 1px)',
+                backgroundImage: `linear-gradient(${DECODE_COLORS.blueGrid} 1px, transparent 1px), linear-gradient(90deg, ${DECODE_COLORS.blueGrid} 1px, transparent 1px)`,
                 backgroundSize: '20px 20px',
-                border: '1px solid rgba(2, 62, 138, 0.16)',
+                border: `1px solid ${DECODE_COLORS.navyBorder}`,
                 minHeight: 150,
                 mt: 1.25,
                 overflow: 'hidden',
@@ -198,7 +197,7 @@ const DecodeComparison: React.FC<{
                     <Box
                         role="region"
                         aria-label="Overlay map pane"
-                        sx={{ border: '1px solid rgba(2, 62, 138, 0.28)', p: 2 }}
+                        sx={{ border: `1px solid ${DECODE_COLORS.navyBorderStrong}`, p: 2 }}
                     >
                         <Stack
                             direction={{ xs: 'column', sm: 'row' }}
@@ -225,7 +224,7 @@ const DecodeComparison: React.FC<{
                         <Box
                             sx={{
                                 bgcolor: DECODE_COLORS.surface,
-                                border: '1px solid rgba(2, 62, 138, 0.16)',
+                                border: `1px solid ${DECODE_COLORS.navyBorder}`,
                                 minHeight: 230,
                                 overflow: 'hidden',
                                 position: 'relative',

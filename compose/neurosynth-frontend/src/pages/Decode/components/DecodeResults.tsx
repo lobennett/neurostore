@@ -73,17 +73,25 @@ const DecodeResults: React.FC<{
     const pendingFocusView = useRef<DecodeResultView | undefined>(undefined);
     const termMetricSummary = METRIC_SUMMARIES[preview.termMetric];
     const availableResultViews = RESULT_VIEWS.filter(({ value }) => model.outputViews.includes(value));
+    const resolvedActiveView = model.outputViews.includes(activeView)
+        ? activeView
+        : (availableResultViews[0]?.value ?? 'terms');
+    const canCompare = model.outputViews.includes('compare');
     const changeViewAndFocusTab = (view: DecodeResultView) => {
         pendingFocusView.current = view;
         onViewChange(view);
     };
 
     useEffect(() => {
-        if (pendingFocusView.current === activeView) {
-            tabRefs.current[activeView]?.focus();
+        if (!model.outputViews.includes(activeView)) {
+            onViewChange(resolvedActiveView);
+            return;
+        }
+        if (pendingFocusView.current === resolvedActiveView) {
+            tabRefs.current[resolvedActiveView]?.focus();
             pendingFocusView.current = undefined;
         }
-    }, [activeView]);
+    }, [activeView, model.outputViews, onViewChange, resolvedActiveView]);
 
     return (
         <Box>
@@ -122,7 +130,7 @@ const DecodeResults: React.FC<{
             </Stack>
 
             <Tabs
-                value={activeView}
+                value={resolvedActiveView}
                 onChange={(_event, view: DecodeResultView) => onViewChange(view)}
                 aria-label="Decoder result views"
                 variant="scrollable"
@@ -140,117 +148,129 @@ const DecodeResults: React.FC<{
                         aria-controls={panelId(value)}
                         value={value}
                         label={label}
-                        autoFocus={autoFocusActiveTab && activeView === value}
+                        autoFocus={autoFocusActiveTab && resolvedActiveView === value}
                     />
                 ))}
             </Tabs>
 
-            <Box
-                id={panelId('terms')}
-                role="tabpanel"
-                aria-labelledby={tabId('terms')}
-                hidden={activeView !== 'terms'}
-                sx={{ py: 2 }}
-            >
-                {preview.terms.length === 0 ? (
-                    <Box sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}>
-                        <Typography>No example term results are available for this preview.</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            Edit the inputs or try the preview again to inspect a different fixture state.
-                        </Typography>
-                    </Box>
-                ) : (
-                    <DecodeTermResults
-                        terms={preview.terms}
-                        metric={preview.termMetric}
-                        selectedResult={selectedResult}
-                        onSelectComparison={onSelectComparison}
-                        onCompareSelected={() => changeViewAndFocusTab('compare')}
-                    />
-                )}
-            </Box>
-            <Box
-                id={panelId('studies')}
-                role="tabpanel"
-                aria-labelledby={tabId('studies')}
-                hidden={activeView !== 'studies'}
-                sx={{ py: 2 }}
-            >
-                {preview.studies.length === 0 ? (
-                    <Box sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}>
-                        <Typography>No example associated studies are available for this preview.</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            The Terms and Model summary tabs remain available for this preview.
-                        </Typography>
-                    </Box>
-                ) : (
-                    <DecodeStudyResults
-                        studies={preview.studies}
-                        selectedResult={selectedResult}
-                        onSelectComparison={onSelectComparison}
-                        onCompareSelected={() => changeViewAndFocusTab('compare')}
-                    />
-                )}
-            </Box>
-            <Box
-                id={panelId('model-summary')}
-                role="tabpanel"
-                aria-labelledby={tabId('model-summary')}
-                hidden={activeView !== 'model-summary'}
-                sx={{ py: 2 }}
-            >
-                <Typography component="h2" variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                    {model.name} example summary
-                </Typography>
-                {model.id === 'niclip' ? (
-                    <DecodeNiClipResults
-                        domains={preview.modelSummary.domains}
-                        tasks={preview.modelSummary.tasks}
-                        parameters={preview.parameters}
-                    />
-                ) : (
-                    <Box>
-                        <Typography variant="body2" color="text.secondary">
-                            {preview.modelSummary.narrative}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            {termMetricSummary.explanation}
-                        </Typography>
+            {model.outputViews.includes('terms') ? (
+                <Box
+                    id={panelId('terms')}
+                    role="tabpanel"
+                    aria-labelledby={tabId('terms')}
+                    hidden={resolvedActiveView !== 'terms'}
+                    sx={{ py: 2 }}
+                >
+                    {preview.terms.length === 0 ? (
                         <Box
-                            component="ol"
-                            aria-label="NeuroVLM ranked concepts"
-                            sx={{ m: 0, mt: 2, pl: 3, columnCount: { xs: 1, sm: 2 }, columnGap: 3 }}
+                            sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}
                         >
-                            {preview.terms.slice(0, 10).map(({ id, label, value }) => (
-                                <Typography
-                                    component="li"
-                                    variant="body2"
-                                    key={id}
-                                    sx={{ mb: 0.75, breakInside: 'avoid' }}
-                                >
-                                    {label} · {termMetricSummary.quantity} {value.toFixed(3)}
-                                </Typography>
-                            ))}
+                            <Typography>No example term results are available for this preview.</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Edit the inputs or try the preview again to inspect a different fixture state.
+                            </Typography>
                         </Box>
-                    </Box>
-                )}
-                <DecodeMethodSummary model={model} />
-            </Box>
-            <Box
-                id={panelId('compare')}
-                role="tabpanel"
-                aria-labelledby={tabId('compare')}
-                hidden={activeView !== 'compare'}
-                sx={{ py: 2 }}
-            >
-                <DecodeComparison
-                    sourceLabel={sourceLabel}
-                    selectedResult={selectedResult}
-                    viewerState={viewerState}
-                    onChooseTerm={() => changeViewAndFocusTab('terms')}
-                    onViewerStateChange={onViewerStateChange}
-                />
-            </Box>
+                    ) : (
+                        <DecodeTermResults
+                            terms={preview.terms}
+                            metric={preview.termMetric}
+                            selectedResult={selectedResult}
+                            onSelectComparison={onSelectComparison}
+                            onCompareSelected={canCompare ? () => changeViewAndFocusTab('compare') : undefined}
+                        />
+                    )}
+                </Box>
+            ) : null}
+            {model.outputViews.includes('studies') ? (
+                <Box
+                    id={panelId('studies')}
+                    role="tabpanel"
+                    aria-labelledby={tabId('studies')}
+                    hidden={resolvedActiveView !== 'studies'}
+                    sx={{ py: 2 }}
+                >
+                    {preview.studies.length === 0 ? (
+                        <Box
+                            sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}
+                        >
+                            <Typography>No example associated studies are available for this preview.</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                The Terms and Model summary tabs remain available for this preview.
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <DecodeStudyResults
+                            studies={preview.studies}
+                            selectedResult={selectedResult}
+                            onSelectComparison={onSelectComparison}
+                            onCompareSelected={canCompare ? () => changeViewAndFocusTab('compare') : undefined}
+                        />
+                    )}
+                </Box>
+            ) : null}
+            {model.outputViews.includes('model-summary') ? (
+                <Box
+                    id={panelId('model-summary')}
+                    role="tabpanel"
+                    aria-labelledby={tabId('model-summary')}
+                    hidden={resolvedActiveView !== 'model-summary'}
+                    sx={{ py: 2 }}
+                >
+                    <Typography component="h2" variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                        {model.name} example summary
+                    </Typography>
+                    {model.id === 'niclip' ? (
+                        <DecodeNiClipResults
+                            domains={preview.modelSummary.domains}
+                            tasks={preview.modelSummary.tasks}
+                            parameters={preview.parameters}
+                        />
+                    ) : (
+                        <Box>
+                            <Typography variant="body2" color="text.secondary">
+                                {preview.modelSummary.narrative}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                {termMetricSummary.explanation}
+                            </Typography>
+                            <Box
+                                component="ol"
+                                aria-label="NeuroVLM ranked concepts"
+                                sx={{ m: 0, mt: 2, pl: 3, columnCount: { xs: 1, sm: 2 }, columnGap: 3 }}
+                            >
+                                {preview.terms.slice(0, 10).map(({ id, label, value }) => (
+                                    <Typography
+                                        component="li"
+                                        variant="body2"
+                                        key={id}
+                                        sx={{ mb: 0.75, breakInside: 'avoid' }}
+                                    >
+                                        {label} · {termMetricSummary.quantity} {value.toFixed(3)}
+                                    </Typography>
+                                ))}
+                            </Box>
+                        </Box>
+                    )}
+                    <DecodeMethodSummary model={model} />
+                </Box>
+            ) : null}
+            {canCompare ? (
+                <Box
+                    id={panelId('compare')}
+                    role="tabpanel"
+                    aria-labelledby={tabId('compare')}
+                    hidden={resolvedActiveView !== 'compare'}
+                    sx={{ py: 2 }}
+                >
+                    <DecodeComparison
+                        sourceLabel={sourceLabel}
+                        selectedResult={selectedResult}
+                        viewerState={viewerState}
+                        onChooseTerm={() => changeViewAndFocusTab('terms')}
+                        onViewerStateChange={onViewerStateChange}
+                    />
+                </Box>
+            ) : null}
         </Box>
     );
 };

@@ -71,7 +71,14 @@ const DecodeSourcePanel = ({ draft, errors, onChange, autoFocusSource = false }:
                 <DecodeFileInput
                     error={draft.activeSource === 'upload' ? errors.source : undefined}
                     file={draft.file}
-                    onChange={(file) => onChange({ ...draft, file, depositConsent: false })}
+                    onChange={(file) =>
+                        onChange({
+                            ...draft,
+                            file,
+                            fileSelectionId: draft.fileSelectionId + 1,
+                            depositConsent: false,
+                        })
+                    }
                 />
                 {draft.file ? (
                     <DecodeDepositDisclosure

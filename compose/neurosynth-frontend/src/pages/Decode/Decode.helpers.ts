@@ -198,6 +198,7 @@ export const buildDecodeRunRequest = (draft: IDecodeDraft): IDecodeRunRequest =>
                     size: draft.file!.size,
                     mediaType: draft.file!.type,
                     lastModified: draft.file!.lastModified,
+                    selectionId: draft.fileSelectionId,
                 }
               : {
                     kind: 'coordinates' as const,

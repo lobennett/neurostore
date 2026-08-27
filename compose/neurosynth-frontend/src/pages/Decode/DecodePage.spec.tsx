@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it } from 'vitest';
 import { createFixtureDecodeAdapter } from './Decode.adapter';
@@ -285,6 +285,44 @@ it('lets the page own loading and success around a Promise-based adapter', async
     expect(await screen.findByRole('region', { name: 'Illustrative decoder results' })).toBeVisible();
 });
 
+it('ignores an older preview Promise that settles after a newer attempt', async () => {
+    const fixtureAdapter = createFixtureDecodeAdapter();
+    const pending: Array<{
+        request: Parameters<IDecodeFrontendAdapter['preview']>[0];
+        resolve: (preview: Awaited<ReturnType<IDecodeFrontendAdapter['preview']>>) => void;
+    }> = [];
+    const adapter: IDecodeFrontendAdapter = {
+        preview: (request) =>
+            new Promise((resolve) => {
+                pending.push({ request, resolve });
+            }),
+    };
+    render(<DecodePage adapter={adapter} />);
+    await completeNeurovaultDraft();
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+
+    const secondPreview = await fixtureAdapter.preview(pending[1].request, 'success');
+    await act(async () => {
+        pending[1].resolve({
+            ...secondPreview,
+            provenance: { ...secondPreview.provenance, label: 'Second attempt result' },
+        });
+    });
+    expect(await screen.findByText('Second attempt result')).toBeVisible();
+
+    const firstPreview = await fixtureAdapter.preview(pending[0].request, 'success');
+    await act(async () => {
+        pending[0].resolve({
+            ...firstPreview,
+            provenance: { ...firstPreview.provenance, label: 'Superseded first attempt' },
+        });
+    });
+    expect(screen.getByText('Second attempt result')).toBeVisible();
+    expect(screen.queryByText('Superseded first attempt')).not.toBeInTheDocument();
+});
+
 it('does not duplicate a failure in the polite status region', async () => {
     render(<DecodePage initialFixtureScenario="lookup-error" />);
     await previewValidNeurovaultInput();
@@ -295,7 +333,7 @@ it('does not duplicate a failure in the polite status region', async () => {
 it('marks an upload preview stale when a different same-name file is selected after renewed consent', async () => {
     render(<DecodePage />);
     await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
-    const first = new File(['first'], 'same-map.nii.gz', { type: 'application/gzip', lastModified: 100 });
+    const first = new File(['same-size'], 'same-map.nii.gz', { type: 'application/gzip', lastModified: 100 });
     await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), first);
     await userEvent.click(screen.getByRole('checkbox', { name: /I accept the public CC0 deposit terms/ }));
     await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
@@ -305,9 +343,9 @@ it('marks an upload preview stale when a different same-name file is selected af
     await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
     await screen.findByRole('region', { name: 'Illustrative decoder results' });
     await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
-    const second = new File(['a different file'], 'same-map.nii.gz', {
+    const second = new File(['different'], 'same-map.nii.gz', {
         type: 'application/gzip',
-        lastModified: 200,
+        lastModified: 100,
     });
     await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), second);
     await userEvent.click(screen.getByRole('checkbox', { name: /I accept the public CC0 deposit terms/ }));

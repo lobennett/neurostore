@@ -13,7 +13,7 @@ const DecodeStudyResults: React.FC<{
     studies: IDecodeStudy[];
     selectedResult?: IDecodeComparableResult;
     onSelectComparison: (result: IDecodeComparableResult) => void;
-    onCompareSelected: () => void;
+    onCompareSelected?: () => void;
 }> = ({ studies, selectedResult, onSelectComparison, onCompareSelected }) => {
     const [query, setQuery] = useState('');
     const [sort, setSort] = useState<StudySort>('year');
@@ -192,9 +192,11 @@ const DecodeStudyResults: React.FC<{
                     >
                         Next page
                     </Button>
-                    <Button variant="contained" disabled={!selectedResult?.mapUrl} onClick={onCompareSelected}>
-                        Compare selected result
-                    </Button>
+                    {onCompareSelected ? (
+                        <Button variant="contained" disabled={!selectedResult?.mapUrl} onClick={onCompareSelected}>
+                            Compare selected result
+                        </Button>
+                    ) : null}
                 </Stack>
             </Stack>
         </Box>

@@ -67,7 +67,14 @@ const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPa
             )}
             <DecodeConceptSelector
                 concepts={draft.concepts}
-                onChange={(concepts) => onChange({ ...draft, concepts })}
+                onChange={(concepts) => {
+                    const conceptIds = new Set(concepts.map(({ id }) => id));
+                    onChange({
+                        ...draft,
+                        concepts,
+                        confirmedSuggestions: draft.confirmedSuggestions.filter(({ id }) => conceptIds.has(id)),
+                    });
+                }}
             />
             <DecodeInterpretation
                 interpretation={draft.interpretation}

@@ -118,6 +118,14 @@ it('keeps a text suggestion separate until the visitor confirms it', async () =>
     expect(confirmed.concepts).toEqual([
         expect.objectContaining({ id: 'trm_4a3fd79d0af66', label: 'response inhibition' }),
     ]);
+
+    const conceptSelector = screen.getByRole('combobox', { name: 'Cognitive Atlas concepts' });
+    await user.click(conceptSelector);
+    await user.keyboard('{Backspace}');
+    const removed = onChange.mock.calls.at(-1)?.[0] as IDecodeDraft;
+    expect(removed.concepts).toEqual([]);
+    expect(removed.confirmedSuggestions).toEqual([]);
+    expect(screen.queryByText('Confirmed concept: response inhibition')).not.toBeInTheDocument();
 });
 
 it('shows participant count only for group and subject maps while retaining its entered value', async () => {

@@ -36,10 +36,9 @@ const PlanePlaceholder: React.FC<{
             sx={{
                 aspectRatio: '1.16 / 1',
                 backgroundColor: DECODE_COLORS.surface,
-                backgroundImage:
-                    'linear-gradient(rgba(0, 119, 182, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 119, 182, 0.08) 1px, transparent 1px)',
+                backgroundImage: `linear-gradient(${DECODE_COLORS.blueGrid} 1px, transparent 1px), linear-gradient(90deg, ${DECODE_COLORS.blueGrid} 1px, transparent 1px)`,
                 backgroundSize: '18px 18px',
-                border: '1px solid rgba(2, 62, 138, 0.28)',
+                border: `1px solid ${DECODE_COLORS.navyBorderStrong}`,
                 mt: 0.75,
                 overflow: 'hidden',
                 position: 'relative',
@@ -128,7 +127,7 @@ const DecodeViewer: React.FC<{
             aria-label="Example map viewer"
             sx={{
                 backgroundColor: '#ffffff',
-                border: '1px solid rgba(2, 62, 138, 0.24)',
+                border: `1px solid ${DECODE_COLORS.navyBorderMedium}`,
                 borderTop: `3px solid ${DECODE_COLORS.navy}`,
                 p: { xs: 2, md: 3 },
             }}
@@ -200,7 +199,7 @@ const DecodeViewer: React.FC<{
                                 onChange={(event) => selectPoint(event.target.value)}
                                 sx={{
                                     backgroundColor: '#ffffff',
-                                    border: '1px solid rgba(38, 50, 56, 0.38)',
+                                    border: `1px solid ${DECODE_COLORS.inkBorder}`,
                                     borderRadius: 1,
                                     color: DECODE_COLORS.ink,
                                     font: 'inherit',
@@ -208,7 +207,7 @@ const DecodeViewer: React.FC<{
                                     p: 0.75,
                                     width: '100%',
                                     '&:focus-visible': {
-                                        outline: '3px solid rgba(0, 150, 199, 0.35)',
+                                        outline: `3px solid ${DECODE_COLORS.cyanOutline}`,
                                         outlineOffset: 2,
                                     },
                                 }}

@@ -19,6 +19,7 @@ export const EMPTY_DECODE_DRAFT: IDecodeDraft = {
     activeSource: 'neurovault',
     neurovaultReference: '',
     file: null,
+    fileSelectionId: 0,
     coordinates: [],
     depositConsent: false,
     metadata: {
@@ -153,7 +154,15 @@ export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeF
     parameters: { ...request.parameters },
     termMetric: 'correlation',
     provenance: FIXTURE_PROVENANCE,
-    terms: scenario === 'empty-terms' ? [] : EXAMPLE_TERMS,
+    terms:
+        scenario === 'empty-terms'
+            ? []
+            : EXAMPLE_TERMS.slice(
+                  0,
+                  request.modelId === 'neurovlm'
+                      ? Number(request.parameters.resultLimit ?? EXAMPLE_TERMS.length)
+                      : EXAMPLE_TERMS.length
+              ),
     studies: scenario === 'empty-studies' ? [] : makeExampleStudies(request),
     modelSummary: {
         narrative: 'Illustrative model summary — no decoder was called.',

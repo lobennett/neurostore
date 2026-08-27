@@ -42,7 +42,7 @@ const DecodeTermResults: React.FC<{
     metric: DecodeMetric;
     selectedResult?: IDecodeComparableResult;
     onSelectComparison: (result: IDecodeComparableResult) => void;
-    onCompareSelected: () => void;
+    onCompareSelected?: () => void;
 }> = ({ terms, metric, selectedResult, onSelectComparison, onCompareSelected }) => {
     const [query, setQuery] = useState('');
     const [sort, setSort] = useState<DecodeTermSort>('rank');
@@ -306,9 +306,11 @@ const DecodeTermResults: React.FC<{
                     >
                         Next page
                     </Button>
-                    <Button variant="contained" disabled={!selectedResult?.mapUrl} onClick={onCompareSelected}>
-                        Compare selected result
-                    </Button>
+                    {onCompareSelected ? (
+                        <Button variant="contained" disabled={!selectedResult?.mapUrl} onClick={onCompareSelected}>
+                            Compare selected result
+                        </Button>
+                    ) : null}
                 </Stack>
             </Stack>
         </Box>

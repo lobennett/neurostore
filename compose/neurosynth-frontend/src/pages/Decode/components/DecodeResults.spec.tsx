@@ -114,6 +114,37 @@ it('uses enough official Cognitive Atlas fixture terms to exercise pagination', 
     expect(EXAMPLE_TERMS.every(({ id }) => officialIds.has(id))).toBe(true);
 });
 
+it('honors the validated NeuroVLM result limit while retaining pagination', () => {
+    const request = { ...requestFor('neurovlm'), parameters: { resultLimit: 12 } };
+    const preview = makeExamplePreview(request, 'success');
+    expect(preview.terms).toHaveLength(12);
+    expect(preview.terms.map(({ rank }) => rank)).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
+});
+
+it('renders only registry-declared result views and normalizes an unavailable active view', () => {
+    const state = successfulPreview();
+    const onViewChange = vi.fn();
+    const termsOnlyModel = { ...DECODE_MODELS[0], outputViews: ['terms' as const] };
+
+    render(
+        <DecodeResults
+            activeView="compare"
+            preview={state.preview}
+            model={termsOnlyModel}
+            sourceLabel="NeuroVault image 25"
+            viewerState={{ x: 0, y: 0, z: 0, threshold: 0 }}
+            onViewChange={onViewChange}
+            onSelectComparison={vi.fn()}
+            onViewerStateChange={vi.fn()}
+        />
+    );
+
+    expect(screen.getAllByRole('tab').map(({ textContent }) => textContent)).toEqual(['Terms']);
+    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Compare selected result' })).not.toBeInTheDocument();
+    expect(onViewChange).toHaveBeenCalledWith('terms');
+});
+
 it('states whether each study matches the input, selected concept, or both', async () => {
     const user = userEvent.setup();
     renderResults();

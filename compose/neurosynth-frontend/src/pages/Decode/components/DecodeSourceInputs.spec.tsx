@@ -199,10 +199,10 @@ it('clears deposit consent when a selected upload changes or is cleared', async 
     renderSourcePanel({ activeSource: 'upload', file: new File(['map'], 'first.nii.gz'), depositConsent: true });
     await user.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'second.nii.gz'));
     expect(onSourcePanelChange).toHaveBeenCalledWith(
-        expect.objectContaining({ file: expect.any(File), depositConsent: false })
+        expect.objectContaining({ file: expect.any(File), fileSelectionId: 1, depositConsent: false })
     );
     await user.click(screen.getByRole('button', { name: 'Clear selected file' }));
     expect(onSourcePanelChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ file: null, depositConsent: false })
+        expect.objectContaining({ file: null, fileSelectionId: 2, depositConsent: false })
     );
 });
