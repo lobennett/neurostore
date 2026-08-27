@@ -46,6 +46,22 @@ describe('DecodePage', () => {
         cy.wrap(successfulLocalAssets, { log: false }).should('include', `${GOLDEN_ASSET_PREFIX}${filename}`);
     };
 
+    const expectViewerReady = (ariaLabel: string) => {
+        cy.get(`[role="region"][aria-label="${ariaLabel}"]`)
+            .should('be.visible')
+            .and('have.attr', 'aria-busy', 'false')
+            .within(() => {
+                cy.get('[role="alert"]').should('not.exist');
+                cy.contains('Interactive map unavailable because WebGL2 is not supported.').should('not.exist');
+            });
+    };
+
+    const expectViewerCoordinate = (ariaLabel: string, x: number) => {
+        cy.get(`[role="region"][aria-label="${ariaLabel}"]`)
+            .next('p[aria-live="polite"]')
+            .should('contain.text', `MNI x ${x},`);
+    };
+
     const fieldByLabel = (label: string) =>
         cy
             .contains('label', label)
@@ -138,14 +154,20 @@ describe('DecodePage', () => {
         expectSuccessfulAsset(successfulLocalAssets, 'manifest.json');
         expectSuccessfulAsset(successfulLocalAssets, 'generic-mni.nii.gz');
         expectSuccessfulAsset(successfulLocalAssets, 'response-control.nii.gz');
+        expectViewerReady('Recorded decoder maps');
 
         cy.get('button[aria-label="Select premotor for comparison"]').click();
         cy.contains('button', 'Compare selected result').click();
         cy.contains('premotor association map').should('be.visible');
         expectSuccessfulAsset(successfulLocalAssets, 'premotor-association-z.nii.gz');
+        expectViewerReady('Submitted map viewer');
+        expectViewerReady('premotor association map viewer');
 
         fieldByLabel('Comparison x coordinate').clear().type('12');
+        expectViewerCoordinate('Submitted map viewer', 12);
+        expectViewerCoordinate('premotor association map viewer', 12);
         cy.contains('label', 'Overlay').click();
+        expectViewerReady('Submitted and premotor map overlay viewer');
         setRangeValue('Input map opacity', '0.45');
         setRangeValue('Comparison map opacity', '0.35');
         cy.get('input[aria-label="Input map opacity"]').should('have.value', '0.45');
@@ -158,7 +180,16 @@ describe('DecodePage', () => {
         cy.contains('Comparison layer · premotor association map').should('not.exist');
         fieldByLabel('Comparison x coordinate').should('have.value', '12');
         cy.get('input[aria-label="Input map opacity"]').should('have.value', '0.45');
+        cy.get('input[aria-label="Comparison map opacity"]').should('have.value', '0.65');
+        expectViewerReady('Submitted and visual map overlay viewer');
         expectSuccessfulAsset(successfulLocalAssets, 'visual-association-z.nii.gz');
+
+        cy.contains('[role="tab"]', 'Terms').click();
+        cy.get('button[aria-label="Select premotor for comparison"]').click();
+        cy.contains('[role="tab"]', 'Compare maps').click();
+        cy.contains('Comparison layer · premotor association map').should('be.visible');
+        cy.get('input[aria-label="Comparison map opacity"]').should('have.value', '0.35');
+        expectViewerReady('Submitted and premotor map overlay viewer');
         expectNoRecordedWalkthroughBackendRequests();
     });
 
@@ -185,9 +216,12 @@ describe('DecodePage', () => {
                     });
             });
         expectSuccessfulAsset(successfulLocalAssets, 'posterior-cingulate-association-z.nii.gz');
+        expectViewerReady('Submitted map viewer');
+        expectViewerReady('posterior cingulate association map viewer');
 
         cy.contains('label', 'Overlay').click();
         cy.contains('Comparison layer · posterior cingulate association map').should('be.visible');
+        expectViewerReady('Submitted and posterior cingulate map overlay viewer');
         cy.document().then((document) => {
             expect(document.documentElement.scrollWidth).to.equal(document.documentElement.clientWidth);
         });
