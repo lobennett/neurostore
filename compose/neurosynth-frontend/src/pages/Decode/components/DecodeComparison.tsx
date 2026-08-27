@@ -129,9 +129,26 @@ const MapPlaceholder = ({
     </Box>
 );
 
-const CanvasFallback = () => (
-    <Box role="status" sx={{ aspectRatio: '1.35 / 1', bgcolor: DECODE_COLORS.surface, p: 2 }}>
-        Loading recorded comparison map…
+const CanvasFallback = ({ label }: { label: string }) => (
+    <Box
+        role="status"
+        aria-label={`${label} loading`}
+        sx={{ aspectRatio: '1.35 / 1', bgcolor: DECODE_COLORS.surface, p: 2 }}
+    >
+        Loading {label}…
+    </Box>
+);
+
+const UnavailableComparison = ({ selectedResult }: { selectedResult: IDecodeComparableResult }) => (
+    <Box
+        role="status"
+        aria-label="Unavailable comparison map"
+        sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}
+    >
+        <Typography sx={{ fontWeight: 700 }}>Comparison map not included in this walkthrough</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Selected result: {selectedResult.label}
+        </Typography>
     </Box>
 );
 
@@ -170,7 +187,7 @@ const DecodeComparison: React.FC<{
     const comparisonAsset = selectedResult ? visualization?.comparisonByResultId[selectedResult.id] : undefined;
     const inputAsset = visualization?.input;
     const isRecordedComparison = Boolean(visualization);
-    const canRenderRecordedComparison = Boolean(visualization && inputAsset && comparisonAsset);
+    const canRenderSubmittedMap = Boolean(visualization && inputAsset);
     const coordinate = useMemo(
         () => ({ x: viewerState.x, y: viewerState.y, z: viewerState.z }),
         [viewerState.x, viewerState.y, viewerState.z]
@@ -223,8 +240,8 @@ const DecodeComparison: React.FC<{
             return next;
         });
     };
-    const renderCanvas = (ariaLabel: string, volumes: IDecodeVolumeAsset[]) => (
-        <Suspense fallback={<CanvasFallback />}>
+    const renderCanvas = (ariaLabel: string, loadingLabel: string, volumes: IDecodeVolumeAsset[]) => (
+        <Suspense fallback={<CanvasFallback label={loadingLabel} />}>
             <DecodeNiiVueCanvas
                 ariaLabel={ariaLabel}
                 volumes={volumes}
@@ -437,18 +454,7 @@ const DecodeComparison: React.FC<{
                 </Typography>
             </Box>
 
-            {isRecordedComparison && !canRenderRecordedComparison ? (
-                <Box
-                    role="status"
-                    aria-label="Unavailable comparison map"
-                    sx={{ bgcolor: DECODE_COLORS.surface, borderLeft: `4px solid ${DECODE_COLORS.navy}`, p: 2 }}
-                >
-                    <Typography sx={{ fontWeight: 700 }}>Comparison map not included in this walkthrough</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Selected result: {selectedResult.label}
-                    </Typography>
-                </Box>
-            ) : canRenderRecordedComparison && visualization && inputAsset && comparisonAsset ? (
+            {canRenderSubmittedMap && visualization && inputAsset ? (
                 <>
                     {mode === 'side-by-side' ? (
                         <Box
@@ -465,22 +471,30 @@ const DecodeComparison: React.FC<{
                                 >
                                     Submitted map
                                 </Typography>
-                                {renderCanvas('Submitted map viewer', [visualization.anatomical, inputAsset])}
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography
-                                    variant="subtitle2"
-                                    sx={{ color: DECODE_COLORS.ink, fontWeight: 700, mb: 1 }}
-                                >
-                                    {selectedResult.label} association map
-                                </Typography>
-                                {renderCanvas(`${selectedResult.label} association map viewer`, [
+                                {renderCanvas('Submitted map viewer', 'Submitted map', [
                                     visualization.anatomical,
-                                    comparisonAsset,
+                                    inputAsset,
                                 ])}
                             </Box>
+                            {comparisonAsset ? (
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography
+                                        variant="subtitle2"
+                                        sx={{ color: DECODE_COLORS.ink, fontWeight: 700, mb: 1 }}
+                                    >
+                                        {selectedResult.label} association map
+                                    </Typography>
+                                    {renderCanvas(
+                                        `${selectedResult.label} association map viewer`,
+                                        `${selectedResult.label} association map`,
+                                        [visualization.anatomical, comparisonAsset]
+                                    )}
+                                </Box>
+                            ) : (
+                                <UnavailableComparison selectedResult={selectedResult} />
+                            )}
                         </Box>
-                    ) : (
+                    ) : comparisonAsset ? (
                         <Box>
                             <Stack
                                 direction={{ xs: 'column', sm: 'row' }}
@@ -492,11 +506,33 @@ const DecodeComparison: React.FC<{
                                     Comparison layer · {selectedResult.label} association map
                                 </Typography>
                             </Stack>
-                            {renderCanvas(`Submitted and ${selectedResult.label} map overlay viewer`, [
-                                visualization.anatomical,
-                                inputAsset,
-                                comparisonAsset,
-                            ])}
+                            {renderCanvas(
+                                `Submitted and ${selectedResult.label} map overlay viewer`,
+                                `Submitted and ${selectedResult.label} map overlay`,
+                                [visualization.anatomical, inputAsset, comparisonAsset]
+                            )}
+                        </Box>
+                    ) : (
+                        <Box
+                            sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' },
+                                gap: 2,
+                            }}
+                        >
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography
+                                    variant="subtitle2"
+                                    sx={{ color: DECODE_COLORS.ink, fontWeight: 700, mb: 1 }}
+                                >
+                                    Submitted map
+                                </Typography>
+                                {renderCanvas('Submitted map viewer', 'Submitted map', [
+                                    visualization.anatomical,
+                                    inputAsset,
+                                ])}
+                            </Box>
+                            <UnavailableComparison selectedResult={selectedResult} />
                         </Box>
                     )}
                     <Box
@@ -507,9 +543,11 @@ const DecodeComparison: React.FC<{
                         }}
                     >
                         {renderDisplayControls(inputAsset, 'input')}
-                        {renderDisplayControls(comparisonAsset, 'comparison')}
+                        {comparisonAsset ? renderDisplayControls(comparisonAsset, 'comparison') : null}
                     </Box>
                 </>
+            ) : isRecordedComparison ? (
+                <UnavailableComparison selectedResult={selectedResult} />
             ) : mode === 'side-by-side' ? (
                 <Box
                     sx={{

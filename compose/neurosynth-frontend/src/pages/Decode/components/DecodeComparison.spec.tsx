@@ -30,12 +30,15 @@ interface ICanvasProps {
 const canvasMock = vi.hoisted(() => ({
     evaluations: 0,
     props: [] as ICanvasProps[],
+    suspend: false,
+    neverResolves: new Promise<never>(() => undefined),
 }));
 
 vi.mock('./DecodeNiiVueCanvas', () => ({
     get default() {
         canvasMock.evaluations += 1;
         return (props: ICanvasProps) => {
+            if (canvasMock.suspend) throw canvasMock.neverResolves;
             canvasMock.props.push(props);
             const statisticalVolume = props.volumes.find(({ id }) => id !== 'generic-mni');
             const range =
@@ -140,6 +143,7 @@ const Harness = ({ selectedResult }: { selectedResult?: IDecodeComparableResult 
 
 beforeEach(() => {
     canvasMock.props = [];
+    canvasMock.suspend = false;
     onChooseTerm.mockClear();
     onViewerStateChange.mockClear();
 });
@@ -242,13 +246,34 @@ it('resolves visual and posterior-cingulate maps by stable result ID and restore
     expect(screen.getByRole('slider', { name: 'Comparison map opacity' })).toHaveValue('0.25');
 });
 
-it('reports an unavailable comparison map without discarding the selected result', () => {
+it('keeps the submitted map and input controls when the selected comparison map is unavailable', async () => {
     render(<Harness selectedResult={unmapped} />);
 
     const unavailable = screen.getByRole('status', { name: 'Unavailable comparison map' });
     expect(within(unavailable).getByText('Comparison map not included in this walkthrough')).toBeVisible();
     expect(within(unavailable).getByText('Selected result: executive')).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Submitted map viewer' })).toHaveTextContent(
+        'generic-mni, response-control'
+    );
+    expect(screen.getByRole('slider', { name: 'Input map opacity' })).toBeVisible();
+    expect(screen.queryByRole('slider', { name: 'Comparison map opacity' })).not.toBeInTheDocument();
     expect(screen.queryByText('https://should-not-drive-lookup.test/executive.nii.gz')).not.toBeInTheDocument();
+});
+
+it('names each suspended canvas fallback for its pane and overlay', async () => {
+    const user = userEvent.setup();
+    canvasMock.suspend = true;
+    render(<Harness selectedResult={premotor} />);
+
+    expect(screen.getByRole('status', { name: 'Submitted map loading' })).toHaveTextContent('Loading Submitted map…');
+    expect(screen.getByRole('status', { name: 'premotor association map loading' })).toHaveTextContent(
+        'Loading premotor association map…'
+    );
+
+    await user.click(screen.getByRole('radio', { name: 'Overlay' }));
+    expect(screen.getByRole('status', { name: 'Submitted and premotor map overlay loading' })).toHaveTextContent(
+        'Loading Submitted and premotor map overlay…'
+    );
 });
 
 it('receives the recorded visualization through the result workspace', async () => {
