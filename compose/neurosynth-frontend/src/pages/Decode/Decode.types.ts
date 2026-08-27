@@ -1,5 +1,7 @@
 export type DecodeSourceKind = 'neurovault' | 'upload' | 'coordinates';
-export type DecodeModelId = 'neurovlm' | 'niclip';
+export type DecodeExampleId = 'neurovault-308';
+export type DecodeModelId = 'neurovlm' | 'niclip' | 'neurosynth-pearson-recorded';
+export type DecodeStatisticType = 'anatomical' | 't' | 'z';
 export type DecodeMetric = 'similarity' | 'correlation' | 'probability' | 'bayes-factor';
 export type DecodeFixtureScenario =
     'success' | 'loading' | 'empty-terms' | 'empty-studies' | 'unsupported' | 'lookup-error' | 'decode-error';
@@ -83,6 +85,7 @@ export interface IDecodeDraft {
     interpretation: string;
     confirmedSuggestions: ICognitiveConcept[];
     subjectWarningAcknowledged: boolean;
+    exampleId: DecodeExampleId | null;
     modelId: DecodeModelId;
     modelParameters: Record<string, string | number | boolean>;
 }
@@ -95,6 +98,7 @@ export interface IDecodeRunRequest {
     modelId: DecodeModelId;
     modelVersion: string;
     parameters: Record<string, string | number | boolean>;
+    exampleId?: DecodeExampleId;
 }
 
 export type DecodeParameterKind = 'integer' | 'number' | 'boolean' | 'select';
@@ -121,6 +125,7 @@ export interface IDecodeModelDefinition {
     outputViews: DecodeResultView[];
     interpretationNote: string;
     subjectLevelSuitability: string;
+    exampleOnly?: DecodeExampleId;
 }
 
 export interface IDecodeTerm {
@@ -165,13 +170,44 @@ export interface IDecodePreview {
     studies: IDecodeStudy[];
     modelSummary: IDecodeModelSummary;
     atlasReadouts: IAtlasReadout[];
+    visualization?: IDecodeVisualization;
 }
 
-export interface IDecodeProvenance {
-    kind: 'fixture';
-    label: string;
-    version: string;
+export interface IDecodeAssetProvenance {
+    sourceUrl: string;
+    license: 'CC0' | 'ODbL-derived';
+    sha256: string;
+    bytes: number;
 }
+
+export interface IDecodeVolumeAsset {
+    id: string;
+    url: string;
+    filename: string;
+    kind: 'anatomical' | 'input-statistic' | 'association-z';
+    statisticType: DecodeStatisticType;
+    provenance: IDecodeAssetProvenance;
+}
+
+export interface IDecodeVisualization {
+    anatomical: IDecodeVolumeAsset;
+    input?: IDecodeVolumeAsset;
+    comparisonByResultId: Record<string, IDecodeVolumeAsset>;
+}
+
+export type IDecodeProvenance =
+    | { kind: 'illustrative'; label: string; version: string }
+    | {
+          kind: 'recorded';
+          label: 'Recorded Neurosynth Pearson example';
+          version: string;
+          resultId: string;
+          method: 'Pearson correlation';
+          referenceDataset: 'terms_20k';
+          retrievedAt: string;
+          rankingRule: 'absolute-correlation-descending';
+          sourceUrl: string;
+      };
 
 export type IDecodePreviewState =
     | { status: 'loading'; request: IDecodeRunRequest }

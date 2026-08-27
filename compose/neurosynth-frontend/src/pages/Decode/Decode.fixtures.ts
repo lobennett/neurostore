@@ -34,8 +34,23 @@ export const EMPTY_DECODE_DRAFT: IDecodeDraft = {
     interpretation: '',
     confirmedSuggestions: [],
     subjectWarningAcknowledged: false,
+    exampleId: null,
     modelId: 'neurovlm',
     modelParameters: { resultLimit: 50 },
+};
+
+export const RECORDED_PEARSON_MODEL: IDecodeModelDefinition = {
+    id: 'neurosynth-pearson-recorded',
+    name: 'Neurosynth Pearson',
+    purpose: 'Replays a recorded spatial-correlation example for interface review.',
+    version: 'terms_20k-recorded-2026-08-26',
+    supportedSources: ['neurovault'],
+    inputRequirements: 'Available only for the canonical NeuroVault 308 walkthrough.',
+    parameters: [],
+    outputViews: ['terms', 'studies', 'model-summary', 'compare'],
+    interpretationNote: 'Pearson correlation measures spatial similarity; it is not a probability or proof of cognitive state.',
+    subjectLevelSuitability: 'This recorded example is a group-level map.',
+    exampleOnly: 'neurovault-308',
 };
 
 export const DECODE_MODELS: IDecodeModelDefinition[] = [
@@ -87,10 +102,11 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         subjectLevelSuitability:
             "This interface has not established NiCLIP's suitability for subject-level maps; interpret the example cautiously.",
     },
+    RECORDED_PEARSON_MODEL,
 ];
 
 export const FIXTURE_PROVENANCE: IDecodeProvenance = {
-    kind: 'fixture',
+    kind: 'illustrative',
     label: 'Illustrative example — no decoder was called',
     version: 'fixture-v1',
 };

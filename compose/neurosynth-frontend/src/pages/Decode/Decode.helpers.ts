@@ -225,6 +225,7 @@ export const buildDecodeRunRequest = (draft: IDecodeDraft): IDecodeRunRequest =>
         modelId: draft.modelId,
         modelVersion: model.version,
         parameters: { ...draft.modelParameters },
+        ...(draft.exampleId ? { exampleId: draft.exampleId } : {}),
     };
 };
 

@@ -125,7 +125,7 @@ it('hands the immutable adapter snapshot to the result explorer', async () => {
                 parameters: { prior: 'uniform', evidenceThreshold: 7 },
                 termMetric: 'bayes-factor',
                 provenance: {
-                    kind: 'fixture' as const,
+                    kind: 'illustrative' as const,
                     label: 'Adapter result snapshot',
                     version: 'result-fixture-v9',
                 },

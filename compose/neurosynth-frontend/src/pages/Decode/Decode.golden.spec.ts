@@ -1,9 +1,13 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createFixtureDecodeAdapter } from './Decode.adapter';
+import { loadGoldenWalkthrough } from './Decode.golden';
 
 const fixtureRoot = resolve(process.cwd(), 'public/decoder/examples/neurovault-308');
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('NeuroVault 308 golden walkthrough assets', () => {
     it('pins the recorded response and five verified NIfTI files', async () => {
@@ -28,5 +32,52 @@ describe('NeuroVault 308 golden walkthrough assets', () => {
         expect(manifest.terms.find(({ id }: { id: string }) => id === 'posterior-cingulate')?.r).toBe(-0.307);
         expect(manifest.terms.filter(({ mapAssetId }: { mapAssetId?: string }) => mapAssetId)).toHaveLength(3);
         expect(assets.reduce((sum, bytes) => sum + bytes, 0)).toBe(7_553_823);
+    });
+});
+
+describe('loadGoldenWalkthrough', () => {
+    it('projects the recorded manifest into the canonical draft and preview', async () => {
+        const manifest = await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8');
+        const fetchStub = vi.fn().mockResolvedValue(new Response(manifest, { status: 200 }));
+        vi.stubGlobal('fetch', fetchStub);
+
+        const { draft, preview } = await loadGoldenWalkthrough();
+
+        expect(draft.activeSource).toBe('neurovault');
+        expect(draft.neurovaultReference).toBe('https://neurovault.org/images/308/');
+        expect(draft.metadata).toMatchObject({ mapType: 't', analysisLevel: 'group', modality: 'fmri-bold', subjectCount: '10' });
+        expect(draft.modelId).toBe('neurosynth-pearson-recorded');
+        expect(preview.provenance.kind).toBe('recorded');
+        expect(preview.provenance.resultId).toBe('6a6a9cdb07754185b6218dff275112fe');
+        expect(preview.visualization?.comparisonByResultId['premotor'].id).toBe('premotor-map');
+        expect(preview.terms.map(({ value }) => value)).toContain(-0.307);
+    });
+
+    it('routes only the canonical recorded request through the manifest adapter', async () => {
+        const manifest = await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(manifest, { status: 200 })));
+
+        const preview = await createFixtureDecodeAdapter().preview(
+            {
+                source: { kind: 'neurovault', imageId: '308' },
+                concepts: [],
+                interpretation: '',
+                modelId: 'neurosynth-pearson-recorded',
+                modelVersion: 'terms_20k-recorded-2026-08-26',
+                parameters: {},
+                exampleId: 'neurovault-308',
+            },
+            'success'
+        );
+
+        expect(preview.provenance.kind).toBe('recorded');
+    });
+
+    it('rejects a manifest whose recorded result is not canonical', async () => {
+        const manifest = JSON.parse(await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8'));
+        manifest.method.resultId = 'different-recorded-result';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
+
+        await expect(loadGoldenWalkthrough()).rejects.toThrow('does not match the canonical walkthrough');
     });
 });

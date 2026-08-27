@@ -252,7 +252,7 @@ it('renders model, metric, parameters, and fixture provenance from the preview s
             parameters: { prior: 'uniform', evidenceThreshold: 7 },
             termMetric: 'bayes-factor' as const,
             provenance: {
-                kind: 'fixture' as const,
+                kind: 'illustrative' as const,
                 label: 'Result snapshot provenance',
                 version: 'result-fixture-v9',
             },
