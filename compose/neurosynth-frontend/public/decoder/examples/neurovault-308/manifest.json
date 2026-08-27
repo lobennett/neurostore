@@ -1,0 +1,61 @@
+{
+  "exampleId": "neurovault-308",
+  "retrievalDate": "2026-08-26",
+  "input": {
+    "neurovaultImageId": "308",
+    "sourceUrl": "https://neurovault.org/images/308/",
+    "collection": "A test-retest fMRI dataset for motor, language and spatial attention functions",
+    "collectionId": "63",
+    "statisticType": "t",
+    "analysisLevel": "group",
+    "modality": "fMRI BOLD",
+    "subjectCount": 10,
+    "thresholding": "unthresholded",
+    "targetTemplate": "GenericMNI",
+    "cognitiveAtlasTask": "Landmark task",
+    "cognitiveAtlasTaskId": "trm_5346938eed092",
+    "contrast": "correct or incorrect response (control)",
+    "doi": "10.1186/2047-217X-2-6",
+    "license": "CC0",
+    "attribution": "NeuroVault public image 308; collection authors; DOI 10.1186/2047-217X-2-6"
+  },
+  "method": {
+    "name": "Pearson correlation",
+    "referenceDataset": "terms_20k",
+    "resultEndpoint": "https://neurosynth.org/api/decode/6a6a9cdb07754185b6218dff275112fe",
+    "resultId": "6a6a9cdb07754185b6218dff275112fe",
+    "rankingRule": "absolute-correlation-descending",
+    "scoreDefinition": "Pearson correlation between vectorized input and reference term maps, including zero-valued voxels",
+    "sourceUrl": "https://neurosynth.org/",
+    "attribution": "Neurosynth contributors and Neurosynth database; term maps are ODbL-derived"
+  },
+  "assets": [
+    {"id":"generic-mni","filename":"generic-mni.nii.gz","bytes":2221462,"sha256":"892c83f85f67d161572b282da69f65e772121392ff5cb84ae643a65022f52ec1","kind":"anatomical","semanticRole":"anatomical-template","statisticType":"anatomical","sourceUrl":"https://neurovault.org/static/images/GenericMNI.nii.gz","license":"CC0","attribution":"NeuroVault GenericMNI template; public under CC0"},
+    {"id":"response-control","filename":"response-control.nii.gz","bytes":814903,"sha256":"ae055340a3d0657fbee891240a5ca23a2c36425a29f33a991d83f41caf9fdab5","kind":"input-statistic","semanticRole":"walkthrough-input-map","statisticType":"t","sourceUrl":"https://neurovault.org/media/images/63/task005_cope04_Response_Control.nii.gz","license":"CC0","attribution":"NeuroVault image 308, collection 63; public under CC0"},
+    {"id":"premotor-map","filename":"premotor-association-z.nii.gz","bytes":1489180,"sha256":"343faba2dc0bd02f56b94aa5ac731912c2981a3d90e307c2355a3f3c894f648b","kind":"association-z","semanticRole":"term-comparison-map","statisticType":"z","sourceUrl":"https://neurosynth.org/api/analyses/premotor/images/association/?unthresholded","license":"ODbL-derived","attribution":"Neurosynth database-derived association map; ODbL provenance"},
+    {"id":"visual-map","filename":"visual-association-z.nii.gz","bytes":1577919,"sha256":"b73d77994d1859e70eb6f6c9eb504dce46a41b0531d8397f1db5d661dd76b2fc","kind":"association-z","semanticRole":"term-comparison-map","statisticType":"z","sourceUrl":"https://neurosynth.org/api/analyses/visual/images/association/?unthresholded","license":"ODbL-derived","attribution":"Neurosynth database-derived association map; ODbL provenance"},
+    {"id":"posterior-cingulate-map","filename":"posterior-cingulate-association-z.nii.gz","bytes":1450359,"sha256":"e82080c66d16a0e52e952b09810990d735ee88b1a08e00c25fd80cfa1f76e39f","kind":"association-z","semanticRole":"term-comparison-map","statisticType":"z","sourceUrl":"https://neurosynth.org/api/analyses/posterior%20cingulate/images/association/?unthresholded","license":"ODbL-derived","attribution":"Neurosynth database-derived association map; ODbL provenance"}
+  ],
+  "terms": [
+    {"id":"premotor","label":"premotor","rank":1,"r":0.442,"mapAssetId":"premotor-map"},
+    {"id":"motor","label":"motor","rank":2,"r":0.395},
+    {"id":"movements","label":"movements","rank":3,"r":0.391},
+    {"id":"parietal","label":"parietal","rank":4,"r":0.372},
+    {"id":"premotor-cortex","label":"premotor cortex","rank":5,"r":0.368},
+    {"id":"visual","label":"visual","rank":6,"r":0.363,"mapAssetId":"visual-map"},
+    {"id":"execution","label":"execution","rank":7,"r":0.363},
+    {"id":"hand","label":"hand","rank":8,"r":0.352},
+    {"id":"finger","label":"finger","rank":9,"r":0.340},
+    {"id":"intraparietal","label":"intraparietal","rank":10,"r":0.337},
+    {"id":"motor-imagery","label":"motor imagery","rank":11,"r":0.321},
+    {"id":"intraparietal-sulcus","label":"intraparietal sulcus","rank":12,"r":0.317},
+    {"id":"movement","label":"movement","rank":13,"r":0.309},
+    {"id":"action","label":"action","rank":14,"r":0.309},
+    {"id":"dorsal-premotor","label":"dorsal premotor","rank":15,"r":0.307},
+    {"id":"posterior-cingulate","label":"posterior cingulate","rank":16,"r":-0.307,"mapAssetId":"posterior-cingulate-map"},
+    {"id":"eye","label":"eye","rank":17,"r":0.307},
+    {"id":"finger-movements","label":"finger movements","rank":18,"r":0.304},
+    {"id":"supplementary","label":"supplementary","rank":19,"r":0.300},
+    {"id":"medial","label":"medial","rank":20,"r":-0.298}
+  ]
+}
