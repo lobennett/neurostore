@@ -1,7 +1,8 @@
 describe('DecodePage', () => {
-    it('previews a public NeuroVault image without crashing', () => {
-        cy.visit('/decode');
+    const blockApiRequests = () =>
+        cy.intercept({ url: '**/api/**', resourceType: 'xhr' }, (request) => request.destroy());
 
+    const previewPublicNeurovaultImage = () => {
         cy.contains('[role="tab"]', 'NeuroVault image').click();
         cy.contains('label', 'NeuroVault image URL or ID')
             .parent()
@@ -11,10 +12,43 @@ describe('DecodePage', () => {
         cy.contains('label', 'Analysis level').parent().find('select').select('group');
         cy.contains('label', 'Modality').parent().find('select').select('fmri-bold');
         cy.contains('label', 'Number of subjects').parent().find('input').type('121');
+        cy.contains('button', 'Preview example results').click();
+    };
 
-        cy.contains('button', 'Preview results').should('be.enabled').click();
+    it('reviews the complete fixture-backed flow for public NeuroVault image 25', () => {
+        cy.viewport(1440, 900);
+        blockApiRequests().as('blockedApi');
+        cy.visit('/decode');
 
-        cy.get('[aria-label="Illustrative decoder results"]').should('be.visible');
-        cy.contains('About decoding').should('be.visible');
+        previewPublicNeurovaultImage();
+
+        cy.contains('Example viewer').should('be.visible');
+        cy.contains('Illustrative example').should('be.visible');
+        cy.get('button[aria-label="Select visual for comparison"]').click();
+        cy.contains('[role="tab"]', 'Associated studies').click();
+        cy.contains('Matches input').should('be.visible');
+        cy.contains('[role="tab"]', 'Compare maps').click();
+        cy.contains('label', 'Overlay').click();
+        cy.get('input[aria-label="Input map opacity"]').should('be.visible');
+    });
+
+    it('keeps mobile comparison panes in order without page overflow', () => {
+        cy.viewport(390, 844);
+        blockApiRequests().as('blockedApi');
+        cy.visit('/decode');
+
+        previewPublicNeurovaultImage();
+        cy.get('button[aria-label="Select visual for comparison"]').click();
+        cy.contains('button', 'Compare selected result').click();
+        cy.get('[role="region"][aria-label="Input map pane"], [role="region"][aria-label="Comparison map pane"]')
+            .should('be.visible')
+            .and('have.length', 2)
+            .then(($panes) => {
+                expect($panes[0]).to.have.attr('aria-label', 'Input map pane');
+                expect($panes[1]).to.have.attr('aria-label', 'Comparison map pane');
+            });
+        cy.document().then((document) => {
+            expect(document.documentElement.scrollWidth).to.equal(document.documentElement.clientWidth);
+        });
     });
 });

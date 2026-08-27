@@ -55,6 +55,7 @@ const MapPlaceholder: React.FC<{
                 border: '1px solid rgba(2, 62, 138, 0.16)',
                 minHeight: 150,
                 mt: 1.25,
+                overflow: 'hidden',
                 position: 'relative',
             }}
         >
