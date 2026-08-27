@@ -108,12 +108,12 @@ const RecordedProvenance: React.FC<{ preview: IDecodePreview }> = ({ preview }) 
             {mapSources.length ? (
                 <Stack
                     component="ul"
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={{ xs: 0.25, sm: 1.5 }}
+                    direction="column"
+                    spacing={0.25}
                     sx={{ m: 0, mt: 0.5, pl: 2.5 }}
                 >
                     {mapSources.map(({ label, url }) => (
-                        <Typography component="li" variant="body2" key={url}>
+                        <Typography component="li" variant="body2" key={url} sx={{ width: '100%' }}>
                             <Link href={url} {...externalLinkProps}>
                                 {label.charAt(0).toLocaleUpperCase() + label.slice(1)} map source
                             </Link>

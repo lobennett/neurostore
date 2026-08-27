@@ -53,6 +53,11 @@ describe('DecodePage', () => {
             .within(() => {
                 cy.get('[role="alert"]').should('not.exist');
                 cy.contains('Interactive map unavailable because WebGL2 is not supported.').should('not.exist');
+                cy.get('canvas').should(($canvas) => {
+                    const context = ($canvas[0] as HTMLCanvasElement).getContext('webgl2');
+                    expect(context, `${ariaLabel} WebGL2 context`).not.to.be.null;
+                    expect(context?.isContextLost(), `${ariaLabel} WebGL2 context lost`).to.equal(false);
+                });
             });
     };
 
@@ -150,6 +155,14 @@ describe('DecodePage', () => {
         cy.contains('Recorded Neurosynth Pearson example').should('be.visible');
         cy.contains('terms_20k reference dataset').should('be.visible');
         cy.contains('NeuroVault image 308').should('be.visible');
+        cy.get('[role="note"] li').then(($sources) => {
+            expect($sources).to.have.length(3);
+            [...$sources].slice(1).forEach((source, index) => {
+                expect(source.getBoundingClientRect().top).to.be.at.least(
+                    $sources[index].getBoundingClientRect().bottom
+                );
+            });
+        });
         cy.get('#decode-result-panel-terms tbody tr').should('have.length', 20);
         expectSuccessfulAsset(successfulLocalAssets, 'manifest.json');
         expectSuccessfulAsset(successfulLocalAssets, 'generic-mni.nii.gz');

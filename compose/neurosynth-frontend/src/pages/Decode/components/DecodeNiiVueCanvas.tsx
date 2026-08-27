@@ -52,7 +52,6 @@ type LoadedVolume = Awaited<ReturnType<Niivue['addVolumeFromUrl']>>;
 
 interface NiiVueLifecycle {
     niivue: Niivue;
-    webgl: WebGL2RenderingContext;
     attached: boolean;
     attachSettled: boolean;
     disposeRequested: boolean;
@@ -69,7 +68,6 @@ const disposeLifecycleIfIdle = (lifecycle: NiiVueLifecycle): void => {
 
     lifecycle.disposed = true;
     [...lifecycle.niivue.volumes].reverse().forEach((volume) => lifecycle.niivue.removeVolume(volume));
-    lifecycle.webgl.getExtension('WEBGL_lose_context')?.loseContext();
 };
 
 const requestLifecycleDisposal = (lifecycle: NiiVueLifecycle): void => {
@@ -171,7 +169,6 @@ const DecodeNiiVueCanvas = ({
         const niivue = new Niivue();
         const lifecycle: NiiVueLifecycle = {
             niivue,
-            webgl,
             attached: false,
             attachSettled: false,
             disposeRequested: false,

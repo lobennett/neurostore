@@ -352,6 +352,9 @@ it('discloses the recorded method, source, ranking, retrieval date, and licenses
         'href',
         'https://neurosynth.org/api/analyses/premotor/images/association/?unthresholded'
     );
+    within(screen.getByRole('note'))
+        .getAllByRole('listitem')
+        .forEach((source) => expect(source).toHaveStyle({ width: '100%' }));
 
     await user.click(screen.getByRole('tab', { name: 'Model summary' }));
     expect(screen.getByRole('heading', { name: 'Recorded Neurosynth Pearson method' })).toBeVisible();

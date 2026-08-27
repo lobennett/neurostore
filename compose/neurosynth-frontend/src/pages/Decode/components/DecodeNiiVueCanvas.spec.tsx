@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -171,6 +172,21 @@ afterEach(() => {
 });
 
 describe('DecodeNiiVueCanvas', () => {
+    it('does not lose the canvas context during the StrictMode remount cycle', async () => {
+        render(
+            <StrictMode>
+                <DecodeNiiVueCanvas {...makeProps()} />
+            </StrictMode>
+        );
+
+        await waitFor(() =>
+            expect(screen.getByRole('region', { name: 'Recorded decoder maps' })).toHaveAttribute('aria-busy', 'false')
+        );
+
+        expect(niivueMock.instances).toHaveLength(2);
+        expect(loseContext).not.toHaveBeenCalled();
+    });
+
     it('attaches one instance and loads supplied assets sequentially after clearing old volumes', async () => {
         const onVolumeRangesChange = vi.fn();
         render(<DecodeNiiVueCanvas {...makeProps({ onVolumeRangesChange })} />);
@@ -312,17 +328,17 @@ describe('DecodeNiiVueCanvas', () => {
         expect(failedInstance.removeVolume).toHaveBeenCalledWith(
             expect.objectContaining({ name: anatomical.filename })
         );
-        expect(loseContext).toHaveBeenCalledTimes(1);
+        expect(loseContext).not.toHaveBeenCalled();
         expect(screen.queryByText('Could not load response-control.nii.gz')).not.toBeInTheDocument();
     });
 
-    it('recreates after one attach rejection and disposes both failed and successful contexts', async () => {
+    it('recreates after one attach rejection without invalidating the reusable canvas context', async () => {
         niivueMock.deferNextAttach(() => Promise.reject(new Error('attach failed once')));
         const { unmount } = render(<DecodeNiiVueCanvas {...makeProps()} />);
 
         expect(await screen.findByText('Could not initialize interactive map')).toBeVisible();
         expect(niivueMock.instances).toHaveLength(1);
-        expect(loseContext).toHaveBeenCalledTimes(1);
+        expect(loseContext).not.toHaveBeenCalled();
 
         await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
@@ -333,7 +349,7 @@ describe('DecodeNiiVueCanvas', () => {
         expect(niivueMock.instances[1].attachToCanvas).toHaveBeenCalledTimes(1);
 
         unmount();
-        expect(loseContext).toHaveBeenCalledTimes(2);
+        expect(loseContext).not.toHaveBeenCalled();
     });
 
     it('keeps a textual map and coordinate fallback when WebGL2 is unavailable', () => {
@@ -365,7 +381,7 @@ describe('DecodeNiiVueCanvas', () => {
         expect(niivueMock.instances).toHaveLength(1);
     });
 
-    it('clears callbacks, volumes, and the WebGL context on unmount', async () => {
+    it('clears callbacks and volumes without invalidating a reusable canvas context on unmount', async () => {
         const { unmount } = render(<DecodeNiiVueCanvas {...makeProps()} />);
         await waitFor(() => expect(niivueMock.instances[0]?.volumes).toHaveLength(2));
         const instance = niivueMock.instances[0];
@@ -375,10 +391,10 @@ describe('DecodeNiiVueCanvas', () => {
 
         expect(instance.onLocationChange).not.toBe(activeCallback);
         expect(instance.removeVolume).toHaveBeenCalledTimes(2);
-        expect(loseContext).toHaveBeenCalledTimes(1);
+        expect(loseContext).not.toHaveBeenCalled();
     });
 
-    it('disposes the initialized context when attachment completes after unmount', async () => {
+    it('disposes a late attachment without invalidating the reusable canvas context', async () => {
         let finishAttach!: () => void;
         niivueMock.deferNextAttach(() => new Promise<void>((resolve) => (finishAttach = resolve)));
         const { unmount } = render(<DecodeNiiVueCanvas {...makeProps()} />);
@@ -389,10 +405,10 @@ describe('DecodeNiiVueCanvas', () => {
         await act(async () => finishAttach());
 
         expect(instance.removeVolume).not.toHaveBeenCalled();
-        expect(loseContext).toHaveBeenCalledTimes(1);
+        expect(loseContext).not.toHaveBeenCalled();
     });
 
-    it('removes a late volume before losing the context after unmount', async () => {
+    it('removes a late volume after unmount without invalidating the reusable canvas context', async () => {
         let resolveVolume!: (
             volume: Awaited<ReturnType<(typeof niivueMock.instances)[number]['addVolumeFromUrl']>>
         ) => void;
@@ -424,9 +440,6 @@ describe('DecodeNiiVueCanvas', () => {
         });
 
         expect(instance.removeVolume).toHaveBeenCalledWith(lateVolume);
-        expect(loseContext).toHaveBeenCalledTimes(1);
-        expect(instance.removeVolume.mock.invocationCallOrder.at(-1)).toBeLessThan(
-            loseContext.mock.invocationCallOrder[0]
-        );
+        expect(loseContext).not.toHaveBeenCalled();
     });
 });
