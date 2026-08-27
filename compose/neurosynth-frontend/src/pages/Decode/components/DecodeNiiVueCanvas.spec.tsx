@@ -357,6 +357,7 @@ describe('DecodeNiiVueCanvas', () => {
         const instance = niivueMock.instances[0];
 
         unmount();
+        expect(loseContext).not.toHaveBeenCalled();
         await act(async () => finishAttach());
 
         expect(instance.removeVolume).not.toHaveBeenCalled();
