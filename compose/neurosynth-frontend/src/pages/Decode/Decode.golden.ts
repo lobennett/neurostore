@@ -24,6 +24,7 @@ interface IRecordedManifestAsset {
     bytes: number;
     sha256: string;
     kind: IDecodeVolumeAsset['kind'];
+    semanticRole: 'anatomical-template' | 'walkthrough-input-map' | 'term-comparison-map';
     statisticType: DecodeStatisticType;
     sourceUrl: string;
     license: IDecodeVolumeAsset['provenance']['license'];
@@ -103,6 +104,68 @@ const hasValidAssetProvenance = (asset: IRecordedManifestAsset): boolean =>
     (asset.license === 'CC0' || asset.license === 'ODbL-derived') &&
     isNonEmptyString(asset.attribution);
 
+const CANONICAL_ASSETS: Record<
+    string,
+    Pick<IRecordedManifestAsset, 'filename' | 'kind' | 'semanticRole' | 'statisticType' | 'sourceUrl' | 'license'>
+> = {
+    'generic-mni': {
+        filename: 'generic-mni.nii.gz',
+        kind: 'anatomical',
+        semanticRole: 'anatomical-template',
+        statisticType: 'anatomical',
+        sourceUrl: 'https://neurovault.org/static/images/GenericMNI.nii.gz',
+        license: 'CC0',
+    },
+    'response-control': {
+        filename: 'response-control.nii.gz',
+        kind: 'input-statistic',
+        semanticRole: 'walkthrough-input-map',
+        statisticType: 't',
+        sourceUrl: 'https://neurovault.org/media/images/63/task005_cope04_Response_Control.nii.gz',
+        license: 'CC0',
+    },
+    'premotor-map': {
+        filename: 'premotor-association-z.nii.gz',
+        kind: 'association-z',
+        semanticRole: 'term-comparison-map',
+        statisticType: 'z',
+        sourceUrl: 'https://neurosynth.org/api/analyses/premotor/images/association/?unthresholded',
+        license: 'ODbL-derived',
+    },
+    'visual-map': {
+        filename: 'visual-association-z.nii.gz',
+        kind: 'association-z',
+        semanticRole: 'term-comparison-map',
+        statisticType: 'z',
+        sourceUrl: 'https://neurosynth.org/api/analyses/visual/images/association/?unthresholded',
+        license: 'ODbL-derived',
+    },
+    'posterior-cingulate-map': {
+        filename: 'posterior-cingulate-association-z.nii.gz',
+        kind: 'association-z',
+        semanticRole: 'term-comparison-map',
+        statisticType: 'z',
+        sourceUrl: 'https://neurosynth.org/api/analyses/posterior%20cingulate/images/association/?unthresholded',
+        license: 'ODbL-derived',
+    },
+};
+
+const hasCanonicalAssetSet = (assets: IRecordedManifestAsset[]): boolean => {
+    const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+    if (assets.length !== Object.keys(CANONICAL_ASSETS).length || assetsById.size !== assets.length) return false;
+    return Object.entries(CANONICAL_ASSETS).every(([id, expected]) => {
+        const asset = assetsById.get(id);
+        return (
+            asset?.filename === expected.filename &&
+            asset.kind === expected.kind &&
+            asset.semanticRole === expected.semanticRole &&
+            asset.statisticType === expected.statisticType &&
+            asset.sourceUrl === expected.sourceUrl &&
+            asset.license === expected.license
+        );
+    });
+};
+
 const isCanonicalManifest = (manifest: IRecordedManifest): boolean =>
     manifest?.exampleId === EXAMPLE_ID &&
     manifest.retrievalDate === RETRIEVAL_DATE &&
@@ -131,6 +194,7 @@ const isCanonicalManifest = (manifest: IRecordedManifest): boolean =>
     isNonEmptyString(manifest.method.attribution) &&
     Array.isArray(manifest.assets) &&
     manifest.assets.every(hasValidAssetProvenance) &&
+    hasCanonicalAssetSet(manifest.assets) &&
     Array.isArray(manifest.terms);
 
 export const makeGoldenWalkthroughDraft = (interpretation: string): IDecodeDraft => ({

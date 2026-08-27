@@ -223,7 +223,7 @@ export type IDecodeProvenance =
               attribution: string;
           };
           termMaps: {
-              license: IDecodeAssetProvenance['license'];
+              license: 'ODbL-derived';
               attribution: string;
           };
       };

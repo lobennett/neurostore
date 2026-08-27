@@ -161,4 +161,71 @@ describe('loadGoldenWalkthrough', () => {
 
         await expect(loadGoldenWalkthrough()).rejects.toThrow('does not match the canonical walkthrough');
     });
+
+    it.each([
+        [
+            'response-control license',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'response-control').license = 'ODbL-derived';
+            },
+        ],
+        [
+            'anatomical source URL',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'generic-mni').sourceUrl =
+                    'https://neurovault.org/images/308/';
+            },
+        ],
+        [
+            'input source URL',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'response-control').sourceUrl =
+                    'https://neurovault.org/static/images/GenericMNI.nii.gz';
+            },
+        ],
+        [
+            'comparison source URL',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'premotor-map').sourceUrl =
+                    'https://neurosynth.org/api/analyses/visual/images/association/?unthresholded';
+            },
+        ],
+        [
+            'semantic role',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'response-control').semanticRole =
+                    'anatomical-template';
+            },
+        ],
+        [
+            'input kind',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'response-control').kind = 'anatomical';
+            },
+        ],
+        [
+            'input statistic type',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'response-control').statisticType = 'z';
+            },
+        ],
+        [
+            'comparison kind',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'premotor-map').kind = 'input-statistic';
+            },
+        ],
+        [
+            'comparison statistic type',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'premotor-map').statisticType = 't';
+            },
+        ],
+    ])('rejects a canonical asset with mismatched %s', async (_label, mutate) => {
+        const manifest = JSON.parse(await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8'));
+        mutate(manifest);
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
+
+        await expect(loadGoldenWalkthrough()).rejects.toThrow('does not match the canonical walkthrough');
+    });
 });
