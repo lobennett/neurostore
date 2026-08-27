@@ -1,7 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
-import { createFixtureDecodeAdapter } from './Decode.adapter';
+import { createFixtureDecodeAdapter, DecodePreviewError } from './Decode.adapter';
 import { makeExamplePreview } from './Decode.fixtures';
 import type { DecodeFixtureScenario, IDecodeFrontendAdapter } from './Decode.types';
 import DecodePage from './DecodePage';
@@ -101,6 +101,14 @@ it('loads canonical walkthrough inputs without running until explicitly opened',
     expect(screen.getByRole('radio', { name: /Neurosynth Pearson/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: /Neurosynth Pearson/ })).toBeDisabled();
     expect(screen.getByText('Recorded example')).toBeVisible();
+    const review = screen.getByRole('region', { name: 'Recorded walkthrough review' });
+    expect(review).toHaveFocus();
+    expect(within(review).getByText('NeuroVault image 308')).toBeVisible();
+    expect(within(review).getByText('Unthresholded t-statistic map')).toBeVisible();
+    expect(within(review).getByText('GenericMNI target template')).toBeVisible();
+    expect(within(review).getByText('Group-level fMRI BOLD · 10 subjects')).toBeVisible();
+    expect(within(review).getByText('Landmark task · trm_5346938eed092')).toBeVisible();
+    expect(within(review).getByText('Contrast: correct or incorrect response (control)')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Open recorded walkthrough' })).toBeEnabled();
     expect(
         screen.getByText('Uses bundled public maps and a recorded result; no decoder runs and nothing is uploaded.')
@@ -116,11 +124,25 @@ it('restores and opens the canonical walkthrough from its public query parameter
     const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
     render(<DecodePage adapter={{ preview }} />);
 
-    await screen.findByRole('region', { name: 'Illustrative decoder results' });
+    await screen.findByRole('region', { name: 'Recorded decoder results' });
     expect(preview).toHaveBeenCalledWith(
         expect.objectContaining({ exampleId: 'neurovault-308', modelId: 'neurosynth-pearson-recorded' }),
         'success'
     );
+});
+
+it('does not move existing focus when direct navigation restores the walkthrough', async () => {
+    window.history.replaceState({}, '', '/decode?example=neurovault-308');
+    const focusSentinel = document.createElement('button');
+    document.body.append(focusSentinel);
+    focusSentinel.focus();
+    const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
+
+    render(<DecodePage adapter={{ preview }} />);
+
+    await screen.findByRole('region', { name: 'Recorded decoder results' });
+    expect(focusSentinel).toHaveFocus();
+    focusSentinel.remove();
 });
 
 it('marks edited recorded inputs stale and offers canonical restoration', async () => {
@@ -128,7 +150,7 @@ it('marks edited recorded inputs stale and offers canonical restoration', async 
     const preview = vi.fn(async (request) => makeExamplePreview(request, 'success'));
     render(<DecodePage adapter={{ preview }} />);
 
-    await screen.findByRole('region', { name: 'Illustrative decoder results' });
+    await screen.findByRole('region', { name: 'Recorded decoder results' });
     await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
     await userEvent.selectOptions(screen.getByLabelText('Modality'), 'eeg');
 
@@ -300,6 +322,48 @@ it('retries an inline failure with the same preserved draft', async () => {
     expect(screen.getByLabelText('NeuroVault image URL or ID')).toHaveValue('https://neurovault.org/images/25/');
 }, 10_000);
 
+it('handles retry after the preserved draft becomes invalid without rejecting the event handler', async () => {
+    const preview = vi.fn(async () => {
+        throw new DecodePreviewError('NeuroVault lookup', 'The example NeuroVault lookup failed.');
+    });
+    render(<DecodePage adapter={{ preview }} />);
+    await previewValidNeurovaultInput();
+    await screen.findByRole('button', { name: 'Try preview again' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
+    await userEvent.clear(screen.getByLabelText('NeuroVault image URL or ID'));
+    await userEvent.click(screen.getByRole('button', { name: 'Try preview again' }));
+
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Correct the highlighted inputs before retrying.');
+    expect(screen.getByLabelText('NeuroVault image URL or ID')).toBeVisible();
+});
+
+it('uses recorded loading, result-region, and live-announcement labels for the query walkthrough', async () => {
+    window.history.replaceState({}, '', '/decode?example=neurovault-308');
+    let resolvePreview!: (preview: ReturnType<typeof makeExamplePreview>) => void;
+    let recordedRequest!: Parameters<IDecodeFrontendAdapter['preview']>[0];
+    const adapter: IDecodeFrontendAdapter = {
+        preview: (request) => {
+            recordedRequest = request;
+            return new Promise((resolve) => (resolvePreview = resolve));
+        },
+    };
+    render(<DecodePage adapter={adapter} />);
+
+    expect(screen.getByText(/Review bundled public maps and a recorded decoder result/)).toBeVisible();
+    expect(screen.queryByText(/Prepare a public, illustrative preview/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Preparing recorded walkthrough…')).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Recorded walkthrough loading.');
+    expect(screen.queryByText('Preparing illustrative preview…')).not.toBeInTheDocument();
+
+    await act(async () => resolvePreview(makeExamplePreview(recordedRequest, 'success')));
+
+    expect(await screen.findByRole('region', { name: 'Recorded decoder results' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Illustrative decoder results' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Recorded decoder results ready.');
+});
+
 it('accepts an exact development fixture query scenario without using draft query content', async () => {
     window.history.replaceState({}, '', '/decode?fixture=empty-terms&draft=https://secret.example/map.nii');
     render(<DecodePage />);
@@ -334,6 +398,9 @@ it('lets the page own loading and success around a Promise-based adapter', async
             analysisLevel: 'group' as const,
             modality: 'fmri-bold' as const,
             subjectCount: '121',
+            thresholding: '' as const,
+            targetTemplate: '' as const,
+            contrast: '',
             cognitiveTask: null,
             interpretation: '',
         },

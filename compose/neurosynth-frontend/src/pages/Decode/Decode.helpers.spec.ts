@@ -42,7 +42,18 @@ describe('decode input helpers', () => {
     it('recognizes canonical walkthrough inputs while preserving free-text interpretation', () => {
         const draft = makeGoldenWalkthroughDraft('reviewer notes');
 
-        expect(draft.metadata.cognitiveTask).toEqual({ id: 'trm_5346938eed092', label: 'Landmark task' });
+        expect(draft.metadata).toMatchObject({
+            thresholding: 'unthresholded',
+            targetTemplate: 'GenericMNI',
+            cognitiveTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
+            contrast: 'correct or incorrect response (control)',
+        });
+        expect(buildDecodeRunRequest(draft).metadata).toMatchObject({
+            thresholding: 'unthresholded',
+            targetTemplate: 'GenericMNI',
+            cognitiveTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
+            contrast: 'correct or incorrect response (control)',
+        });
         expect(isCanonicalGoldenDraft(draft)).toBe(true);
         expect(isCanonicalGoldenDraft({ ...draft, interpretation: 'different notes' })).toBe(true);
         expect(
@@ -145,6 +156,9 @@ describe('decode input helpers', () => {
             analysisLevel,
             modality: 'fmri-bold',
             subjectCount: '',
+            thresholding: '',
+            targetTemplate: '',
+            contrast: '',
             cognitiveTask: null,
             interpretation: '',
         });
@@ -211,6 +225,23 @@ describe('decode input helpers', () => {
         const request = buildDecodeRunRequest(draft);
         expect(isPreviewStale({ ...draft, modelParameters: { resultLimit: 100 } }, request)).toBe(true);
         expect(isPreviewStale(draft, request)).toBe(false);
+    });
+
+    it('ignores recorded free-text edits while retaining illustrative text staleness', () => {
+        const recordedDraft = makeGoldenWalkthroughDraft('initial recorded interpretation');
+        const recordedRequest = buildDecodeRunRequest(recordedDraft);
+        expect(isPreviewStale({ ...recordedDraft, interpretation: 'edited reviewer note' }, recordedRequest)).toBe(
+            false
+        );
+
+        const illustrativeDraft = completeDraft({ interpretation: 'initial illustrative interpretation' });
+        const illustrativeRequest = buildDecodeRunRequest(illustrativeDraft);
+        expect(
+            isPreviewStale(
+                { ...illustrativeDraft, interpretation: 'changed illustrative interpretation' },
+                illustrativeRequest
+            )
+        ).toBe(true);
     });
 
     it('serializes confirmed official concepts and treats confirmation as a stale scientific change', () => {

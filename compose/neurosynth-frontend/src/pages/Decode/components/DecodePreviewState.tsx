@@ -13,6 +13,7 @@ interface DecodePreviewStateProps {
 }
 
 const DecodePreviewState = ({ state, onRetry, onEditInputs, children }: DecodePreviewStateProps) => {
+    const recorded = state.request.exampleId === 'neurovault-308';
     switch (state.status) {
         case 'loading':
             return (
@@ -25,10 +26,12 @@ const DecodePreviewState = ({ state, onRetry, onEditInputs, children }: DecodePr
                     sx={{ borderLeft: `4px solid ${DECODE_COLORS.blue}`, p: { xs: 2, md: 3 } }}
                 >
                     <Typography component="h2" variant="h6" sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}>
-                        Preparing illustrative preview…
+                        {recorded ? 'Preparing recorded walkthrough…' : 'Preparing illustrative preview…'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                        This inspectable fixture does not start a timer, upload a map, or call a decoder.
+                        {recorded
+                            ? 'Bundled public maps and a recorded result are loading; no decoder runs and nothing is uploaded.'
+                            : 'This inspectable fixture does not start a timer, upload a map, or call a decoder.'}
                     </Typography>
                 </Paper>
             );
@@ -51,8 +54,8 @@ const DecodePreviewState = ({ state, onRetry, onEditInputs, children }: DecodePr
                         }}
                     >
                         <Typography variant="body2">
-                            Your draft is unchanged. Retry this illustrative operation or reopen the inputs to correct
-                            it.
+                            Your draft is unchanged. Retry this {recorded ? 'recorded' : 'illustrative'} operation or
+                            reopen the inputs to correct it.
                         </Typography>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1.5 }}>
                             <Button variant="contained" onClick={onRetry}>

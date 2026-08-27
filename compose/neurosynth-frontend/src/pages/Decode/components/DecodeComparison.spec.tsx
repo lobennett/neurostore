@@ -6,6 +6,7 @@ import { DECODE_MODELS } from '../Decode.fixtures';
 import type { IDecodeComparableResult, IDecodePreview, IDecodeVisualization, IViewerState } from '../Decode.types';
 import DecodeComparison from './DecodeComparison';
 import DecodeResults from './DecodeResults';
+import DecodeViewer from './DecodeViewer';
 
 interface ICanvasProps {
     ariaLabel: string;
@@ -176,6 +177,51 @@ it('renders premotor in synchronized submitted-map and association-map panes', a
 
     await user.click(screen.getByRole('button', { name: 'Move premotor association map viewer crosshair' }));
     expect(onViewerStateChange).toHaveBeenLastCalledWith({ x: 18, y: -12, z: 44, threshold: 25 });
+});
+
+it.each([
+    ['x', -90, 90],
+    ['y', -126, 90],
+    ['z', -72, 108],
+] as const)('reuses the MNI %s bounds and clamps both out-of-range directions', (axis, min, max) => {
+    render(<Harness selectedResult={premotor} />);
+    const field = screen.getByRole('spinbutton', { name: `Comparison ${axis} coordinate` });
+
+    expect(field).toHaveAttribute('min', String(min));
+    expect(field).toHaveAttribute('max', String(max));
+
+    fireEvent.change(field, { target: { value: String(min) } });
+    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: min }));
+    fireEvent.change(field, { target: { value: String(max) } });
+    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: max }));
+    fireEvent.change(field, { target: { value: String(min - 1) } });
+    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: min }));
+    fireEvent.change(field, { target: { value: String(max + 1) } });
+    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: max }));
+});
+
+it('uses unique component-scoped opacity IDs and matching labels with the top viewer present', async () => {
+    render(
+        <>
+            <DecodeViewer
+                source={{ kind: 'neurovault', imageId: '308' }}
+                visualization={visualization}
+                atlasReadouts={[]}
+                value={{ x: 4, y: -6, z: 18, threshold: 25 }}
+                onChange={vi.fn()}
+            />
+            <Harness selectedResult={premotor} />
+        </>
+    );
+
+    await screen.findByRole('region', { name: 'Submitted map viewer' });
+    const ids = [
+        screen.getByRole('slider', { name: 'Input opacity' }).id,
+        screen.getByRole('slider', { name: 'Input map opacity' }).id,
+    ];
+    expect(ids).toEqual(['decode-viewer-input-opacity', 'decode-comparison-input-opacity']);
+    expect(new Set(ids).size).toBe(ids.length);
+    ids.forEach((id) => expect(document.querySelector(`label[for="${id}"]`)).toBeInTheDocument());
 });
 
 it('composes a three-volume overlay with independent signed display settings and preserves them by asset', async () => {

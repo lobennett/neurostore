@@ -50,6 +50,7 @@ vi.mock('./DecodeNiiVueCanvas', () => ({
                         type="button"
                         onClick={() =>
                             onVolumeRangesChange({
+                                'generic-mni': { globalMin: 0, globalMax: 97 },
                                 'response-control': { globalMin: -4.25, globalMax: 7.5 },
                             })
                         }
@@ -165,7 +166,7 @@ it('loads only anatomy and no input controls for a coordinate source with an ove
     expect(screen.queryByRole('slider', { name: 'Input opacity' })).not.toBeInTheDocument();
 });
 
-it('derives signed ranges and controls canvas display state locally', async () => {
+it('calibrates the 0–97 anatomy and signed input from their loaded ranges', async () => {
     const user = userEvent.setup();
     renderViewer({ kind: 'neurovault', imageId: '308' }, recordedVisualization);
     await screen.findByRole('region', { name: 'Recorded decoder maps' });
@@ -179,6 +180,12 @@ it('derives signed ranges and controls canvas display state locally', async () =
         calMax: 7.5,
         calMinNegative: 0,
         calMaxNegative: -4.25,
+    });
+    expect(canvasMock.props.at(-1)?.displayByVolumeId['generic-mni']).toMatchObject({
+        calMin: 0,
+        calMax: 97,
+        calMinNegative: 0,
+        calMaxNegative: 0,
     });
 
     fireEvent.change(screen.getByRole('slider', { name: 'Input opacity' }), { target: { value: '0.45' } });

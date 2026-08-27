@@ -43,6 +43,11 @@ interface IRecordedManifest {
         analysisLevel: 'group';
         modality: 'fMRI BOLD';
         subjectCount: number;
+        thresholding: 'unthresholded';
+        targetTemplate: 'GenericMNI';
+        cognitiveAtlasTask: 'Landmark task';
+        cognitiveAtlasTaskId: 'trm_5346938eed092';
+        contrast: string;
         doi: string;
         license: 'CC0';
         attribution: string;
@@ -178,6 +183,11 @@ const isCanonicalManifest = (manifest: IRecordedManifest): boolean =>
     manifest.input.analysisLevel === 'group' &&
     manifest.input.modality === 'fMRI BOLD' &&
     manifest.input.subjectCount === 10 &&
+    manifest.input.thresholding === 'unthresholded' &&
+    manifest.input.targetTemplate === 'GenericMNI' &&
+    manifest.input.cognitiveAtlasTask === 'Landmark task' &&
+    manifest.input.cognitiveAtlasTaskId === 'trm_5346938eed092' &&
+    manifest.input.contrast === 'correct or incorrect response (control)' &&
     manifest.input.doi === '10.1186/2047-217X-2-6' &&
     manifest.input.license === 'CC0' &&
     isNonEmptyString(manifest.input.attribution) &&
@@ -206,6 +216,9 @@ export const makeGoldenWalkthroughDraft = (interpretation: string): IDecodeDraft
         analysisLevel: 'group',
         modality: 'fmri-bold',
         subjectCount: '10',
+        thresholding: 'unthresholded',
+        targetTemplate: 'GenericMNI',
+        contrast: 'correct or incorrect response (control)',
         cognitiveTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
     },
     interpretation,
@@ -269,6 +282,13 @@ export const loadGoldenWalkthrough = async (): Promise<{ draft: IDecodeDraft; pr
                     doiUrl: `https://doi.org/${manifest.input.doi}`,
                     license: manifest.input.license,
                     attribution: manifest.input.attribution,
+                    thresholding: manifest.input.thresholding,
+                    targetTemplate: manifest.input.targetTemplate,
+                    cognitiveAtlasTask: {
+                        id: manifest.input.cognitiveAtlasTaskId,
+                        label: manifest.input.cognitiveAtlasTask,
+                    },
+                    contrast: manifest.input.contrast,
                 },
                 termMaps: {
                     license: termMapLicense,

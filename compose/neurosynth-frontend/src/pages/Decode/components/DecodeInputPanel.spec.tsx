@@ -61,11 +61,15 @@ const renderPanel = (onPreview = vi.fn()) => {
     return render(<Wrapper />);
 };
 
-it('provides more than 600 unique, label-sorted Cognitive Atlas concepts including working memory', () => {
+it('projects only stable legacy Cognitive Atlas IDs while preserving representative concepts', () => {
     const labels = COGNITIVE_ATLAS_CONCEPTS.map(({ label }) => label);
+    const ids = COGNITIVE_ATLAS_CONCEPTS.map(({ id }) => id);
 
     expect(COGNITIVE_ATLAS_CONCEPTS.length).toBeGreaterThan(600);
-    expect(new Set(COGNITIVE_ATLAS_CONCEPTS.map(({ id }) => id)).size).toBe(COGNITIVE_ATLAS_CONCEPTS.length);
+    expect(new Set(ids).size).toBe(COGNITIVE_ATLAS_CONCEPTS.length);
+    expect(ids.every((id) => /^trm_[0-9a-f]{13}$/.test(id))).toBe(true);
+    expect(ids).not.toContain('trm_KhnMZaVYVHe43');
+    expect(ids).toEqual(expect.arrayContaining(['trm_4a3fd79d09902', 'trm_4a3fd79d0af66', 'trm_4a3fd79d0b5a7']));
     expect(labels).toEqual(
         [...labels].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }))
     );
@@ -98,6 +102,7 @@ it('starts with no concept and searches the checked-in concept snapshot', async 
     renderDescriptionPanel();
 
     expect(screen.getByRole('combobox', { name: 'Cognitive Atlas concepts' })).toHaveValue('');
+    expect(screen.getByText(/Curated legacy Cognitive Atlas concepts/i)).toBeVisible();
     await user.type(screen.getByRole('combobox', { name: 'Cognitive Atlas concepts' }), 'working memory');
     expect(await screen.findByText('working memory')).toBeVisible();
     expect(screen.getAllByText(/trm_/).length).toBeGreaterThan(0);

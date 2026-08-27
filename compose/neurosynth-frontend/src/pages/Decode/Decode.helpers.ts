@@ -89,6 +89,9 @@ export const isCanonicalGoldenDraft = (draft: IDecodeDraft): boolean => {
         draft.metadata.analysisLevel === canonical.metadata.analysisLevel &&
         draft.metadata.modality === canonical.metadata.modality &&
         draft.metadata.subjectCount === canonical.metadata.subjectCount &&
+        draft.metadata.thresholding === canonical.metadata.thresholding &&
+        draft.metadata.targetTemplate === canonical.metadata.targetTemplate &&
+        draft.metadata.contrast === canonical.metadata.contrast &&
         JSON.stringify(draft.metadata.cognitiveTask) === JSON.stringify(canonical.metadata.cognitiveTask) &&
         JSON.stringify(draft.concepts) === JSON.stringify(canonical.concepts) &&
         draft.exampleId === canonical.exampleId &&
@@ -253,7 +256,10 @@ export const buildDecodeRunRequest = (draft: IDecodeDraft): IDecodeRunRequest =>
 
 export const isPreviewStale = (draft: IDecodeDraft, request: IDecodeRunRequest): boolean => {
     try {
-        return JSON.stringify(buildDecodeRunRequest(draft)) !== JSON.stringify(request);
+        const nextRequest = buildDecodeRunRequest(draft);
+        const comparableRequest = (value: IDecodeRunRequest): IDecodeRunRequest =>
+            value.exampleId === 'neurovault-308' ? { ...value, interpretation: '' } : value;
+        return JSON.stringify(comparableRequest(nextRequest)) !== JSON.stringify(comparableRequest(request));
     } catch {
         return true;
     }

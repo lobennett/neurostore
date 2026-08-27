@@ -3,6 +3,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { DECODE_MODELS, EXAMPLE_TERMS, makeExamplePreview } from '../Decode.fixtures';
+import { makeGoldenWalkthroughDraft } from '../Decode.golden';
+import { buildDecodeRunRequest } from '../Decode.helpers';
 import { COGNITIVE_ATLAS_CONCEPTS } from '../Decode.vocabulary';
 import type {
     DecodeModelId,
@@ -22,6 +24,9 @@ const requestFor = (modelId: DecodeModelId, prior: 'literature' | 'uniform' = 'l
         analysisLevel: 'group',
         modality: 'fmri-bold',
         subjectCount: '121',
+        thresholding: '',
+        targetTemplate: '',
+        contrast: '',
         cognitiveTask: null,
         interpretation: '',
     },
@@ -98,14 +103,7 @@ const renderResults = (
 };
 
 const recordedPreview = (): Extract<IDecodePreviewState, { status: 'success' }> => {
-    const request: IDecodeRunRequest = {
-        ...requestFor('neurovlm'),
-        source: { kind: 'neurovault', imageId: '308' },
-        modelId: 'neurosynth-pearson-recorded',
-        modelVersion: 'terms_20k-recorded-2026-08-26',
-        parameters: {},
-        exampleId: 'neurovault-308',
-    };
+    const request = buildDecodeRunRequest(makeGoldenWalkthroughDraft(''));
     const provenance = {
         kind: 'recorded' as const,
         label: 'Recorded Neurosynth Pearson example' as const,
@@ -129,6 +127,10 @@ const recordedPreview = (): Extract<IDecodePreviewState, { status: 'success' }> 
             doiUrl: 'https://doi.org/10.1186/2047-217X-2-6',
             license: 'CC0' as const,
             attribution: 'NeuroVault public image 308; collection authors; DOI 10.1186/2047-217X-2-6',
+            thresholding: 'unthresholded' as const,
+            targetTemplate: 'GenericMNI' as const,
+            cognitiveAtlasTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
+            contrast: 'correct or incorrect response (control)',
         },
         termMaps: {
             license: 'ODbL-derived' as const,
@@ -341,6 +343,9 @@ it('discloses the recorded method, source, ranking, retrieval date, and licenses
         'href',
         'https://doi.org/10.1186/2047-217X-2-6'
     );
+    expect(screen.getByText(/Unthresholded input · GenericMNI target template/)).toBeVisible();
+    expect(screen.getByText(/Landmark task.*trm_5346938eed092/)).toBeVisible();
+    expect(screen.getByText(/Contrast: correct or incorrect response \(control\)/)).toBeVisible();
     expect(screen.getByText(/CC0 input map/)).toBeVisible();
     expect(screen.getByText(/ODbL-derived term maps/)).toBeVisible();
     expect(screen.getByRole('link', { name: 'Premotor map source' })).toHaveAttribute(
@@ -350,6 +355,8 @@ it('discloses the recorded method, source, ranking, retrieval date, and licenses
 
     await user.click(screen.getByRole('tab', { name: 'Model summary' }));
     expect(screen.getByRole('heading', { name: 'Recorded Neurosynth Pearson method' })).toBeVisible();
+    expect(screen.getByRole('list', { name: 'Recorded Pearson ranked terms' })).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Recorded Pearson ranked concepts' })).not.toBeInTheDocument();
     expect(
         within(screen.getByRole('tabpanel', { name: 'Model summary' })).getByText(
             /Pearson correlation between vectorized input and reference term maps, including zero-valued voxels/

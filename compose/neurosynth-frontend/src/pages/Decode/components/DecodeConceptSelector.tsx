@@ -27,7 +27,14 @@ const DecodeConceptSelector = ({ concepts, onChange }: DecodeConceptSelectorProp
                 </Stack>
             </li>
         )}
-        renderInput={(params) => <TextField {...params} label="Cognitive Atlas concepts" placeholder="Search concepts" />}
+        renderInput={(params) => (
+            <TextField
+                {...params}
+                label="Cognitive Atlas concepts"
+                placeholder="Search concepts"
+                helperText="Curated legacy Cognitive Atlas concepts from the 2026-08-26 snapshot; newer unreviewed registry entries are excluded."
+            />
+        )}
     />
 );
 

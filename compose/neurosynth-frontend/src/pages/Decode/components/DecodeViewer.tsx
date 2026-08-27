@@ -171,15 +171,33 @@ const DecodeViewer: React.FC<{
         onChange({ ...value, x: point.x, y: point.y, z: point.z });
     };
     const handleVolumeRangesChange = (ranges: Record<string, IDecodeVolumeRange>) => {
-        if (!input) return;
-        const nextRange = ranges[input.id];
-        if (!nextRange) return;
-        setInputRange(nextRange);
-        updateInputDisplay({
-            calMin: Math.max(0, nextRange.globalMin),
-            calMax: Math.max(0, nextRange.globalMax),
-            calMinNegative: Math.min(0, nextRange.globalMax),
-            calMaxNegative: Math.min(0, nextRange.globalMin),
+        const anatomical = visualization?.anatomical;
+        const anatomicalRange = anatomical ? ranges[anatomical.id] : undefined;
+        const nextInputRange = input ? ranges[input.id] : undefined;
+        if (nextInputRange) setInputRange(nextInputRange);
+        if (!anatomicalRange && !nextInputRange) return;
+
+        setDisplayByVolumeId((current) => {
+            const next = { ...current };
+            if (anatomical && anatomicalRange) {
+                next[anatomical.id] = {
+                    ...(current[anatomical.id] ?? displayForVisualization(visualization)[anatomical.id]),
+                    calMin: anatomicalRange.globalMin,
+                    calMax: anatomicalRange.globalMax,
+                    calMinNegative: Math.min(0, anatomicalRange.globalMax),
+                    calMaxNegative: Math.min(0, anatomicalRange.globalMin),
+                };
+            }
+            if (input && nextInputRange) {
+                next[input.id] = {
+                    ...(current[input.id] ?? displayForVisualization(visualization, input)[input.id]),
+                    calMin: Math.max(0, nextInputRange.globalMin),
+                    calMax: Math.max(0, nextInputRange.globalMax),
+                    calMinNegative: Math.min(0, nextInputRange.globalMax),
+                    calMaxNegative: Math.min(0, nextInputRange.globalMin),
+                };
+            }
+            return next;
         });
     };
     const hasRealVisualization = Boolean(visualization);
@@ -394,7 +412,7 @@ const DecodeViewer: React.FC<{
                                     </Typography>
                                     <Typography
                                         component="label"
-                                        htmlFor="decode-input-opacity"
+                                        htmlFor="decode-viewer-input-opacity"
                                         variant="body2"
                                         display="block"
                                         sx={{ mt: 1.5 }}
@@ -402,8 +420,8 @@ const DecodeViewer: React.FC<{
                                         Input opacity
                                     </Typography>
                                     <Slider
-                                        id="decode-input-opacity"
                                         aria-label="Input opacity"
+                                        slotProps={{ input: { id: 'decode-viewer-input-opacity' } }}
                                         min={0}
                                         max={1}
                                         step={0.05}
@@ -421,7 +439,7 @@ const DecodeViewer: React.FC<{
                                         <>
                                             <Typography
                                                 component="label"
-                                                htmlFor="decode-positive-input-threshold"
+                                                htmlFor="decode-viewer-positive-input-threshold"
                                                 variant="body2"
                                                 display="block"
                                                 sx={{ mt: 1.5 }}
@@ -429,8 +447,8 @@ const DecodeViewer: React.FC<{
                                                 Positive input threshold
                                             </Typography>
                                             <Slider
-                                                id="decode-positive-input-threshold"
                                                 aria-label="Positive input threshold"
+                                                slotProps={{ input: { id: 'decode-viewer-positive-input-threshold' } }}
                                                 min={0}
                                                 max={inputRange.globalMax}
                                                 step={0.01}
@@ -449,7 +467,7 @@ const DecodeViewer: React.FC<{
                                         <>
                                             <Typography
                                                 component="label"
-                                                htmlFor="decode-negative-input-threshold"
+                                                htmlFor="decode-viewer-negative-input-threshold"
                                                 variant="body2"
                                                 display="block"
                                                 sx={{ mt: 1.5 }}
@@ -457,8 +475,8 @@ const DecodeViewer: React.FC<{
                                                 Negative input threshold
                                             </Typography>
                                             <Slider
-                                                id="decode-negative-input-threshold"
                                                 aria-label="Negative input threshold"
+                                                slotProps={{ input: { id: 'decode-viewer-negative-input-threshold' } }}
                                                 min={inputRange.globalMin}
                                                 max={0}
                                                 step={0.01}

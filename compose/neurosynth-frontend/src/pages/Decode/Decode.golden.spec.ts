@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFixtureDecodeAdapter } from './Decode.adapter';
-import { loadGoldenWalkthrough } from './Decode.golden';
+import { loadGoldenWalkthrough, makeGoldenWalkthroughDraft } from './Decode.golden';
+import { buildDecodeRunRequest } from './Decode.helpers';
 
 const fixtureRoot = resolve(process.cwd(), 'public/decoder/examples/neurovault-308');
 
@@ -50,6 +51,10 @@ describe('loadGoldenWalkthrough', () => {
             analysisLevel: 'group',
             modality: 'fmri-bold',
             subjectCount: '10',
+            thresholding: 'unthresholded',
+            targetTemplate: 'GenericMNI',
+            cognitiveTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
+            contrast: 'correct or incorrect response (control)',
         });
         expect(draft.modelId).toBe('neurosynth-pearson-recorded');
         expect(preview.provenance.kind).toBe('recorded');
@@ -67,6 +72,10 @@ describe('loadGoldenWalkthrough', () => {
                 doi: '10.1186/2047-217X-2-6',
                 doiUrl: 'https://doi.org/10.1186/2047-217X-2-6',
                 license: 'CC0',
+                thresholding: 'unthresholded',
+                targetTemplate: 'GenericMNI',
+                cognitiveAtlasTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
+                contrast: 'correct or incorrect response (control)',
             },
             termMaps: {
                 license: 'ODbL-derived',
@@ -87,19 +96,15 @@ describe('loadGoldenWalkthrough', () => {
         const manifest = await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8');
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(manifest, { status: 200 })));
 
-        const preview = await createFixtureDecodeAdapter().preview(
-            {
-                source: { kind: 'neurovault', imageId: '308' },
-                concepts: [],
-                interpretation: '',
-                modelId: 'neurosynth-pearson-recorded',
-                modelVersion: 'terms_20k-recorded-2026-08-26',
-                parameters: {},
-                exampleId: 'neurovault-308',
-            },
-            'success'
-        );
+        const request = buildDecodeRunRequest(makeGoldenWalkthroughDraft(''));
+        const preview = await createFixtureDecodeAdapter().preview(request, 'success');
 
+        expect(request.metadata).toMatchObject({
+            thresholding: 'unthresholded',
+            targetTemplate: 'GenericMNI',
+            cognitiveTask: { id: 'trm_5346938eed092', label: 'Landmark task' },
+            contrast: 'correct or incorrect response (control)',
+        });
         expect(preview.provenance.kind).toBe('recorded');
     });
 
@@ -118,6 +123,11 @@ describe('loadGoldenWalkthrough', () => {
         ['DOI', (manifest: any) => (manifest.input.doi = '')],
         ['input license', (manifest: any) => (manifest.input.license = 'ODbL-derived')],
         ['input attribution', (manifest: any) => (manifest.input.attribution = '')],
+        ['thresholding', (manifest: any) => (manifest.input.thresholding = 'thresholded')],
+        ['target template', (manifest: any) => (manifest.input.targetTemplate = 'Talairach')],
+        ['Cognitive Atlas task', (manifest: any) => (manifest.input.cognitiveAtlasTask = 'Other task')],
+        ['Cognitive Atlas task ID', (manifest: any) => (manifest.input.cognitiveAtlasTaskId = 'trm_4a3fd79d0b5a7')],
+        ['contrast', (manifest: any) => (manifest.input.contrast = '')],
         ['score definition', (manifest: any) => (manifest.method.scoreDefinition = 'Generic spatial similarity')],
         [
             'result endpoint',

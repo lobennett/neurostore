@@ -64,6 +64,9 @@ it('defaults recorded correlations to strongest absolute magnitude first', () =>
             .slice(1)
             .map((row) => within(row).getByRole('button').textContent)
     ).toEqual(['premotor', 'posterior cingulate', 'medial']);
+    expect(screen.getByText(/Recorded terms from this walkthrough snapshot/)).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Term / result ID' })).toBeVisible();
+    expect(screen.queryByRole('columnheader', { name: 'Vocabulary ID' })).not.toBeInTheDocument();
 });
 
 it('keeps illustrative results on rank ascending by default', () => {

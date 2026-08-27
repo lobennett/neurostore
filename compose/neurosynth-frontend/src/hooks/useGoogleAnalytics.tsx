@@ -12,43 +12,44 @@ declare global {
 }
 
 export const routeMapping = (path: string) => {
-    if (/^\/projects\/.*\/curation\/search.*$/g.test(path)) {
+    const pathname = path.split(/[?#]/, 1)[0];
+    if (/^\/projects\/.*\/curation\/search.*$/g.test(pathname)) {
         return 'curation search page';
-    } else if (/^\/projects\/.*\/curation$/g.test(path)) {
+    } else if (/^\/projects\/.*\/curation$/g.test(pathname)) {
         return 'curation page';
-    } else if (/^\/projects\/.*\/project$/g.test(path)) {
+    } else if (/^\/projects\/.*\/project$/g.test(pathname)) {
         return 'project page';
-    } else if (/^\/projects$/g.test(path)) {
+    } else if (/^\/projects$/g.test(pathname)) {
         return 'projects page';
-    } else if (/^\/projects\/.*\/meta-analyses\/.*/g.test(path)) {
+    } else if (/^\/projects\/.*\/meta-analyses\/.*/g.test(pathname)) {
         return 'project meta-analysis page';
-    } else if (/^\/projects\/.*\/meta-analyses$/g.test(path)) {
+    } else if (/^\/projects\/.*\/meta-analyses$/g.test(pathname)) {
         return 'project meta-analyses page';
-    } else if (/^\/projects\/new\/sleuth$/g.test(path)) {
+    } else if (/^\/projects\/new\/sleuth$/g.test(pathname)) {
         return 'sleuth import page';
-    } else if (/^\/base-studies$/g.test(path)) {
+    } else if (/^\/base-studies$/g.test(pathname)) {
         return 'base-studies page';
-    } else if (/^\/base-studies\/.*$/g.test(path)) {
+    } else if (/^\/base-studies\/.*$/g.test(pathname)) {
         return 'base-study page';
-    } else if (/^\/meta-analyses\/.*$/g.test(path)) {
+    } else if (/^\/meta-analyses\/.*$/g.test(pathname)) {
         return 'meta-analysis page';
-    } else if (/^\/meta-analyses$/g.test(path)) {
+    } else if (/^\/meta-analyses$/g.test(pathname)) {
         return 'meta-analyses page';
-    } else if (/^\/decode$/g.test(path)) {
+    } else if (/^\/decode$/g.test(pathname)) {
         return 'decode page';
-    } else if (/^\/projects\/.*\/extraction\/studies\/.*\/edit$/g.test(path)) {
+    } else if (/^\/projects\/.*\/extraction\/studies\/.*\/edit$/g.test(pathname)) {
         return 'edit project study page';
-    } else if (/^\/projects\/.*\/extraction\/studies\/.*$/g.test(path)) {
+    } else if (/^\/projects\/.*\/extraction\/studies\/.*$/g.test(pathname)) {
         return 'project study page';
-    } else if (/^\/projects\/.*\/extraction\/annotations$/g.test(path)) {
+    } else if (/^\/projects\/.*\/extraction\/annotations$/g.test(pathname)) {
         return 'annotations page';
-    } else if (/^\/projects\/.*\/extraction$/g.test(path)) {
+    } else if (/^\/projects\/.*\/extraction$/g.test(pathname)) {
         return 'extraction page';
-    } else if (/^\/user-profile$/g.test(path)) {
+    } else if (/^\/user-profile$/g.test(pathname)) {
         return 'user profile page';
-    } else if (/^\/forbidden$/g.test(path)) {
+    } else if (/^\/forbidden$/g.test(pathname)) {
         return 'forbidden page';
-    } else if (/^\/termsandconditions$/g.test(path)) {
+    } else if (/^\/termsandconditions$/g.test(pathname)) {
         return 'terms and conditions page';
     } else {
         return 'not found page';
@@ -61,7 +62,7 @@ const useGoogleAnalytics = () => {
     useEffect(() => {
         if (window.gtag) {
             window.gtag('event', 'page_view', {
-                page_path: routeMapping(location.pathname + location.search),
+                page_path: routeMapping(location.pathname),
             });
         }
     }, [location]);

@@ -90,6 +90,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
     const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
     const [announcement, setAnnouncement] = useState('');
     const [autoFocusSource, setAutoFocusSource] = useState(false);
+    const [autoFocusWalkthroughReview, setAutoFocusWalkthroughReview] = useState(false);
     const [workspaceVersion, setWorkspaceVersion] = useState(0);
     const [viewerState, setViewerState] = useState<IViewerState>(DEFAULT_VIEWER_STATE);
     const previewAttempt = useRef(0);
@@ -113,8 +114,18 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
     };
 
     const openPreview = async () => {
-        const request = buildDecodeRunRequest(draft);
         const attempt = ++previewAttempt.current;
+        let request: IDecodeRunRequest;
+        try {
+            request = buildDecodeRunRequest(draft);
+        } catch {
+            if (attempt === previewAttempt.current) {
+                setInputsExpanded(true);
+                setAnnouncement('Correct the highlighted inputs before retrying.');
+            }
+            return;
+        }
+        const recordedRequest = request.exampleId === 'neurovault-308';
         setPreviewState({ status: 'loading', request });
         const initialCoordinate = request.source.kind === 'coordinates' ? request.source.points[0] : undefined;
         setViewerState(
@@ -126,18 +137,23 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
         setActiveResultView('terms');
         setSelectedResult(undefined);
         setAutoFocusSource(false);
-        setAnnouncement('Illustrative preview loading.');
+        setAnnouncement(recordedRequest ? 'Recorded walkthrough loading.' : 'Illustrative preview loading.');
         try {
             const preview = await adapter.preview(request, activeFixtureScenario);
             if (attempt !== previewAttempt.current) return;
             setPreviewState({ status: 'success', request, preview });
-            setAnnouncement('Example decoder results ready.');
+            setAnnouncement(recordedRequest ? 'Recorded decoder results ready.' : 'Example decoder results ready.');
         } catch (error) {
             if (attempt !== previewAttempt.current) return;
             const previewError =
                 error instanceof DecodePreviewError
                     ? error
-                    : new DecodePreviewError('Decoder preview', 'The illustrative preview could not be prepared.');
+                    : new DecodePreviewError(
+                          'Decoder preview',
+                          recordedRequest
+                              ? 'The recorded walkthrough could not be prepared.'
+                              : 'The illustrative preview could not be prepared.'
+                      );
             setPreviewState({
                 status: 'error',
                 operation: previewError.operation,
@@ -157,11 +173,13 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
         setSelectedResult(undefined);
         setAnnouncement('Preview reset. Choose another map source.');
         setAutoFocusSource(true);
+        setAutoFocusWalkthroughReview(false);
         setViewerState(DEFAULT_VIEWER_STATE);
         setWorkspaceVersion((version) => version + 1);
     };
 
     const loadWalkthrough = () => {
+        setAutoFocusWalkthroughReview(true);
         changeDraft(makeGoldenWalkthroughDraft(draft.interpretation));
     };
 
@@ -210,8 +228,9 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                     Decode a brain map
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                    Prepare a public, illustrative preview from a NIfTI map, NeuroVault image, or MNI coordinate. Every
-                    result on this page is deterministic example data.
+                    {draft.exampleId === 'neurovault-308'
+                        ? 'Review bundled public maps and a recorded decoder result from NeuroVault image 308. No decoder runs, and nothing is uploaded.'
+                        : 'Prepare a public, illustrative preview from a NIfTI map, NeuroVault image, or MNI coordinate. Every result on this page is deterministic example data.'}
                 </Typography>
             </Box>
 
@@ -248,6 +267,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                         onPreview={openPreview}
                         onLoadWalkthrough={loadWalkthrough}
                         autoFocusSource={autoFocusSource}
+                        autoFocusWalkthroughReview={autoFocusWalkthroughReview}
                     />
                 </Collapse>
             </Paper>
@@ -269,7 +289,11 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                             />
                             <Box
                                 role="region"
-                                aria-label="Illustrative decoder results"
+                                aria-label={
+                                    successfulState.request.exampleId === 'neurovault-308'
+                                        ? 'Recorded decoder results'
+                                        : 'Illustrative decoder results'
+                                }
                                 sx={{
                                     display: 'grid',
                                     gridTemplateColumns: {
@@ -385,7 +409,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                                             onViewChange={setActiveResultView}
                                             onSelectComparison={setSelectedResult}
                                             onViewerStateChange={setViewerState}
-                                            autoFocusActiveTab
+                                            autoFocusActiveTab={!openGoldenWalkthrough}
                                         />
                                     ) : null}
                                 </Paper>

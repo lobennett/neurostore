@@ -297,15 +297,41 @@ describe('DecodeNiiVueCanvas', () => {
 
     it('names the exact failed file and retries the sequential load', async () => {
         render(<DecodeNiiVueCanvas {...makeProps()} />);
-        const instance = niivueMock.instances[0];
-        const loadVolume = instance.addVolumeFromUrl.getMockImplementation()!;
-        instance.addVolumeFromUrl.mockImplementationOnce(loadVolume).mockRejectedValueOnce(new Error('offline'));
+        const failedInstance = niivueMock.instances[0];
+        const loadVolume = failedInstance.addVolumeFromUrl.getMockImplementation()!;
+        failedInstance.addVolumeFromUrl.mockImplementationOnce(loadVolume).mockRejectedValueOnce(new Error('offline'));
 
         expect(await screen.findByText('Could not load response-control.nii.gz')).toBeVisible();
         await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
-        await waitFor(() => expect(instance.addVolumeFromUrl).toHaveBeenCalledTimes(4));
+        await waitFor(() => expect(niivueMock.instances).toHaveLength(2));
+        await waitFor(() => expect(niivueMock.instances[1].volumes).toHaveLength(2));
+        expect(failedInstance.addVolumeFromUrl).toHaveBeenCalledTimes(2);
+        expect(failedInstance.removeVolume).toHaveBeenCalledWith(
+            expect.objectContaining({ name: anatomical.filename })
+        );
+        expect(loseContext).toHaveBeenCalledTimes(1);
         expect(screen.queryByText('Could not load response-control.nii.gz')).not.toBeInTheDocument();
+    });
+
+    it('recreates after one attach rejection and disposes both failed and successful contexts', async () => {
+        niivueMock.deferNextAttach(() => Promise.reject(new Error('attach failed once')));
+        const { unmount } = render(<DecodeNiiVueCanvas {...makeProps()} />);
+
+        expect(await screen.findByText('Could not initialize interactive map')).toBeVisible();
+        expect(niivueMock.instances).toHaveLength(1);
+        expect(loseContext).toHaveBeenCalledTimes(1);
+
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+        await waitFor(() => expect(niivueMock.instances).toHaveLength(2));
+        await waitFor(() =>
+            expect(screen.getByRole('region', { name: 'Recorded decoder maps' })).toHaveAttribute('aria-busy', 'false')
+        );
+        expect(niivueMock.instances[1].attachToCanvas).toHaveBeenCalledTimes(1);
+
+        unmount();
+        expect(loseContext).toHaveBeenCalledTimes(2);
     });
 
     it('keeps a textual map and coordinate fallback when WebGL2 is unavailable', () => {

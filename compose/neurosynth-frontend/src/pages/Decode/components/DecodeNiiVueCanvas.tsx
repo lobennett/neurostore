@@ -54,6 +54,7 @@ interface NiiVueLifecycle {
     niivue: Niivue;
     webgl: WebGL2RenderingContext;
     attached: boolean;
+    attachSettled: boolean;
     disposeRequested: boolean;
     disposed: boolean;
     pendingLoads: number;
@@ -62,7 +63,7 @@ interface NiiVueLifecycle {
 const noLocationChange = () => undefined;
 
 const disposeLifecycleIfIdle = (lifecycle: NiiVueLifecycle): void => {
-    if (!lifecycle.disposeRequested || !lifecycle.attached || lifecycle.pendingLoads > 0 || lifecycle.disposed) {
+    if (!lifecycle.disposeRequested || !lifecycle.attachSettled || lifecycle.pendingLoads > 0 || lifecycle.disposed) {
         return;
     }
 
@@ -172,6 +173,7 @@ const DecodeNiiVueCanvas = ({
             niivue,
             webgl,
             attached: false,
+            attachSettled: false,
             disposeRequested: false,
             disposed: false,
             pendingLoads: 0,
@@ -210,6 +212,7 @@ const DecodeNiiVueCanvas = ({
         const attach = async () => {
             try {
                 await niivue.attachToCanvas(canvas);
+                lifecycle.attachSettled = true;
                 lifecycle.attached = true;
                 if (!mounted || generation !== loadGeneration.current) {
                     requestLifecycleDisposal(lifecycle);
@@ -217,6 +220,8 @@ const DecodeNiiVueCanvas = ({
                 }
                 setAttachedVersion((version) => version + 1);
             } catch {
+                lifecycle.attachSettled = true;
+                requestLifecycleDisposal(lifecycle);
                 if (!mounted || generation !== loadGeneration.current) return;
                 setLoadState({ status: 'error', message: 'Could not initialize interactive map' });
             }
@@ -233,7 +238,7 @@ const DecodeNiiVueCanvas = ({
             if (niivueRef.current === niivue) niivueRef.current = null;
             if (lifecycleRef.current === lifecycle) lifecycleRef.current = null;
         };
-    }, []);
+    }, [retryCount]);
 
     useEffect(() => {
         const niivue = niivueRef.current;
@@ -300,7 +305,7 @@ const DecodeNiiVueCanvas = ({
             active = false;
             if (generation === loadGeneration.current) ++loadGeneration.current;
         };
-    }, [attachedVersion, retryCount, volumeSignature]);
+    }, [attachedVersion, volumeSignature]);
 
     useEffect(() => {
         setSummaryCoordinate(coordinate);

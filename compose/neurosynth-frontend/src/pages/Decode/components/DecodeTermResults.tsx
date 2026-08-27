@@ -72,7 +72,7 @@ const DecodeTermResults: React.FC<{
         <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {recorded
-                    ? 'Recorded concepts from this walkthrough snapshot. Search terms or stable result identifiers, then select any result for comparison.'
+                    ? 'Recorded terms from this walkthrough snapshot. Search terms or stable result identifiers, then select any result for comparison.'
                     : 'Ranked example concepts from this preview snapshot. Search labels or stable vocabulary identifiers, then select a mapped result for comparison.'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
@@ -145,7 +145,7 @@ const DecodeTermResults: React.FC<{
                         <TableRow>
                             <TableCell width="64px">Rank</TableCell>
                             <TableCell>Term</TableCell>
-                            <TableCell>Vocabulary ID</TableCell>
+                            <TableCell>{recorded ? 'Term / result ID' : 'Vocabulary ID'}</TableCell>
                             <TableCell width="46%">{metricLabel}</TableCell>
                         </TableRow>
                     </TableHead>

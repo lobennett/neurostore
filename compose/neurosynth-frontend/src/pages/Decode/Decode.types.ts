@@ -8,6 +8,8 @@ export type DecodeFixtureScenario =
 
 export type DecodeMapType = '' | 'z' | 't';
 export type DecodeAnalysisLevel = '' | 'group' | 'subject' | 'meta-analysis' | 'other';
+export type DecodeThresholding = '' | 'unthresholded';
+export type DecodeTargetTemplate = '' | 'GenericMNI';
 export type DecodeModality =
     | ''
     | 'fmri-bold'
@@ -68,6 +70,9 @@ export interface IDecodeMetadata {
     analysisLevel: DecodeAnalysisLevel;
     modality: DecodeModality;
     subjectCount: string;
+    thresholding: DecodeThresholding;
+    targetTemplate: DecodeTargetTemplate;
+    contrast: string;
     /** @deprecated Replaced by the concepts field on IDecodeDraft. */
     cognitiveTask: ICognitiveTaskOption | null;
     /** @deprecated Replaced by the interpretation field on IDecodeDraft. */
@@ -221,6 +226,10 @@ export type IDecodeProvenance =
               doiUrl: string;
               license: 'CC0';
               attribution: string;
+              thresholding: 'unthresholded';
+              targetTemplate: 'GenericMNI';
+              cognitiveAtlasTask: ICognitiveTaskOption;
+              contrast: string;
           };
           termMaps: {
               license: 'ODbL-derived';

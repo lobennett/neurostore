@@ -98,6 +98,11 @@ const RecordedProvenance: React.FC<{ preview: IDecodePreview }> = ({ preview }) 
                 {provenance.input.license} input map · {provenance.input.attribution}
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {provenance.input.thresholding.charAt(0).toLocaleUpperCase() + provenance.input.thresholding.slice(1)}{' '}
+                input · {provenance.input.targetTemplate} target template · {provenance.input.cognitiveAtlasTask.label}{' '}
+                ({provenance.input.cognitiveAtlasTask.id}) · Contrast: {provenance.input.contrast}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
                 {provenance.termMaps.license} term maps · {provenance.termMaps.attribution}
             </Typography>
             {mapSources.length ? (
@@ -317,7 +322,7 @@ const DecodeResults: React.FC<{
                             </Typography>
                             <Box
                                 component="ol"
-                                aria-label={recorded ? 'Recorded Pearson ranked concepts' : 'NeuroVLM ranked concepts'}
+                                aria-label={recorded ? 'Recorded Pearson ranked terms' : 'NeuroVLM ranked concepts'}
                                 sx={{ m: 0, mt: 2, pl: 3, columnCount: { xs: 1, sm: 2 }, columnGap: 3 }}
                             >
                                 {preview.terms.slice(0, 10).map(({ id, label, value }) => (

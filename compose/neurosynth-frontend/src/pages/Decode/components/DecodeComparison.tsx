@@ -11,6 +11,7 @@ import {
     Typography,
 } from '@mui/material';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { MNI_LIMITS } from '../Decode.constants';
 import type {
     DecodeComparisonMode,
     IDecodeComparableResult,
@@ -32,6 +33,8 @@ const SIGNED_PALETTES: Array<{ value: SignedPalette; label: string; positive: st
 
 const signedValue = (value: number) => (value < 0 ? `−${Math.abs(value)}` : String(value));
 const formattedRangeValue = (value: number) => value.toFixed(2).replace('-', '−');
+const clampCoordinate = (axis: CoordinateAxis, value: number) =>
+    Math.max(MNI_LIMITS[axis].min, Math.min(MNI_LIMITS[axis].max, value));
 
 const displayForAsset = (asset: IDecodeVolumeAsset): IDecodeVolumeDisplay => {
     if (asset.kind === 'anatomical') {
@@ -211,10 +214,15 @@ const DecodeComparison: React.FC<{
         if (inputValue.trim() === '') return;
         const nextCoordinate = Number(inputValue);
         if (!Number.isFinite(nextCoordinate)) return;
-        onViewerStateChange({ ...viewerState, [axis]: nextCoordinate });
+        onViewerStateChange({ ...viewerState, [axis]: clampCoordinate(axis, nextCoordinate) });
     };
     const synchronizeCanvasCoordinate = (nextCoordinate: { x: number; y: number; z: number }) =>
-        onViewerStateChange({ ...viewerState, ...nextCoordinate });
+        onViewerStateChange({
+            ...viewerState,
+            x: clampCoordinate('x', nextCoordinate.x),
+            y: clampCoordinate('y', nextCoordinate.y),
+            z: clampCoordinate('z', nextCoordinate.z),
+        });
     const updateDisplay = (asset: IDecodeVolumeAsset | undefined, update: Partial<IDecodeVolumeDisplay>) => {
         if (!asset) return;
         setDisplayByAssetId((current) => ({
@@ -270,12 +278,12 @@ const DecodeComparison: React.FC<{
                         ? `${capitalizedRole} range: ${formattedRangeValue(range.globalMin)} to ${formattedRangeValue(range.globalMax)}`
                         : `Reading the ${role} map range…`}
                 </Typography>
-                <Typography component="label" htmlFor={`decode-${role}-opacity`} variant="body2">
+                <Typography component="label" htmlFor={`decode-comparison-${role}-opacity`} variant="body2">
                     {capitalizedRole} map opacity
                 </Typography>
                 <Slider
-                    id={`decode-${role}-opacity`}
                     aria-label={`${capitalizedRole} map opacity`}
+                    slotProps={{ input: { id: `decode-comparison-${role}-opacity` } }}
                     min={0}
                     max={1}
                     step={0.05}
@@ -310,12 +318,16 @@ const DecodeComparison: React.FC<{
                 </TextField>
                 {range && range.globalMax > 0 ? (
                     <>
-                        <Typography component="label" htmlFor={`decode-positive-${role}-threshold`} variant="body2">
+                        <Typography
+                            component="label"
+                            htmlFor={`decode-comparison-positive-${role}-threshold`}
+                            variant="body2"
+                        >
                             Positive {role} threshold
                         </Typography>
                         <Slider
-                            id={`decode-positive-${role}-threshold`}
                             aria-label={`Positive ${role} threshold`}
+                            slotProps={{ input: { id: `decode-comparison-positive-${role}-threshold` } }}
                             min={0}
                             max={range.globalMax}
                             step={0.01}
@@ -331,12 +343,16 @@ const DecodeComparison: React.FC<{
                 ) : null}
                 {range && range.globalMin < 0 ? (
                     <>
-                        <Typography component="label" htmlFor={`decode-negative-${role}-threshold`} variant="body2">
+                        <Typography
+                            component="label"
+                            htmlFor={`decode-comparison-negative-${role}-threshold`}
+                            variant="body2"
+                        >
                             Negative {role} threshold
                         </Typography>
                         <Slider
-                            id={`decode-negative-${role}-threshold`}
                             aria-label={`Negative ${role} threshold`}
+                            slotProps={{ input: { id: `decode-comparison-negative-${role}-threshold` } }}
                             min={range.globalMin}
                             max={0}
                             step={0.01}
@@ -391,6 +407,7 @@ const DecodeComparison: React.FC<{
                             size="small"
                             value={coordinateInputs[axis]}
                             onChange={(event) => changeCoordinate(axis, event.target.value)}
+                            inputProps={{ min: MNI_LIMITS[axis].min, max: MNI_LIMITS[axis].max, step: 'any' }}
                         />
                     ))}
                 </Box>
@@ -593,12 +610,12 @@ const DecodeComparison: React.FC<{
                         }}
                     >
                         <Stack spacing={1}>
-                            <Typography component="label" htmlFor="decode-input-opacity" variant="subtitle2">
+                            <Typography component="label" htmlFor="decode-comparison-input-opacity" variant="subtitle2">
                                 Input map opacity
                             </Typography>
                             <Slider
-                                id="decode-input-opacity"
                                 aria-label="Input map opacity"
+                                slotProps={{ input: { id: 'decode-comparison-input-opacity' } }}
                                 min={0}
                                 max={100}
                                 value={illustrativeInputOpacity}
@@ -620,12 +637,16 @@ const DecodeComparison: React.FC<{
                             </TextField>
                         </Stack>
                         <Stack spacing={1}>
-                            <Typography component="label" htmlFor="decode-comparison-opacity" variant="subtitle2">
+                            <Typography
+                                component="label"
+                                htmlFor="decode-comparison-result-opacity"
+                                variant="subtitle2"
+                            >
                                 Comparison map opacity
                             </Typography>
                             <Slider
-                                id="decode-comparison-opacity"
                                 aria-label="Comparison map opacity"
+                                slotProps={{ input: { id: 'decode-comparison-result-opacity' } }}
                                 min={0}
                                 max={100}
                                 value={illustrativeComparisonOpacity}
