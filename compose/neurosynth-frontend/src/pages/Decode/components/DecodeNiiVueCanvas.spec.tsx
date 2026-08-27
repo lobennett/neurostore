@@ -183,8 +183,8 @@ describe('DecodeNiiVueCanvas', () => {
         expect(niivueMock.instances).toHaveLength(1);
         expect(instance.attachToCanvas).toHaveBeenCalledTimes(1);
         expect(instance.addVolumeFromUrl.mock.calls.map(([descriptor]) => descriptor)).toEqual([
-            expect.objectContaining({ url: anatomical.url, name: anatomical.id }),
-            expect.objectContaining({ url: responseControl.url, name: responseControl.id }),
+            expect.objectContaining({ url: anatomical.url, name: anatomical.filename }),
+            expect.objectContaining({ url: responseControl.url, name: responseControl.filename }),
         ]);
         expect(onVolumeRangesChange).toHaveBeenLastCalledWith({
             'mni-template': { globalMin: -4.25, globalMax: 7.5 },
@@ -197,7 +197,7 @@ describe('DecodeNiiVueCanvas', () => {
 
         await waitFor(() => expect(niivueMock.instances[0]?.volumes).toHaveLength(2));
         const instance = niivueMock.instances[0];
-        const responseVolume = instance.volumes.find(({ id }) => id === 'niivue-response-control');
+        const responseVolume = instance.volumes.find(({ name }) => name === responseControl.filename);
 
         expect(responseVolume).toMatchObject({
             opacity: 0.85,
@@ -217,11 +217,11 @@ describe('DecodeNiiVueCanvas', () => {
         rerender(<DecodeNiiVueCanvas {...makeProps({ volumes: [responseControl] })} />);
 
         await waitFor(() =>
-            expect(niivueMock.instances[0]?.volumes.map(({ name }) => name)).toEqual(['response-control'])
+            expect(niivueMock.instances[0]?.volumes.map(({ name }) => name)).toEqual([responseControl.filename])
         );
         expect(niivueMock.instances).toHaveLength(1);
         expect(niivueMock.instances[0].removeVolume).toHaveBeenCalledWith(
-            expect.objectContaining({ name: 'mni-template' })
+            expect.objectContaining({ name: anatomical.filename })
         );
     });
 
@@ -277,7 +277,7 @@ describe('DecodeNiiVueCanvas', () => {
         act(() => {
             instance.onLocationChange({
                 mm: [1.6, -2.4, 3.5, 1],
-                values: [{ id: 'niivue-response-control', value: 2.314 }],
+                values: [{ id: `niivue-${responseControl.filename}`, value: 2.314 }],
             });
         });
 
@@ -350,7 +350,7 @@ describe('DecodeNiiVueCanvas', () => {
         expect(loseContext).toHaveBeenCalledTimes(1);
     });
 
-    it('does not call context-dependent cleanup while attachment is incomplete', async () => {
+    it('disposes the initialized context when attachment completes after unmount', async () => {
         let finishAttach!: () => void;
         niivueMock.deferNextAttach(() => new Promise<void>((resolve) => (finishAttach = resolve)));
         const { unmount } = render(<DecodeNiiVueCanvas {...makeProps()} />);
@@ -360,6 +360,44 @@ describe('DecodeNiiVueCanvas', () => {
         await act(async () => finishAttach());
 
         expect(instance.removeVolume).not.toHaveBeenCalled();
-        expect(loseContext).not.toHaveBeenCalled();
+        expect(loseContext).toHaveBeenCalledTimes(1);
+    });
+
+    it('removes a late volume before losing the context after unmount', async () => {
+        let resolveVolume!: (
+            volume: Awaited<ReturnType<(typeof niivueMock.instances)[number]['addVolumeFromUrl']>>
+        ) => void;
+        const { unmount } = render(<DecodeNiiVueCanvas {...makeProps({ volumes: [responseControl] })} />);
+        const instance = niivueMock.instances[0];
+        const lateVolume = {
+            id: 'late-response-control',
+            name: responseControl.filename,
+            opacity: 1,
+            colormap: 'gray',
+            colormapNegative: '',
+            cal_min: 0,
+            cal_max: 0,
+            cal_minNeg: 0,
+            cal_maxNeg: 0,
+            global_min: -4.25,
+            global_max: 7.5,
+        };
+        instance.addVolumeFromUrl.mockImplementationOnce(
+            () => new Promise((resolve) => (resolveVolume = resolve)) as ReturnType<typeof instance.addVolumeFromUrl>
+        );
+        await waitFor(() => expect(instance.addVolumeFromUrl).toHaveBeenCalledTimes(1));
+
+        unmount();
+        await act(async () => {
+            instance.volumes.push(lateVolume);
+            resolveVolume(lateVolume);
+            await Promise.resolve();
+        });
+
+        expect(instance.removeVolume).toHaveBeenCalledWith(lateVolume);
+        expect(loseContext).toHaveBeenCalledTimes(1);
+        expect(instance.removeVolume.mock.invocationCallOrder.at(-1)).toBeLessThan(
+            loseContext.mock.invocationCallOrder[0]
+        );
     });
 });

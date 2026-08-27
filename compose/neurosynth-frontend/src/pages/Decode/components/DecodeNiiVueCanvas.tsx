@@ -50,7 +50,32 @@ type LoadState =
 
 type LoadedVolume = Awaited<ReturnType<Niivue['addVolumeFromUrl']>>;
 
+interface NiiVueLifecycle {
+    niivue: Niivue;
+    webgl: WebGL2RenderingContext;
+    attached: boolean;
+    disposeRequested: boolean;
+    disposed: boolean;
+    pendingLoads: number;
+}
+
 const noLocationChange = () => undefined;
+
+const disposeLifecycleIfIdle = (lifecycle: NiiVueLifecycle): void => {
+    if (!lifecycle.disposeRequested || !lifecycle.attached || lifecycle.pendingLoads > 0 || lifecycle.disposed) {
+        return;
+    }
+
+    lifecycle.disposed = true;
+    [...lifecycle.niivue.volumes].reverse().forEach((volume) => lifecycle.niivue.removeVolume(volume));
+    lifecycle.webgl.getExtension('WEBGL_lose_context')?.loseContext();
+};
+
+const requestLifecycleDisposal = (lifecycle: NiiVueLifecycle): void => {
+    lifecycle.disposeRequested = true;
+    lifecycle.niivue.onLocationChange = noLocationChange;
+    disposeLifecycleIfIdle(lifecycle);
+};
 
 const sliceTypeFor = (niivue: Niivue, sliceType: DecodeSliceType): Parameters<Niivue['setSliceType']>[0] => {
     switch (sliceType) {
@@ -107,7 +132,7 @@ const DecodeNiiVueCanvas = ({
 }: DecodeNiiVueCanvasProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const niivueRef = useRef<Niivue | null>(null);
-    const attachedRef = useRef(false);
+    const lifecycleRef = useRef<NiiVueLifecycle | null>(null);
     const loadGeneration = useRef(0);
     const loadedByAssetId = useRef(new Map<string, LoadedVolume>());
     const assetIdByNiiVueId = useRef(new Map<string, string>());
@@ -143,9 +168,18 @@ const DecodeNiiVueCanvas = ({
         }
 
         const niivue = new Niivue();
+        const lifecycle: NiiVueLifecycle = {
+            niivue,
+            webgl,
+            attached: false,
+            disposeRequested: false,
+            disposed: false,
+            pendingLoads: 0,
+        };
         const generation = ++loadGeneration.current;
         let mounted = true;
         niivueRef.current = niivue;
+        lifecycleRef.current = lifecycle;
         niivue.onLocationChange = (location: unknown) => {
             const typedLocation = location as {
                 mm?: ArrayLike<number>;
@@ -176,8 +210,11 @@ const DecodeNiiVueCanvas = ({
         const attach = async () => {
             try {
                 await niivue.attachToCanvas(canvas);
-                if (!mounted || generation !== loadGeneration.current) return;
-                attachedRef.current = true;
+                lifecycle.attached = true;
+                if (!mounted || generation !== loadGeneration.current) {
+                    requestLifecycleDisposal(lifecycle);
+                    return;
+                }
                 setAttachedVersion((version) => version + 1);
             } catch {
                 if (!mounted || generation !== loadGeneration.current) return;
@@ -189,33 +226,30 @@ const DecodeNiiVueCanvas = ({
         return () => {
             mounted = false;
             ++loadGeneration.current;
-            niivue.onLocationChange = noLocationChange;
+            requestLifecycleDisposal(lifecycle);
 
-            if (attachedRef.current && niivueRef.current === niivue) {
-                [...niivue.volumes].forEach((volume) => niivue.removeVolume(volume));
-                webgl.getExtension('WEBGL_lose_context')?.loseContext();
-            }
-
-            attachedRef.current = false;
             loadedByAssetId.current.clear();
             assetIdByNiiVueId.current.clear();
             if (niivueRef.current === niivue) niivueRef.current = null;
+            if (lifecycleRef.current === lifecycle) lifecycleRef.current = null;
         };
     }, []);
 
     useEffect(() => {
         const niivue = niivueRef.current;
-        if (!niivue || !attachedRef.current) return;
+        const lifecycle = lifecycleRef.current;
+        if (!niivue || !lifecycle?.attached || lifecycle.disposed) return;
 
         const generation = ++loadGeneration.current;
         const requestedVolumes = [...volumes];
         let active = true;
+        lifecycle.pendingLoads += 1;
         setLoadState({ status: 'loading', filenames: requestedVolumes.map(({ filename }) => filename) });
         setValuesByVolumeId({});
 
         const isCurrent = () => active && generation === loadGeneration.current && niivueRef.current === niivue;
         const removeStaleVolume = (volume: LoadedVolume) => {
-            if (attachedRef.current && niivueRef.current === niivue && niivue.volumes.includes(volume)) {
+            if (lifecycle.attached && !lifecycle.disposed && niivue.volumes.includes(volume)) {
                 niivue.removeVolume(volume);
             }
         };
@@ -228,7 +262,7 @@ const DecodeNiiVueCanvas = ({
             for (const asset of requestedVolumes) {
                 let loadedVolume: LoadedVolume;
                 try {
-                    loadedVolume = await niivue.addVolumeFromUrl({ url: asset.url, name: asset.id });
+                    loadedVolume = await niivue.addVolumeFromUrl({ url: asset.url, name: asset.filename });
                 } catch {
                     if (!isCurrent()) return;
                     setLoadState({ status: 'error', message: `Could not load ${asset.filename}` });
@@ -257,7 +291,10 @@ const DecodeNiiVueCanvas = ({
             callbacksRef.current.onVolumeRangesChange(rangesByVolumeId);
             setLoadState({ status: 'ready' });
         };
-        void load();
+        void load().finally(() => {
+            lifecycle.pendingLoads -= 1;
+            disposeLifecycleIfIdle(lifecycle);
+        });
 
         return () => {
             active = false;
@@ -268,13 +305,15 @@ const DecodeNiiVueCanvas = ({
     useEffect(() => {
         setSummaryCoordinate(coordinate);
         const niivue = niivueRef.current;
-        if (!niivue || !attachedRef.current || loadState.status !== 'ready') return;
+        const lifecycle = lifecycleRef.current;
+        if (!niivue || !lifecycle?.attached || lifecycle.disposed || loadState.status !== 'ready') return;
         applyCoordinate(niivue, coordinate);
     }, [coordinate.x, coordinate.y, coordinate.z, loadState.status]);
 
     useEffect(() => {
         const niivue = niivueRef.current;
-        if (!niivue || !attachedRef.current || loadState.status !== 'ready') return;
+        const lifecycle = lifecycleRef.current;
+        if (!niivue || !lifecycle?.attached || lifecycle.disposed || loadState.status !== 'ready') return;
         niivue.setSliceType(sliceTypeFor(niivue, sliceType));
         niivue.setCrosshairWidth(crosshairs ? 1 : 0);
         niivue.drawScene();
@@ -282,7 +321,8 @@ const DecodeNiiVueCanvas = ({
 
     useEffect(() => {
         const niivue = niivueRef.current;
-        if (!niivue || !attachedRef.current || loadState.status !== 'ready') return;
+        const lifecycle = lifecycleRef.current;
+        if (!niivue || !lifecycle?.attached || lifecycle.disposed || loadState.status !== 'ready') return;
         applyDisplay(niivue, loadedByAssetId.current, displayByVolumeId);
     }, [displayByVolumeId, loadState.status]);
 
