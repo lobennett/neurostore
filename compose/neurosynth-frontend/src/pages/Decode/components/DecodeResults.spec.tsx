@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { createFixtureDecodeAdapter } from '../Decode.adapter';
-import { DECODE_MODELS } from '../Decode.fixtures';
+import { DECODE_MODELS, EXAMPLE_TERMS } from '../Decode.fixtures';
 import type {
     DecodeModelId,
     DecodeResultView,
     IDecodeComparableResult,
     IDecodePreviewState,
     IDecodeRunRequest,
+    IViewerState,
 } from '../Decode.types';
+import DecodeComparison from './DecodeComparison';
 import DecodeResults from './DecodeResults';
 
 const requestFor = (modelId: DecodeModelId, prior: 'literature' | 'uniform' = 'literature'): IDecodeRunRequest => ({
@@ -36,10 +38,42 @@ const successfulPreview = (modelId: DecodeModelId = 'neurovlm', prior: 'literatu
     return state;
 };
 
+const visualFixture = EXAMPLE_TERMS.find(({ id }) => id === 'trm_visual')!;
+const visualTerm: IDecodeComparableResult = {
+    id: visualFixture.id,
+    label: visualFixture.label,
+    mapUrl: visualFixture.mapUrl,
+};
+const onChooseTerm = vi.fn();
+const onViewerStateChange = vi.fn();
+
+const renderComparison = ({ selectedResult }: { selectedResult?: IDecodeComparableResult }) => {
+    const Harness = () => {
+        const [viewerState, setViewerState] = useState<IViewerState>({ x: 4, y: -6, z: 18, threshold: 25 });
+        return (
+            <DecodeComparison
+                sourceLabel="NeuroVault image 25"
+                selectedResult={selectedResult}
+                viewerState={viewerState}
+                onChooseTerm={onChooseTerm}
+                onViewerStateChange={(nextState) => {
+                    onViewerStateChange(nextState);
+                    setViewerState(nextState);
+                }}
+            />
+        );
+    };
+
+    onChooseTerm.mockClear();
+    onViewerStateChange.mockClear();
+    return render(<Harness />);
+};
+
 const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }> = successfulPreview()) => {
     const Harness = () => {
         const [activeView, setActiveView] = useState<DecodeResultView>('terms');
         const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
+        const [viewerState, setViewerState] = useState<IViewerState>({ x: 0, y: 0, z: 0, threshold: 0 });
         const model = DECODE_MODELS.find(({ id }) => id === state.preview.modelId)!;
 
         return (
@@ -49,8 +83,10 @@ const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }
                 model={model}
                 selectedResult={selectedResult}
                 sourceLabel="NeuroVault image 25"
+                viewerState={viewerState}
                 onViewChange={setActiveView}
                 onSelectComparison={setSelectedResult}
+                onViewerStateChange={setViewerState}
             />
         );
     };
@@ -223,4 +259,59 @@ it('directs an empty comparison back to term selection', async () => {
     const termsTab = screen.getByRole('tab', { name: 'Terms' });
     expect(termsTab).toHaveAttribute('aria-selected', 'true');
     expect(termsTab).toHaveFocus();
+});
+
+it('preserves the selected result while switching comparison modes', async () => {
+    renderComparison({ selectedResult: visualTerm });
+
+    expect(screen.getByText('visual meta-analytic map')).toBeVisible();
+    await userEvent.click(screen.getByRole('radio', { name: 'Overlay' }));
+
+    expect(screen.getByText('visual meta-analytic map')).toBeVisible();
+    expect(screen.getByRole('slider', { name: 'Input map opacity' })).toBeVisible();
+    expect(screen.getByRole('slider', { name: 'Comparison map opacity' })).toBeVisible();
+});
+
+it('offers a direct route back to terms when nothing comparable is selected', async () => {
+    renderComparison({ selectedResult: undefined });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Choose a term' }));
+
+    expect(onChooseTerm).toHaveBeenCalledOnce();
+});
+
+it('uses one synchronized coordinate and threshold for both side-by-side panes', async () => {
+    renderComparison({ selectedResult: visualTerm });
+
+    expect(screen.getByRole('radiogroup', { name: 'Comparison layout' })).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Input map pane' })).toHaveTextContent(
+        'x 4 · y −6 · z 18 · threshold 25%'
+    );
+    expect(screen.getByRole('region', { name: 'Comparison map pane' })).toHaveTextContent(
+        'x 4 · y −6 · z 18 · threshold 25%'
+    );
+    expect(screen.getAllByText('Map placeholder — no image loaded')).toHaveLength(2);
+
+    await userEvent.clear(screen.getByLabelText('Comparison x coordinate'));
+    await userEvent.type(screen.getByLabelText('Comparison x coordinate'), '12');
+
+    expect(onViewerStateChange).toHaveBeenLastCalledWith({ x: 12, y: -6, z: 18, threshold: 25 });
+    expect(screen.getByRole('region', { name: 'Input map pane' })).toHaveTextContent(
+        'x 12 · y −6 · z 18 · threshold 25%'
+    );
+    expect(screen.getByRole('region', { name: 'Comparison map pane' })).toHaveTextContent(
+        'x 12 · y −6 · z 18 · threshold 25%'
+    );
+});
+
+it('labels independent overlay opacity and named color presets', async () => {
+    renderComparison({ selectedResult: visualTerm });
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Overlay' }));
+
+    expect(screen.getByText('Map placeholder — no image loaded')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Input map color' })).toHaveValue('deep-navy');
+    expect(screen.getByRole('combobox', { name: 'Comparison map color' })).toHaveValue('slice-cyan');
+    expect(screen.getAllByRole('option', { name: 'Deep coordinate navy' })).toHaveLength(2);
+    expect(screen.getAllByRole('option', { name: 'Slice cyan' })).toHaveLength(2);
 });

@@ -6,6 +6,7 @@ import type {
     IDecodeComparableResult,
     IDecodeModelDefinition,
     IDecodePreview,
+    IViewerState,
 } from '../Decode.types';
 import DecodeComparison from './DecodeComparison';
 import DecodeMethodSummary from './DecodeMethodSummary';
@@ -50,8 +51,10 @@ const DecodeResults: React.FC<{
     model: IDecodeModelDefinition;
     selectedResult?: IDecodeComparableResult;
     sourceLabel: string;
+    viewerState: IViewerState;
     onViewChange: (view: DecodeResultView) => void;
     onSelectComparison: (result: IDecodeComparableResult) => void;
+    onViewerStateChange: (value: IViewerState) => void;
     autoFocusActiveTab?: boolean;
 }> = ({
     activeView,
@@ -59,8 +62,10 @@ const DecodeResults: React.FC<{
     model,
     selectedResult,
     sourceLabel,
+    viewerState,
     onViewChange,
     onSelectComparison,
+    onViewerStateChange,
     autoFocusActiveTab = false,
 }) => {
     const tabRefs = useRef<Partial<Record<DecodeResultView, HTMLDivElement | null>>>({});
@@ -138,13 +143,22 @@ const DecodeResults: React.FC<{
                 hidden={activeView !== 'terms'}
                 sx={{ py: 2 }}
             >
-                <DecodeTermResults
-                    terms={preview.terms}
-                    metric={preview.termMetric}
-                    selectedResult={selectedResult}
-                    onSelectComparison={onSelectComparison}
-                    onCompareSelected={() => changeViewAndFocusTab('compare')}
-                />
+                {preview.terms.length === 0 ? (
+                    <Box sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a', p: 2 }}>
+                        <Typography>No example term results are available for this preview.</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Edit the inputs or try the preview again to inspect a different fixture state.
+                        </Typography>
+                    </Box>
+                ) : (
+                    <DecodeTermResults
+                        terms={preview.terms}
+                        metric={preview.termMetric}
+                        selectedResult={selectedResult}
+                        onSelectComparison={onSelectComparison}
+                        onCompareSelected={() => changeViewAndFocusTab('compare')}
+                    />
+                )}
             </Box>
             <Box
                 id={panelId('studies')}
@@ -153,12 +167,21 @@ const DecodeResults: React.FC<{
                 hidden={activeView !== 'studies'}
                 sx={{ py: 2 }}
             >
-                <DecodeStudyResults
-                    studies={preview.studies}
-                    selectedResult={selectedResult}
-                    onSelectComparison={onSelectComparison}
-                    onCompareSelected={() => changeViewAndFocusTab('compare')}
-                />
+                {preview.studies.length === 0 ? (
+                    <Box sx={{ bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a', p: 2 }}>
+                        <Typography>No example associated studies are available for this preview.</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            The Terms and Model summary tabs remain available for this preview.
+                        </Typography>
+                    </Box>
+                ) : (
+                    <DecodeStudyResults
+                        studies={preview.studies}
+                        selectedResult={selectedResult}
+                        onSelectComparison={onSelectComparison}
+                        onCompareSelected={() => changeViewAndFocusTab('compare')}
+                    />
+                )}
             </Box>
             <Box
                 id={panelId('model-summary')}
@@ -213,8 +236,10 @@ const DecodeResults: React.FC<{
             >
                 <DecodeComparison
                     sourceLabel={sourceLabel}
-                    selectedTerm={selectedResult?.label}
+                    selectedResult={selectedResult}
+                    viewerState={viewerState}
                     onChooseTerm={() => changeViewAndFocusTab('terms')}
+                    onViewerStateChange={onViewerStateChange}
                 />
             </Box>
         </Box>

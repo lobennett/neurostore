@@ -1,9 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { createFixtureDecodeAdapter } from './Decode.adapter';
-import type { IDecodeFrontendAdapter } from './Decode.types';
+import type { DecodeFixtureScenario, IDecodeFrontendAdapter } from './Decode.types';
 import DecodePage from './DecodePage';
+
+afterEach(() => {
+    window.history.replaceState({}, '', '/');
+});
 
 const completeNeurovaultDraft = async () => {
     await userEvent.type(screen.getByLabelText('NeuroVault image URL or ID'), '25');
@@ -16,6 +20,15 @@ const completeNeurovaultDraft = async () => {
 const openPreview = async () => {
     render(<DecodePage />);
     await completeNeurovaultDraft();
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+};
+
+const previewValidNeurovaultInput = async () => {
+    await userEvent.type(screen.getByLabelText('NeuroVault image URL or ID'), 'https://neurovault.org/images/25/');
+    await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
+    await userEvent.selectOptions(screen.getByLabelText('Analysis level'), 'group');
+    await userEvent.selectOptions(screen.getByLabelText('Modality'), 'fmri-bold');
+    await userEvent.type(screen.getByLabelText('Number of subjects'), '121');
     await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
 };
 
@@ -149,4 +162,110 @@ it('resets the draft, preview, navigation, and source focus', async () => {
     expect(screen.getByRole('radio', { name: /NeuroVLM/ })).toBeChecked();
     expect(screen.getByRole('button', { name: 'Preview example results' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Preview reset. Choose another map source.');
+});
+
+it.each([
+    ['lookup-error', 'Example NeuroVault lookup failed'],
+    ['decode-error', 'Example decoder run failed'],
+] as Array<[DecodeFixtureScenario, string]>)('keeps %s inside the decoder workspace', async (scenario, message) => {
+    render(<DecodePage initialFixtureScenario={scenario} />);
+
+    await previewValidNeurovaultInput();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(message);
+    expect(screen.getByRole('button', { name: 'Try preview again' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit inputs' })).toBeVisible();
+    expect(screen.getByDisplayValue('https://neurovault.org/images/25/')).toBeInTheDocument();
+    expect(screen.queryByText(/return home/i)).not.toBeInTheDocument();
+});
+
+it('names model compatibility errors inline and keeps correction in the workspace', async () => {
+    render(<DecodePage initialFixtureScenario="unsupported" />);
+
+    await previewValidNeurovaultInput();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Model compatibility');
+    expect(screen.getByRole('alert')).toHaveTextContent(/example model does not support this input/i);
+    await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
+    expect(screen.getByLabelText('NeuroVault image URL or ID')).toHaveValue('https://neurovault.org/images/25/');
+});
+
+it('renders a timer-free, busy loading state inside the decoder workspace', async () => {
+    render(<DecodePage initialFixtureScenario="loading" />);
+
+    await previewValidNeurovaultInput();
+
+    expect(screen.getByRole('region', { name: 'Decoder preview loading' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Preparing illustrative preview…')).toBeVisible();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+});
+
+it.each([
+    ['empty-terms', 'Terms', 'No example term results are available for this preview.'],
+    ['empty-studies', 'Associated studies', 'No example associated studies are available for this preview.'],
+] as Array<[DecodeFixtureScenario, string, string]>)(
+    'shows %s inside its result tab',
+    async (scenario, tab, message) => {
+        render(<DecodePage initialFixtureScenario={scenario} />);
+        await previewValidNeurovaultInput();
+
+        await userEvent.click(screen.getByRole('tab', { name: tab }));
+
+        const panel = screen.getByRole('tabpanel', { name: tab });
+        expect(panel).toHaveAccessibleName(tab);
+        expect(within(panel).getByText(message)).toBeVisible();
+    }
+);
+
+it('retries an inline failure with the same preserved draft', async () => {
+    const fixtureAdapter = createFixtureDecodeAdapter();
+    let attempts = 0;
+    const retryAdapter: IDecodeFrontendAdapter = {
+        preview: (request) => {
+            attempts += 1;
+            return fixtureAdapter.preview(request, attempts === 1 ? 'lookup-error' : 'success');
+        },
+    };
+    render(<DecodePage adapter={retryAdapter} />);
+    await previewValidNeurovaultInput();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try preview again' }));
+
+    expect(screen.getByRole('region', { name: 'Illustrative decoder results' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit inputs' }));
+    expect(screen.getByLabelText('NeuroVault image URL or ID')).toHaveValue('https://neurovault.org/images/25/');
+});
+
+it('accepts an exact development fixture query scenario without using draft query content', async () => {
+    window.history.replaceState({}, '', '/decode?fixture=empty-terms&draft=https://secret.example/map.nii');
+    render(<DecodePage />);
+    await previewValidNeurovaultInput();
+
+    expect(screen.getByText('No example term results are available for this preview.')).toBeVisible();
+});
+
+it('falls back to success for an invalid development fixture query scenario', async () => {
+    window.history.replaceState({}, '', '/decode?fixture=empty-Terms');
+    render(<DecodePage />);
+    await previewValidNeurovaultInput();
+
+    expect(screen.getByRole('button', { name: 'Select visual for comparison' })).toBeVisible();
+});
+
+it('shows an explicitly illustrative CC0 receipt without claiming a deposit occurred', async () => {
+    render(<DecodePage />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
+    await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'example-map.nii.gz'));
+    await userEvent.click(screen.getByRole('checkbox', { name: /I accept the public CC0 deposit terms/ }));
+    await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
+    await userEvent.selectOptions(screen.getByLabelText('Analysis level'), 'group');
+    await userEvent.selectOptions(screen.getByLabelText('Modality'), 'fmri-bold');
+    await userEvent.type(screen.getByLabelText('Number of subjects'), '121');
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+
+    const receipt = screen.getByRole('region', { name: 'Example deposit receipt' });
+    expect(receipt).toHaveTextContent('CC0');
+    expect(receipt).toHaveTextContent('example-map.nii.gz');
+    expect(receipt).toHaveTextContent('example-deposit-001');
+    expect(receipt).toHaveTextContent('Illustrative only — no deposit occurred.');
 });
