@@ -210,11 +210,21 @@ const DecodeComparison: React.FC<{
     }
 
     const changeCoordinate = (axis: CoordinateAxis, inputValue: string) => {
-        setCoordinateInputs((current) => ({ ...current, [axis]: inputValue }));
-        if (inputValue.trim() === '') return;
+        if (inputValue.trim() === '') {
+            setCoordinateInputs((current) => ({ ...current, [axis]: inputValue }));
+            return;
+        }
         const nextCoordinate = Number(inputValue);
-        if (!Number.isFinite(nextCoordinate)) return;
-        onViewerStateChange({ ...viewerState, [axis]: clampCoordinate(axis, nextCoordinate) });
+        if (!Number.isFinite(nextCoordinate)) {
+            setCoordinateInputs((current) => ({ ...current, [axis]: inputValue }));
+            return;
+        }
+        const clampedCoordinate = clampCoordinate(axis, nextCoordinate);
+        setCoordinateInputs((current) => ({
+            ...current,
+            [axis]: clampedCoordinate === nextCoordinate ? inputValue : String(clampedCoordinate),
+        }));
+        onViewerStateChange({ ...viewerState, [axis]: clampedCoordinate });
     };
     const synchronizeCanvasCoordinate = (nextCoordinate: { x: number; y: number; z: number }) =>
         onViewerStateChange({

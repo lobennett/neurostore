@@ -190,14 +190,16 @@ it.each([
     expect(field).toHaveAttribute('min', String(min));
     expect(field).toHaveAttribute('max', String(max));
 
-    fireEvent.change(field, { target: { value: String(min) } });
-    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: min }));
     fireEvent.change(field, { target: { value: String(max) } });
     expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: max }));
-    fireEvent.change(field, { target: { value: String(min - 1) } });
-    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: min }));
     fireEvent.change(field, { target: { value: String(max + 1) } });
     expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: max }));
+    expect(field).toHaveValue(max);
+    fireEvent.change(field, { target: { value: String(min) } });
+    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: min }));
+    fireEvent.change(field, { target: { value: String(min - 1) } });
+    expect(onViewerStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ [axis]: min }));
+    expect(field).toHaveValue(min);
 });
 
 it('uses unique component-scoped opacity IDs and matching labels with the top viewer present', async () => {

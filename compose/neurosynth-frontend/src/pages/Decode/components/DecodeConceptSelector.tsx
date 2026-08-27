@@ -32,7 +32,7 @@ const DecodeConceptSelector = ({ concepts, onChange }: DecodeConceptSelectorProp
                 {...params}
                 label="Cognitive Atlas concepts"
                 placeholder="Search concepts"
-                helperText="Curated legacy Cognitive Atlas concepts from the 2026-08-26 snapshot; newer unreviewed registry entries are excluded."
+                helperText="Legacy Cognitive Atlas concepts from the 2026-08-26 snapshot; newer registry entries, placeholders, and duplicate labels are excluded."
             />
         )}
     />
