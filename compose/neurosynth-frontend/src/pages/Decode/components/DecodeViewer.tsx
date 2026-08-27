@@ -85,7 +85,10 @@ const PlanePlaceholder: React.FC<{
     </Box>
 );
 
-const displayForVisualization = (visualization?: IDecodeVisualization): Record<string, IDecodeVolumeDisplay> => {
+const displayForVisualization = (
+    visualization?: IDecodeVisualization,
+    input = visualization?.input
+): Record<string, IDecodeVolumeDisplay> => {
     if (!visualization) return {};
     const display: Record<string, IDecodeVolumeDisplay> = {
         [visualization.anatomical.id]: {
@@ -98,8 +101,8 @@ const displayForVisualization = (visualization?: IDecodeVisualization): Record<s
             calMaxNegative: 0,
         },
     };
-    if (visualization.input) {
-        display[visualization.input.id] = {
+    if (input) {
+        display[input.id] = {
             opacity: 0.8,
             colormap: 'warm',
             colormapNegative: 'winter',
@@ -127,15 +130,16 @@ const DecodeViewer: React.FC<{
     const [sliceType, setSliceType] = useState<DecodeSliceType>('multiplanar');
     const [crosshairs, setCrosshairs] = useState(true);
     const [inputRange, setInputRange] = useState<IDecodeVolumeRange>();
-    const [displayByVolumeId, setDisplayByVolumeId] = useState(() => displayForVisualization(visualization));
+    const input = source.kind === 'coordinates' ? undefined : visualization?.input;
+    const [displayByVolumeId, setDisplayByVolumeId] = useState(() => displayForVisualization(visualization, input));
     const selectedPointId =
         source.kind === 'coordinates'
             ? (source.points.find(({ x, y, z }) => x === value.x && y === value.y && z === value.z)?.id ?? '')
             : '';
-    const inputDisplay = visualization?.input ? displayByVolumeId[visualization.input.id] : undefined;
+    const inputDisplay = input ? displayByVolumeId[input.id] : undefined;
     const volumes = useMemo(
-        () => (visualization ? [visualization.anatomical, ...(visualization.input ? [visualization.input] : [])] : []),
-        [visualization]
+        () => (visualization ? [visualization.anatomical, ...(input ? [input] : [])] : []),
+        [input, visualization]
     );
 
     useEffect(() => {
@@ -143,8 +147,8 @@ const DecodeViewer: React.FC<{
     }, [value.x, value.y, value.z]);
     useEffect(() => {
         setInputRange(undefined);
-        setDisplayByVolumeId(displayForVisualization(visualization));
-    }, [visualization]);
+        setDisplayByVolumeId(displayForVisualization(visualization, input));
+    }, [input, visualization]);
 
     const changeCoordinate = (axis: CoordinateAxis, input: string) => {
         setCoordinateInputs((current) => ({ ...current, [axis]: input }));
@@ -153,10 +157,10 @@ const DecodeViewer: React.FC<{
         if (Number.isFinite(coordinate)) onChange({ ...value, [axis]: clampCoordinate(axis, coordinate) });
     };
     const updateInputDisplay = (update: Partial<IDecodeVolumeDisplay>) => {
-        if (!visualization?.input) return;
+        if (!input) return;
         setDisplayByVolumeId((current) => ({
             ...current,
-            [visualization.input!.id]: { ...current[visualization.input!.id], ...update },
+            [input.id]: { ...current[input.id], ...update },
         }));
     };
     const selectPoint = (pointId: string) => {
@@ -167,8 +171,8 @@ const DecodeViewer: React.FC<{
         onChange({ ...value, x: point.x, y: point.y, z: point.z });
     };
     const handleVolumeRangesChange = (ranges: Record<string, IDecodeVolumeRange>) => {
-        if (!visualization?.input) return;
-        const nextRange = ranges[visualization.input.id];
+        if (!input) return;
+        const nextRange = ranges[input.id];
         if (!nextRange) return;
         setInputRange(nextRange);
         updateInputDisplay({
@@ -375,7 +379,7 @@ const DecodeViewer: React.FC<{
                                     sx={{ mt: 0.5 }}
                                 />
                             </Box>
-                            {visualization?.input && inputDisplay ? (
+                            {input && inputDisplay ? (
                                 <Box>
                                     <Typography variant="subtitle2">Recorded input display</Typography>
                                     <Typography
