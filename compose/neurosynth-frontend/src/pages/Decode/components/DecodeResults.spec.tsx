@@ -2,71 +2,145 @@ import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it } from 'vitest';
-import { DecodeResultView } from '../Decode.types';
+import { createFixtureDecodeAdapter } from '../Decode.adapter';
+import { DECODE_MODELS } from '../Decode.fixtures';
+import type {
+    DecodeModelId,
+    DecodeResultView,
+    IDecodeComparableResult,
+    IDecodePreviewState,
+    IDecodeRunRequest,
+} from '../Decode.types';
 import DecodeResults from './DecodeResults';
 
-const ResultHarness = () => {
-    const [activeView, setActiveView] = useState<DecodeResultView>('terms');
-    const [selectedTerm, setSelectedTerm] = useState<string>();
+const requestFor = (modelId: DecodeModelId): IDecodeRunRequest => ({
+    source: { kind: 'neurovault', imageId: '25' },
+    metadata: {
+        mapType: 'z',
+        analysisLevel: 'group',
+        modality: 'fmri-bold',
+        subjectCount: '121',
+        cognitiveTask: null,
+        interpretation: '',
+    },
+    concepts: [{ id: 'trm_visual', label: 'visual perception', vocabulary: 'Cognitive Atlas' }],
+    interpretation: 'Visual processing',
+    modelId,
+    modelVersion: 'fixture-v1',
+    parameters: modelId === 'niclip' ? { prior: 'literature', evidenceThreshold: 3 } : { resultLimit: 50 },
+});
 
-    return (
-        <DecodeResults
-            activeView={activeView}
-            selectedTerm={selectedTerm}
-            sourceLabel="motor.nii.gz"
-            onViewChange={setActiveView}
-            onSelectTerm={setSelectedTerm}
-        />
-    );
+const successfulPreview = (modelId: DecodeModelId = 'neurovlm') => {
+    const state = createFixtureDecodeAdapter().preview(requestFor(modelId), 'success');
+    if (state.status !== 'success') throw new Error('Expected successful fixture preview');
+    return state;
 };
 
-it('labels all displayed outputs as illustrative', () => {
-    render(<ResultHarness />);
+const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }> = successfulPreview()) => {
+    const Harness = () => {
+        const [activeView, setActiveView] = useState<DecodeResultView>('terms');
+        const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
+        const model = DECODE_MODELS.find(({ id }) => id === state.preview.modelId)!;
 
-    expect(screen.getByText(/illustrative example/i)).toBeInTheDocument();
+        return (
+            <DecodeResults
+                activeView={activeView}
+                preview={state.preview}
+                provenance={state.provenance}
+                model={model}
+                selectedResult={selectedResult}
+                sourceLabel="NeuroVault image 25"
+                onViewChange={setActiveView}
+                onSelectComparison={setSelectedResult}
+            />
+        );
+    };
+    return render(<Harness />);
+};
+
+it('makes terms the first and default result view', () => {
+    renderResults();
+    const tabs = screen.getAllByRole('tab');
+
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+        'Terms',
+        'Associated studies',
+        'Model summary',
+        'Compare maps',
+    ]);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('columnheader', { name: 'Correlation' })).toBeVisible();
 });
 
-it('switches from correlations to NiCLIP predictions explicitly', async () => {
+it('states whether each study matches the input, selected concept, or both', async () => {
     const user = userEvent.setup();
-    render(<ResultHarness />);
+    renderResults();
 
-    await user.click(screen.getByRole('tab', { name: 'NiCLIP predictions' }));
+    await user.click(screen.getByRole('tab', { name: 'Associated studies' }));
 
-    expect(screen.getByRole('columnheader', { name: 'Bayes factor' })).toBeInTheDocument();
-    expect(screen.getByText('Perception')).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'NiCLIP task predictions' }).parentElement).toHaveClass(
-        'MuiTableContainer-root'
-    );
+    expect(screen.getByText('Matches input and selected concept')).toBeVisible();
+    expect(screen.getByText(/Example et al\..*2024/)).toBeVisible();
+    expect(screen.getByRole('link', { name: /Open study/ })).toHaveAttribute('href', '/studies/example-study-001');
 });
 
-it('explains NiCLIP probabilities and Bayes factors in relation to the literature-derived prior', async () => {
+it('uses the same search, sort, page-size, and pagination pattern for studies', async () => {
     const user = userEvent.setup();
-    render(<ResultHarness />);
+    renderResults();
+    await user.click(screen.getByRole('tab', { name: 'Associated studies' }));
 
-    await user.click(screen.getByRole('tab', { name: 'NiCLIP predictions' }));
-
-    expect(screen.getByText(/posterior probabilities incorporate a literature-derived prior/i)).toBeInTheDocument();
-    expect(screen.getByText(/Bayes factors express the change in evidence from that prior/i)).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search associated studies' })).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Sort associated studies' })).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Study results per page' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
 });
 
-it('states the expected map input in the expanded decoding guidance', async () => {
+it('keeps fixture provenance and the reverse-inference limit visible in every view', async () => {
     const user = userEvent.setup();
-    render(<ResultHarness />);
+    renderResults();
 
-    await user.click(screen.getByRole('button', { name: 'About decoding' }));
+    for (const tabName of ['Terms', 'Associated studies', 'Model summary', 'Compare maps']) {
+        await user.click(screen.getByRole('tab', { name: tabName }));
+        expect(screen.getByText('Illustrative example — no decoder was called')).toBeVisible();
+        expect(
+            screen.getByText(/ranked associations do not establish the cognitive state that produced the input/i)
+        ).toBeVisible();
+    }
+});
 
-    expect(
-        screen.getByText(/one unthresholded, group-level, 3D z- or t-statistic map in MNI152 space/i)
-    ).toBeInTheDocument();
+it('shows NeuroVLM ranked concepts and its example narrative in the model summary', async () => {
+    const user = userEvent.setup();
+    renderResults();
+
+    await user.click(screen.getByRole('tab', { name: 'Model summary' }));
+
+    expect(screen.getByText('Illustrative model summary — no decoder was called.')).toBeVisible();
+    expect(screen.getByRole('list', { name: 'NeuroVLM ranked concepts' })).toBeVisible();
+    expect(screen.getByText(/About NeuroVLM decoding/)).toBeVisible();
+    expect(screen.getByText(DECODE_MODELS[0].interpretationNote)).toBeVisible();
+});
+
+it('distinguishes NiCLIP posteriors and Bayes factors from the literature prior', async () => {
+    const user = userEvent.setup();
+    renderResults(successfulPreview('niclip'));
+
+    await user.click(screen.getByRole('tab', { name: 'Model summary' }));
+
+    expect(screen.getByLabelText('NiCLIP domains')).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Posterior probability' })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Bayes factor' })).toBeVisible();
+    expect(screen.getByText(/posterior probabilities incorporate a literature-derived prior/i)).toBeVisible();
+    expect(screen.getByText(/Bayes factors express the change in evidence from that prior/i)).toBeVisible();
+    expect(screen.getByText(/About NiCLIP decoding/)).toBeVisible();
 });
 
 it('keeps every result panel mounted with reciprocal tab relationships and one accessible panel', () => {
-    render(<ResultHarness />);
+    renderResults();
 
     const tabs = screen.getAllByRole('tab');
     const panels = screen.getAllByRole('tabpanel', { hidden: true });
 
-    expect(panels).toHaveLength(3);
+    expect(panels).toHaveLength(4);
     tabs.forEach((tab) => {
         const panel = panels.find(({ id }) => id === tab.getAttribute('aria-controls'));
         expect(tab.id).not.toBe('');
@@ -74,40 +148,33 @@ it('keeps every result panel mounted with reciprocal tab relationships and one a
     });
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
     expect(document.getElementById('decode-result-panel-terms')).not.toHaveAttribute('hidden');
-    expect(document.getElementById('decode-result-panel-niclip')).toHaveAttribute('hidden');
-    expect(document.getElementById('decode-result-panel-compare')).toHaveAttribute('hidden');
-    expect(within(document.getElementById('decode-result-panel-niclip')!).getByText('Perception')).toBeInTheDocument();
+    expect(document.getElementById('decode-result-panel-studies')).toHaveAttribute('hidden');
+    expect(
+        within(document.getElementById('decode-result-panel-studies')!).getByText(/Example et al/)
+    ).toBeInTheDocument();
 });
 
-it('uses horizontally scrollable result tabs for narrow screens', () => {
-    render(<ResultHarness />);
-
-    const tabList = screen.getByRole('tablist', { name: 'Decoder result views' });
-    expect(tabList.parentElement).toHaveClass('MuiTabs-scrollableX');
-});
-
-it('opens comparison only after selecting a term and choosing compare', async () => {
+it('opens comparison only after selecting a result and choosing compare', async () => {
     const user = userEvent.setup();
-    render(<ResultHarness />);
+    renderResults();
 
     await user.click(screen.getByRole('button', { name: 'Select visual for comparison' }));
-    expect(screen.getByRole('tab', { name: 'Term correlations' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Terms' })).toHaveAttribute('aria-selected', 'true');
 
-    await user.click(screen.getByRole('button', { name: 'Compare selected term' }));
+    await user.click(screen.getByRole('button', { name: 'Compare selected result' }));
     expect(screen.getByRole('tab', { name: 'Compare maps' })).toHaveFocus();
-    expect(screen.getByText('motor.nii.gz')).toBeInTheDocument();
-    expect(screen.getByText('visual meta-analytic map')).toBeInTheDocument();
+    expect(screen.getByText('NeuroVault image 25')).toBeVisible();
+    expect(screen.getByText('visual meta-analytic map')).toBeVisible();
 });
 
 it('directs an empty comparison back to term selection', async () => {
     const user = userEvent.setup();
-    render(<ResultHarness />);
+    renderResults();
 
     await user.click(screen.getByRole('tab', { name: 'Compare maps' }));
-    expect(screen.getByText('Select a term before comparing maps.')).toBeInTheDocument();
-
     await user.click(screen.getByRole('button', { name: 'Choose a term' }));
-    const termsTab = screen.getByRole('tab', { name: 'Term correlations' });
+
+    const termsTab = screen.getByRole('tab', { name: 'Terms' });
     expect(termsTab).toHaveAttribute('aria-selected', 'true');
     expect(termsTab).toHaveFocus();
 });

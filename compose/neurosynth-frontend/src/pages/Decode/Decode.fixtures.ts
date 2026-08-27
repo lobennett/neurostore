@@ -90,18 +90,46 @@ export const FIXTURE_PROVENANCE: IDecodeProvenance = {
 };
 
 export const EXAMPLE_TERMS: Array<IDecodeTerm & IDecodedTerm> = [
-    { id: 'trm_visual', label: 'visual', rank: 1, metric: 'correlation', value: 0.312, term: 'visual', correlation: 0.312 },
+    {
+        id: 'trm_visual',
+        label: 'visual',
+        rank: 1,
+        metric: 'correlation',
+        value: 0.312,
+        mapUrl: '/maps/example-visual',
+        term: 'visual',
+        correlation: 0.312,
+    },
     {
         id: 'trm_occipital',
         label: 'occipital',
         rank: 2,
         metric: 'correlation',
         value: 0.268,
+        mapUrl: '/maps/example-occipital',
         term: 'occipital',
         correlation: 0.268,
     },
-    { id: 'trm_baseline', label: 'baseline', rank: 3, metric: 'correlation', value: 0, term: 'baseline', correlation: 0 },
-    { id: 'trm_language', label: 'language', rank: 4, metric: 'correlation', value: -0.118, term: 'language', correlation: -0.118 },
+    {
+        id: 'trm_baseline',
+        label: 'baseline',
+        rank: 3,
+        metric: 'correlation',
+        value: 0,
+        mapUrl: '/maps/example-baseline',
+        term: 'baseline',
+        correlation: 0,
+    },
+    {
+        id: 'trm_language',
+        label: 'language',
+        rank: 4,
+        metric: 'correlation',
+        value: -0.118,
+        mapUrl: '/maps/example-language',
+        term: 'language',
+        correlation: -0.118,
+    },
 ];
 
 export const EXAMPLE_STUDIES: IDecodeStudy[] = [
@@ -110,8 +138,9 @@ export const EXAMPLE_STUDIES: IDecodeStudy[] = [
         title: 'Illustrative visual processing study',
         authors: 'Example et al.',
         year: 2024,
-        matchBasis: 'Example association with the selected term',
+        matchBasis: 'Matches input and selected concept',
         url: '/studies/example-study-001',
+        mapUrl: '/maps/example-study-001',
     },
 ];
 
@@ -141,7 +170,11 @@ export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeF
     modelSummary: {
         narrative: 'Illustrative model summary — no decoder was called.',
         domains: EXAMPLE_NICLIP_DOMAINS.map(({ domain, probability }) => ({ label: domain, probability })),
-        tasks: EXAMPLE_NICLIP_TASKS.map(({ task, probability, bayesFactor }) => ({ label: task, probability, bayesFactor })),
+        tasks: EXAMPLE_NICLIP_TASKS.map(({ task, probability, bayesFactor }) => ({
+            label: task,
+            probability,
+            bayesFactor,
+        })),
     },
     atlasReadouts: EXAMPLE_ATLAS_READOUTS,
 });

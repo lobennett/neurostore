@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it } from 'vitest';
+import { createFixtureDecodeAdapter } from './Decode.adapter';
+import type { IDecodeFrontendAdapter } from './Decode.types';
 import DecodePage from './DecodePage';
 
 const completeNeurovaultDraft = async () => {
@@ -80,15 +82,48 @@ it('marks results stale after a scientific input changes and previews again expl
     expect(screen.getByText(/Declared input: group-level · z statistic · EEG · 121 subjects/)).toBeVisible();
 });
 
-it('keeps current result navigation compatible with a NeuroVault preview', async () => {
+it('uses the successful preview snapshot for result navigation and comparison', async () => {
     await openPreview();
     const results = screen.getByRole('region', { name: 'Illustrative decoder results' });
 
     expect(within(results).getByRole('note')).toHaveTextContent('Illustrative example — no decoder was called');
-    expect(screen.getByRole('tab', { name: 'Term correlations' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Terms' })).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Select visual for comparison' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Compare selected term' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Compare selected result' }));
     expect(screen.getAllByText('NeuroVault image 25')).toHaveLength(2);
+});
+
+it('hands the immutable adapter snapshot to the result explorer', async () => {
+    const fixtureAdapter = createFixtureDecodeAdapter();
+    const snapshotAdapter: IDecodeFrontendAdapter = {
+        preview: (request, scenario) => {
+            const state = fixtureAdapter.preview(request, scenario);
+            if (state.status !== 'success') return state;
+            return {
+                ...state,
+                preview: {
+                    ...state.preview,
+                    terms: [
+                        {
+                            id: 'trm_snapshot_only',
+                            label: 'snapshot-only concept',
+                            rank: 1,
+                            metric: 'similarity',
+                            value: 0.901,
+                            mapUrl: '/maps/example-snapshot-only',
+                        },
+                    ],
+                },
+            };
+        },
+    };
+    render(<DecodePage adapter={snapshotAdapter} />);
+    await completeNeurovaultDraft();
+    await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
+
+    expect(screen.getByRole('button', { name: 'Select snapshot-only concept for comparison' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Select visual for comparison' })).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Similarity' })).toBeVisible();
 });
 
 it('resets the draft, preview, navigation, and source focus', async () => {

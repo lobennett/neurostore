@@ -5,9 +5,54 @@ import type {
     IDecodeParameterDefinition,
     IDecodeRunRequest,
     IDecodeSubmission,
+    IDecodeTerm,
     IDecodeValidationErrors,
     IMniPoint,
 } from './Decode.types';
+
+export type DecodeTermSort = 'rank' | 'label' | 'value';
+export type DecodeSortDirection = 'asc' | 'desc';
+
+export const filterTerms = (terms: IDecodeTerm[], query: string): IDecodeTerm[] => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    if (!normalizedQuery) return terms;
+    return terms.filter(({ id, label }) => `${id} ${label}`.toLocaleLowerCase().includes(normalizedQuery));
+};
+
+export const sortTerms = (
+    terms: IDecodeTerm[],
+    sort: DecodeTermSort,
+    direction: DecodeSortDirection
+): IDecodeTerm[] => {
+    const factor = direction === 'asc' ? 1 : -1;
+    return [...terms].sort((left, right) => {
+        const comparison =
+            sort === 'label'
+                ? left.label.localeCompare(right.label, undefined, { numeric: true })
+                : sort === 'value'
+                  ? left.value - right.value
+                  : left.rank - right.rank;
+        return comparison * factor || left.rank - right.rank;
+    });
+};
+
+export const paginate = <T>(
+    items: T[],
+    page: number,
+    pageSize: number
+): { items: T[]; start: number; end: number; total: number; pageCount: number } => {
+    const total = items.length;
+    const pageCount = total === 0 ? 0 : Math.ceil(total / pageSize);
+    const safePage = pageCount === 0 ? 0 : Math.min(Math.max(page, 0), pageCount - 1);
+    const offset = safePage * pageSize;
+    return {
+        items: items.slice(offset, offset + pageSize),
+        start: total === 0 ? 0 : offset + 1,
+        end: Math.min(offset + pageSize, total),
+        total,
+        pageCount,
+    };
+};
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const NEUROVAULT_HOSTS = new Set(['neurovault.org', 'www.neurovault.org']);
@@ -24,7 +69,8 @@ export const parseNeurovaultImageId = (value: string): string | null => {
     if (POSITIVE_INTEGER.test(trimmed)) return trimmed;
     try {
         const url = new URL(trimmed);
-        if (!['http:', 'https:'].includes(url.protocol) || !NEUROVAULT_HOSTS.has(url.hostname.toLowerCase())) return null;
+        if (!['http:', 'https:'].includes(url.protocol) || !NEUROVAULT_HOSTS.has(url.hostname.toLowerCase()))
+            return null;
         return url.pathname.match(/^\/(?:api\/)?images\/([1-9]\d*)\/?$/)?.[1] ?? null;
     } catch {
         return null;
@@ -32,13 +78,15 @@ export const parseNeurovaultImageId = (value: string): string | null => {
 };
 
 const coordinateErrors = (point: IMniPoint): string[] =>
-    (Object.entries(MNI_LIMITS) as Array<[keyof typeof MNI_LIMITS, (typeof MNI_LIMITS)[keyof typeof MNI_LIMITS]]>).flatMap(
-        ([axis, limits]) => {
-            const value = Number(point[axis]);
-            if (!point[axis].trim() || !Number.isFinite(value)) return [`${axis} must be a finite number`];
-            return value < limits.min || value > limits.max ? [`${axis} must be between ${limits.min} and ${limits.max}`] : [];
-        }
-    );
+    (
+        Object.entries(MNI_LIMITS) as Array<[keyof typeof MNI_LIMITS, (typeof MNI_LIMITS)[keyof typeof MNI_LIMITS]]>
+    ).flatMap(([axis, limits]) => {
+        const value = Number(point[axis]);
+        if (!point[axis].trim() || !Number.isFinite(value)) return [`${axis} must be a finite number`];
+        return value < limits.min || value > limits.max
+            ? [`${axis} must be between ${limits.min} and ${limits.max}`]
+            : [];
+    });
 
 const validateModelParameter = (
     definition: IDecodeParameterDefinition,
@@ -132,11 +180,20 @@ export const buildDecodeRunRequest = (draft: IDecodeDraft): IDecodeRunRequest =>
               ? { kind: 'upload' as const, filename: draft.file!.name, license: 'CC0' as const }
               : {
                     kind: 'coordinates' as const,
-                    points: draft.coordinates.map(({ id, label, x, y, z }) => ({ id, label, x: Number(x), y: Number(y), z: Number(z) })),
+                    points: draft.coordinates.map(({ id, label, x, y, z }) => ({
+                        id,
+                        label,
+                        x: Number(x),
+                        y: Number(y),
+                        z: Number(z),
+                    })),
                 };
     const metadata = {
         ...draft.metadata,
-        subjectCount: draft.metadata.analysisLevel === 'group' || draft.metadata.analysisLevel === 'subject' ? draft.metadata.subjectCount : '',
+        subjectCount:
+            draft.metadata.analysisLevel === 'group' || draft.metadata.analysisLevel === 'subject'
+                ? draft.metadata.subjectCount
+                : '',
     };
     return {
         source,
@@ -170,7 +227,8 @@ export const validateDecodeSubmission = (submission: IDecodeSubmission): IDecode
     if (!submission.metadata.analysisLevel) errors.analysisLevel = 'Choose an analysis level.';
     if (!submission.metadata.modality) errors.modality = 'Choose a modality.';
     if (!submission.metadata.subjectCount.trim()) errors.subjectCount = 'Enter the number of subjects.';
-    else if (!POSITIVE_INTEGER.test(submission.metadata.subjectCount.trim())) errors.subjectCount = 'Enter a positive whole number.';
+    else if (!POSITIVE_INTEGER.test(submission.metadata.subjectCount.trim()))
+        errors.subjectCount = 'Enter a positive whole number.';
     if (submission.metadata.analysisLevel === 'subject' && !submission.subjectWarningAcknowledged) {
         errors.subjectWarningAcknowledged = 'Acknowledge the subject-level warning to continue.';
     }

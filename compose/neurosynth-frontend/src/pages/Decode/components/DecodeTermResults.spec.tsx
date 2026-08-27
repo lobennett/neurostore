@@ -1,65 +1,141 @@
+import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
+import type { DecodeMetric, IDecodeComparableResult, IDecodeTerm } from '../Decode.types';
 import DecodeTermResults from './DecodeTermResults';
 
-const terms = [
-    { term: 'visual', correlation: 0.3 },
-    { term: 'baseline', correlation: 0 },
-    { term: 'language', correlation: -0.15 },
-];
+const makeTerms = (count: number, metric: DecodeMetric = 'similarity'): IDecodeTerm[] =>
+    Array.from({ length: count }, (_, index) => {
+        const rank = index + 1;
+        return {
+            id: `trm_${String(rank).padStart(3, '0')}`,
+            label: rank % 10 === 0 ? `memory concept ${rank}` : `concept ${rank}`,
+            rank,
+            metric,
+            value: Number((1 - index / Math.max(count, 1)).toFixed(3)),
+            mapUrl: `/maps/example-term-${rank}`,
+        };
+    });
 
-it('renders positive and negative correlations on opposite sides of zero', () => {
-    render(<DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={vi.fn()} />);
+const renderTermResults = ({
+    terms = makeTerms(3),
+    metric = 'similarity',
+}: {
+    terms?: IDecodeTerm[];
+    metric?: DecodeMetric;
+} = {}) => {
+    const Harness = () => {
+        const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
+        return (
+            <DecodeTermResults
+                terms={terms}
+                metric={metric}
+                selectedResult={selectedResult}
+                onSelectComparison={setSelectedResult}
+                onCompareSelected={() => undefined}
+            />
+        );
+    };
+    return render(<Harness />);
+};
 
-    expect(screen.getByLabelText('visual: positive correlation 0.300')).toHaveAttribute('data-direction', 'positive');
-    expect(screen.getByLabelText('language: negative correlation -0.150')).toHaveAttribute(
-        'data-direction',
-        'negative'
+it('searches, sorts, and paginates model-labeled term results', async () => {
+    const user = userEvent.setup();
+    renderTermResults({ terms: makeTerms(65), metric: 'similarity' });
+
+    expect(screen.getByRole('columnheader', { name: 'Similarity' })).toBeVisible();
+    await user.type(screen.getByRole('searchbox', { name: 'Search term results' }), 'memory');
+    expect(screen.getAllByRole('row')).toHaveLength(7);
+    expect(screen.getByText('1–6 of 6')).toBeVisible();
+
+    await user.clear(screen.getByRole('searchbox', { name: 'Search term results' }));
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByText('51–65 of 65')).toBeVisible();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort term results' }), 'label');
+    expect(screen.getByText('1–50 of 65')).toBeVisible();
+    expect(within(screen.getAllByRole('row')[1]).getByText('concept 1')).toBeVisible();
+});
+
+it('resets pagination when the direction or page size changes', async () => {
+    const user = userEvent.setup();
+    renderTermResults({ terms: makeTerms(65) });
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByText('51–65 of 65')).toBeVisible();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort direction' }), 'desc');
+    expect(screen.getByText('1–50 of 65')).toBeVisible();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Term results per page' }), '25');
+    expect(screen.getByText('1–25 of 65')).toBeVisible();
+});
+
+it('keeps a comparable selection while navigating away from its page', async () => {
+    const user = userEvent.setup();
+    renderTermResults({ terms: makeTerms(65) });
+
+    const selectFirst = screen.getByRole('button', { name: 'Select concept 1 for comparison' });
+    await user.click(selectFirst);
+    expect(selectFirst).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByRole('button', { name: 'Compare selected result' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Previous page' }));
+    expect(screen.getByRole('button', { name: 'Select concept 1 for comparison' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
     );
 });
 
+it('keeps signed correlation values and a zero-centred display', () => {
+    renderTermResults({
+        metric: 'correlation',
+        terms: [
+            {
+                id: 'language',
+                label: 'language',
+                rank: 1,
+                value: -0.118,
+                metric: 'correlation',
+                mapUrl: '/maps/example-language',
+            },
+        ],
+    });
+
+    expect(screen.getByText('-0.118')).toBeVisible();
+    expect(screen.getByLabelText('language: negative correlation -0.118')).toBeVisible();
+});
+
 it('renders an exact zero correlation as neutral with no directional fill', () => {
-    render(<DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={vi.fn()} />);
+    renderTermResults({
+        metric: 'correlation',
+        terms: [
+            {
+                id: 'baseline',
+                label: 'baseline',
+                rank: 1,
+                value: 0,
+                metric: 'correlation',
+            },
+        ],
+    });
 
     const zeroBar = screen.getByLabelText('baseline: neutral correlation 0.000');
     expect(zeroBar).toHaveAttribute('data-direction', 'neutral');
     expect(within(zeroBar).queryByTestId('decode-correlation-fill')).not.toBeInTheDocument();
 });
 
-it('contains the correlations table in a horizontally scrollable table container', () => {
-    render(<DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={vi.fn()} />);
+it.each([
+    ['similarity', 'Similarity'],
+    ['correlation', 'Correlation'],
+    ['probability', 'Probability'],
+    ['bayes-factor', 'Bayes factor'],
+] as const)('labels %s values explicitly', (metric, label) => {
+    renderTermResults({ terms: makeTerms(1, metric), metric });
+    expect(screen.getByRole('columnheader', { name: label })).toBeVisible();
+});
 
+it('contains the results table in a horizontally scrollable table container', () => {
+    renderTermResults();
     expect(screen.getByRole('table').parentElement).toHaveClass('MuiTableContainer-root');
-});
-
-it('selects a term with the keyboard without changing views', async () => {
-    const onSelectTerm = vi.fn();
-    render(<DecodeTermResults terms={terms} onSelectTerm={onSelectTerm} onCompareSelected={vi.fn()} />);
-    const button = screen.getByRole('button', { name: 'Select visual for comparison' });
-    button.focus();
-
-    await userEvent.keyboard('{Enter}');
-
-    expect(onSelectTerm).toHaveBeenCalledWith('visual');
-});
-
-it('enables explicit comparison only after a term is selected', async () => {
-    const onCompareSelected = vi.fn();
-    const { rerender } = render(
-        <DecodeTermResults terms={terms} onSelectTerm={vi.fn()} onCompareSelected={onCompareSelected} />
-    );
-    expect(screen.getByRole('button', { name: 'Compare selected term' })).toBeDisabled();
-
-    rerender(
-        <DecodeTermResults
-            terms={terms}
-            selectedTerm="visual"
-            onSelectTerm={vi.fn()}
-            onCompareSelected={onCompareSelected}
-        />
-    );
-    await userEvent.click(screen.getByRole('button', { name: 'Compare selected term' }));
-
-    expect(onCompareSelected).toHaveBeenCalledOnce();
 });

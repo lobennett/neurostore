@@ -1,21 +1,46 @@
-import { ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Typography } from '@mui/material';
+import { Box, Divider, Stack, Typography } from '@mui/material';
+import type { IDecodeModelDefinition } from '../Decode.types';
 
-const DecodeMethodSummary: React.FC = () => (
-    <Accordion>
-        <AccordionSummary expandIcon={<ExpandMore />} aria-controls="decode-method-content" id="decode-method-header">
-            <Typography>About decoding</Typography>
-        </AccordionSummary>
-        <AccordionDetails id="decode-method-content">
-            <Typography variant="body2" color="text.secondary">
-                Term correlations compare the spatial pattern of a submitted map with meta-analytic maps. NiCLIP predictions
-                estimate task associations from a map; neither result is diagnostic evidence or a causal explanation.
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                The expected input is one unthresholded, group-level, 3D z- or t-statistic map in MNI152 space.
-            </Typography>
-        </AccordionDetails>
-    </Accordion>
+const DecodeMethodSummary: React.FC<{ model: IDecodeModelDefinition }> = ({ model }) => (
+    <Box
+        component="section"
+        aria-labelledby="decode-method-heading"
+        sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}
+    >
+        <Typography id="decode-method-heading" component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+            About {model.name} decoding
+        </Typography>
+        <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            divider={<Divider orientation="vertical" flexItem />}
+            sx={{ mt: 1 }}
+        >
+            <Box sx={{ flex: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                    Model purpose
+                </Typography>
+                <Typography variant="body2">{model.purpose}</Typography>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                    Declared input requirement
+                </Typography>
+                <Typography variant="body2">{model.inputRequirements}</Typography>
+            </Box>
+        </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            {model.interpretationNote}
+        </Typography>
+        <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            sx={{ mt: 1, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
+        >
+            Model snapshot: {model.version}
+        </Typography>
+    </Box>
 );
 
 export default DecodeMethodSummary;

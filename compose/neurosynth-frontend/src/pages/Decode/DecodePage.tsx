@@ -8,6 +8,7 @@ import { buildDecodeRunRequest, isPreviewStale } from './Decode.helpers';
 import type {
     DecodeFixtureScenario,
     DecodeResultView,
+    IDecodeComparableResult,
     IDecodeFrontendAdapter,
     IDecodePreviewState,
     IDecodeRunRequest,
@@ -54,7 +55,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
     const [previewState, setPreviewState] = useState<IDecodePreviewState | null>(null);
     const [inputsExpanded, setInputsExpanded] = useState(true);
     const [activeResultView, setActiveResultView] = useState<DecodeResultView>('terms');
-    const [selectedTerm, setSelectedTerm] = useState<string>();
+    const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
     const [announcement, setAnnouncement] = useState('');
     const [autoFocusSource, setAutoFocusSource] = useState(false);
     const [workspaceVersion, setWorkspaceVersion] = useState(0);
@@ -89,7 +90,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
         );
         setInputsExpanded(false);
         setActiveResultView('terms');
-        setSelectedTerm(undefined);
+        setSelectedResult(undefined);
         setAutoFocusSource(false);
         setAnnouncement('Example decoder results ready.');
     };
@@ -99,7 +100,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
         setPreviewState(null);
         setInputsExpanded(true);
         setActiveResultView('terms');
-        setSelectedTerm(undefined);
+        setSelectedResult(undefined);
         setAnnouncement('Preview reset. Choose another map source.');
         setAutoFocusSource(true);
         setViewerState(DEFAULT_VIEWER_STATE);
@@ -248,14 +249,19 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
                             </Button>
                         </Paper>
                         <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-                            <DecodeResults
-                                activeView={activeResultView}
-                                selectedTerm={selectedTerm}
-                                sourceLabel={sourceLabel}
-                                onViewChange={setActiveResultView}
-                                onSelectTerm={setSelectedTerm}
-                                autoFocusActiveTab
-                            />
+                            {model ? (
+                                <DecodeResults
+                                    activeView={activeResultView}
+                                    preview={previewState.preview}
+                                    provenance={previewState.provenance}
+                                    model={model}
+                                    selectedResult={selectedResult}
+                                    sourceLabel={sourceLabel}
+                                    onViewChange={setActiveResultView}
+                                    onSelectComparison={setSelectedResult}
+                                    autoFocusActiveTab
+                                />
+                            ) : null}
                         </Paper>
                     </Box>
                 </Stack>

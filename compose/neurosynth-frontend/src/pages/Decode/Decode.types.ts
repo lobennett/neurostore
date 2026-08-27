@@ -2,13 +2,7 @@ export type DecodeSourceKind = 'neurovault' | 'upload' | 'coordinates';
 export type DecodeModelId = 'neurovlm' | 'niclip';
 export type DecodeMetric = 'similarity' | 'correlation' | 'probability' | 'bayes-factor';
 export type DecodeFixtureScenario =
-    | 'success'
-    | 'loading'
-    | 'empty-terms'
-    | 'empty-studies'
-    | 'unsupported'
-    | 'lookup-error'
-    | 'decode-error';
+    'success' | 'loading' | 'empty-terms' | 'empty-studies' | 'unsupported' | 'lookup-error' | 'decode-error';
 
 export type DecodeMapType = '' | 'z' | 't';
 export type DecodeAnalysisLevel = '' | 'group' | 'subject' | 'meta-analysis' | 'other';
@@ -25,7 +19,7 @@ export type DecodeModality =
     | 'meg'
     | 'eeg'
     | 'other';
-export type DecodeResultView = 'terms' | 'niclip' | 'compare';
+export type DecodeResultView = 'terms' | 'studies' | 'model-summary' | 'compare';
 
 export interface ISelectOption<T extends string = string> {
     value: T;
