@@ -205,6 +205,7 @@ export type IDecodeProvenance =
           version: string;
           resultId: string;
           method: 'Pearson correlation';
+          scoreDefinition: string;
           referenceDataset: 'terms_20k';
           retrievedAt: string;
           rankingRule: 'absolute-correlation-descending';
@@ -222,7 +223,7 @@ export type IDecodeProvenance =
               attribution: string;
           };
           termMaps: {
-              license: 'ODbL-derived';
+              license: IDecodeAssetProvenance['license'];
               attribution: string;
           };
       };

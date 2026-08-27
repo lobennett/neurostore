@@ -12,6 +12,11 @@ const EXAMPLE_ID: DecodeExampleId = 'neurovault-308';
 const MANIFEST_URL = '/decoder/examples/neurovault-308/manifest.json';
 const ASSET_URL_PREFIX = '/decoder/examples/neurovault-308/';
 const RESULT_ID = '6a6a9cdb07754185b6218dff275112fe';
+const RETRIEVAL_DATE = '2026-08-26';
+const RESULT_ENDPOINT = `https://neurosynth.org/api/decode/${RESULT_ID}`;
+const SCORE_DEFINITION =
+    'Pearson correlation between vectorized input and reference term maps, including zero-valued voxels';
+const PROVENANCE_HOSTS = new Set(['neurovault.org', 'www.neurovault.org', 'neurosynth.org', 'www.neurosynth.org']);
 
 interface IRecordedManifestAsset {
     id: string;
@@ -48,6 +53,7 @@ interface IRecordedManifest {
         resultEndpoint: string;
         resultId: string;
         rankingRule: 'absolute-correlation-descending';
+        scoreDefinition: string;
         sourceUrl: string;
         attribution: string;
     };
@@ -80,20 +86,51 @@ const toVolumeAsset = (asset: IRecordedManifestAsset): IDecodeVolumeAsset => ({
     },
 });
 
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+
+const isSafeHttpsUrl = (value: unknown): value is string => {
+    if (typeof value !== 'string') return false;
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && PROVENANCE_HOSTS.has(url.hostname) && !url.username && !url.password;
+    } catch {
+        return false;
+    }
+};
+
+const hasValidAssetProvenance = (asset: IRecordedManifestAsset): boolean =>
+    isSafeHttpsUrl(asset?.sourceUrl) &&
+    (asset.license === 'CC0' || asset.license === 'ODbL-derived') &&
+    isNonEmptyString(asset.attribution);
+
 const isCanonicalManifest = (manifest: IRecordedManifest): boolean =>
     manifest?.exampleId === EXAMPLE_ID &&
+    manifest.retrievalDate === RETRIEVAL_DATE &&
     manifest.input?.neurovaultImageId === '308' &&
     manifest.input.sourceUrl === 'https://neurovault.org/images/308/' &&
+    isSafeHttpsUrl(manifest.input.sourceUrl) &&
+    isNonEmptyString(manifest.input.collection) &&
+    manifest.input.collectionId === '63' &&
     manifest.input.statisticType === 't' &&
     manifest.input.analysisLevel === 'group' &&
     manifest.input.modality === 'fMRI BOLD' &&
     manifest.input.subjectCount === 10 &&
+    manifest.input.doi === '10.1186/2047-217X-2-6' &&
+    manifest.input.license === 'CC0' &&
+    isNonEmptyString(manifest.input.attribution) &&
     manifest.method?.label === 'Recorded Neurosynth Pearson example' &&
     manifest.method.name === 'Pearson correlation' &&
     manifest.method.referenceDataset === 'terms_20k' &&
+    manifest.method.resultEndpoint === RESULT_ENDPOINT &&
+    isSafeHttpsUrl(manifest.method.resultEndpoint) &&
     manifest.method.resultId === RESULT_ID &&
     manifest.method.rankingRule === 'absolute-correlation-descending' &&
+    manifest.method.scoreDefinition === SCORE_DEFINITION &&
+    manifest.method.sourceUrl === 'https://neurosynth.org/' &&
+    isSafeHttpsUrl(manifest.method.sourceUrl) &&
+    isNonEmptyString(manifest.method.attribution) &&
     Array.isArray(manifest.assets) &&
+    manifest.assets.every(hasValidAssetProvenance) &&
     Array.isArray(manifest.terms);
 
 export const makeGoldenWalkthroughDraft = (interpretation: string): IDecodeDraft => ({
@@ -127,6 +164,17 @@ export const loadGoldenWalkthrough = async (): Promise<{ draft: IDecodeDraft; pr
             manifest.terms.flatMap(({ id, mapAssetId }) => (mapAssetId ? [[id, requireAsset(assets, mapAssetId)]] : []))
         ),
     };
+    const comparisonAssets = Object.values(visualization.comparisonByResultId);
+    const comparisonLicenses = new Set(comparisonAssets.map(({ provenance }) => provenance.license));
+    const termMapLicense = comparisonAssets[0]?.provenance.license;
+    if (
+        comparisonAssets.length === 0 ||
+        comparisonAssets.some(({ kind }) => kind !== 'association-z') ||
+        comparisonLicenses.size !== 1 ||
+        termMapLicense !== 'ODbL-derived'
+    ) {
+        invalidManifest();
+    }
 
     return {
         draft: makeGoldenWalkthroughDraft(''),
@@ -141,6 +189,7 @@ export const loadGoldenWalkthrough = async (): Promise<{ draft: IDecodeDraft; pr
                 version: RECORDED_PEARSON_MODEL.version,
                 resultId: manifest.method.resultId,
                 method: manifest.method.name,
+                scoreDefinition: manifest.method.scoreDefinition,
                 referenceDataset: manifest.method.referenceDataset,
                 retrievedAt: manifest.retrievalDate,
                 rankingRule: manifest.method.rankingRule,
@@ -158,7 +207,7 @@ export const loadGoldenWalkthrough = async (): Promise<{ draft: IDecodeDraft; pr
                     attribution: manifest.input.attribution,
                 },
                 termMaps: {
-                    license: 'ODbL-derived',
+                    license: termMapLicense,
                     attribution: manifest.method.attribution,
                 },
             },

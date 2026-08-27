@@ -56,6 +56,8 @@ describe('loadGoldenWalkthrough', () => {
         expect(preview.provenance.resultId).toBe('6a6a9cdb07754185b6218dff275112fe');
         expect(preview.provenance).toMatchObject({
             resultUrl: 'https://neurosynth.org/api/decode/6a6a9cdb07754185b6218dff275112fe',
+            scoreDefinition:
+                'Pearson correlation between vectorized input and reference term maps, including zero-valued voxels',
             input: {
                 imageId: '308',
                 sourceUrl: 'https://neurovault.org/images/308/',
@@ -74,6 +76,9 @@ describe('loadGoldenWalkthrough', () => {
         expect(preview.visualization?.comparisonByResultId['premotor'].id).toBe('premotor-map');
         expect(preview.visualization?.comparisonByResultId['premotor'].provenance.attribution).toBe(
             'Neurosynth database-derived association map; ODbL provenance'
+        );
+        expect(preview.provenance.termMaps.license).toBe(
+            preview.visualization?.comparisonByResultId['premotor'].provenance.license
         );
         expect(preview.terms.map(({ value }) => value)).toContain(-0.307);
     });
@@ -101,6 +106,57 @@ describe('loadGoldenWalkthrough', () => {
     it('rejects a manifest whose recorded result is not canonical', async () => {
         const manifest = JSON.parse(await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8'));
         manifest.method.resultId = 'different-recorded-result';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
+
+        await expect(loadGoldenWalkthrough()).rejects.toThrow('does not match the canonical walkthrough');
+    });
+
+    it.each([
+        ['retrieval date', (manifest: any) => (manifest.retrievalDate = '')],
+        ['collection', (manifest: any) => (manifest.input.collection = '  ')],
+        ['collection identifier', (manifest: any) => (manifest.input.collectionId = '../63')],
+        ['DOI', (manifest: any) => (manifest.input.doi = '')],
+        ['input license', (manifest: any) => (manifest.input.license = 'ODbL-derived')],
+        ['input attribution', (manifest: any) => (manifest.input.attribution = '')],
+        ['score definition', (manifest: any) => (manifest.method.scoreDefinition = 'Generic spatial similarity')],
+        [
+            'result endpoint',
+            (manifest: any) => (manifest.method.resultEndpoint = 'http://neurosynth.org/api/decode/result'),
+        ],
+        ['method source', (manifest: any) => (manifest.method.sourceUrl = 'javascript:alert(1)')],
+        ['method attribution', (manifest: any) => (manifest.method.attribution = '')],
+        ['asset attribution', (manifest: any) => (manifest.assets[0].attribution = '')],
+        [
+            'asset source URL',
+            (manifest: any) => (manifest.assets[0].sourceUrl = 'https://user:pass@neurovault.org/map'),
+        ],
+        ['asset source host', (manifest: any) => (manifest.assets[0].sourceUrl = 'https://example.org/map')],
+    ])('rejects a manifest with invalid %s provenance', async (_label, mutate) => {
+        const manifest = JSON.parse(await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8'));
+        mutate(manifest);
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
+
+        await expect(loadGoldenWalkthrough()).rejects.toThrow('does not match the canonical walkthrough');
+    });
+
+    it.each([
+        [
+            'mixed',
+            (manifest: any) => {
+                manifest.assets.find(({ id }: { id: string }) => id === 'premotor-map').license = 'CC0';
+            },
+        ],
+        [
+            'uniform but noncanonical',
+            (manifest: any) => {
+                manifest.assets
+                    .filter(({ kind }: { kind: string }) => kind === 'association-z')
+                    .forEach((asset: { license: string }) => (asset.license = 'CC0'));
+            },
+        ],
+    ])('rejects %s comparison-map licenses', async (_label, mutate) => {
+        const manifest = JSON.parse(await readFile(resolve(fixtureRoot, 'manifest.json'), 'utf8'));
+        mutate(manifest);
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
 
         await expect(loadGoldenWalkthrough()).rejects.toThrow('does not match the canonical walkthrough');

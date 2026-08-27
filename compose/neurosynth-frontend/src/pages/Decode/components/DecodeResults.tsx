@@ -68,6 +68,9 @@ const RecordedProvenance: React.FC<{ preview: IDecodePreview }> = ({ preview }) 
                 </Link>
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {provenance.scoreDefinition}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
                 Scores describe spatial similarity—not probability, diagnosis, or causal evidence. Ranked by absolute
                 correlation magnitude, strongest first; signed values are preserved.
             </Typography>
@@ -308,8 +311,8 @@ const DecodeResults: React.FC<{
                                 {preview.modelSummary.narrative}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                {recorded
-                                    ? 'Pearson correlation describes signed spatial similarity between the input image and each reference term map; it is not a probability.'
+                                {preview.provenance.kind === 'recorded'
+                                    ? preview.provenance.scoreDefinition
                                     : termMetricSummary.explanation}
                             </Typography>
                             <Box

@@ -112,6 +112,8 @@ const recordedPreview = (): Extract<IDecodePreviewState, { status: 'success' }> 
         version: 'terms_20k-recorded-2026-08-26',
         resultId: '6a6a9cdb07754185b6218dff275112fe',
         method: 'Pearson correlation' as const,
+        scoreDefinition:
+            'Pearson correlation between vectorized input and reference term maps, including zero-valued voxels',
         referenceDataset: 'terms_20k' as const,
         retrievedAt: '2026-08-26',
         rankingRule: 'absolute-correlation-descending' as const,
@@ -311,6 +313,11 @@ it('discloses the recorded method, source, ranking, retrieval date, and licenses
 
     expect(screen.getByText('Recorded Neurosynth Pearson example')).toBeVisible();
     expect(screen.getByText(/Pearson correlation.*terms_20k/)).toBeVisible();
+    expect(
+        within(screen.getByRole('note')).getByText(
+            'Pearson correlation between vectorized input and reference term maps, including zero-valued voxels'
+        )
+    ).toBeVisible();
     expect(screen.getByText(/spatial similarity—not probability/i)).toBeVisible();
     expect(screen.getByText(/Ranked by absolute correlation magnitude, strongest first/)).toBeVisible();
     expect(screen.getByText(/Retrieved 2026-08-26/)).toBeVisible();
@@ -343,6 +350,11 @@ it('discloses the recorded method, source, ranking, retrieval date, and licenses
 
     await user.click(screen.getByRole('tab', { name: 'Model summary' }));
     expect(screen.getByRole('heading', { name: 'Recorded Neurosynth Pearson method' })).toBeVisible();
+    expect(
+        within(screen.getByRole('tabpanel', { name: 'Model summary' })).getByText(
+            /Pearson correlation between vectorized input and reference term maps, including zero-valued voxels/
+        )
+    ).toBeVisible();
     expect(screen.queryByText('Neurosynth Pearson example summary')).not.toBeInTheDocument();
 });
 

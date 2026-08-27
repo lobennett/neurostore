@@ -11,7 +11,7 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { filterTerms, paginate, sortTerms } from '../Decode.helpers';
 import type { DecodeSortDirection, DecodeTermSort } from '../Decode.helpers';
 import type { DecodeMetric, IDecodeComparableResult, IDecodeTerm } from '../Decode.types';
@@ -59,6 +59,12 @@ const DecodeTermResults: React.FC<{
         () => paginate(sortTerms(filterTerms(terms, query), sort, direction), page, pageSize),
         [direction, page, pageSize, query, sort, terms]
     );
+
+    useEffect(() => {
+        setSort(recorded ? 'magnitude' : 'rank');
+        setDirection(recorded ? 'desc' : 'asc');
+        setPage(0);
+    }, [recorded]);
 
     const resetPage = () => setPage(0);
 

@@ -73,6 +73,44 @@ it('keeps illustrative results on rank ascending by default', () => {
     expect(screen.getByRole('combobox', { name: 'Sort direction' })).toHaveValue('asc');
 });
 
+it('resets illustrative navigation to recorded magnitude defaults when provenance mode changes', async () => {
+    const user = userEvent.setup();
+    const props = {
+        terms: makeTerms(3, 'correlation'),
+        metric: 'correlation' as const,
+        selectedResult: undefined,
+        onSelectComparison: () => undefined,
+        onCompareSelected: () => undefined,
+    };
+    const { rerender } = render(<DecodeTermResults {...props} recorded={false} />);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort term results' }), 'label');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort direction' }), 'desc');
+
+    rerender(<DecodeTermResults {...props} recorded />);
+
+    expect(screen.getByRole('combobox', { name: 'Sort term results' })).toHaveValue('magnitude');
+    expect(screen.getByRole('combobox', { name: 'Sort direction' })).toHaveValue('desc');
+});
+
+it('resets recorded navigation to illustrative rank defaults when provenance mode changes', async () => {
+    const user = userEvent.setup();
+    const props = {
+        terms: makeTerms(3, 'correlation'),
+        metric: 'correlation' as const,
+        selectedResult: undefined,
+        onSelectComparison: () => undefined,
+        onCompareSelected: () => undefined,
+    };
+    const { rerender } = render(<DecodeTermResults {...props} recorded />);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort term results' }), 'value');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort direction' }), 'asc');
+
+    rerender(<DecodeTermResults {...props} recorded={false} />);
+
+    expect(screen.getByRole('combobox', { name: 'Sort term results' })).toHaveValue('rank');
+    expect(screen.getByRole('combobox', { name: 'Sort direction' })).toHaveValue('asc');
+});
+
 it('selects mapped and unmapped recorded terms with accurate comparison affordances', async () => {
     const user = userEvent.setup();
     renderTermResults({
