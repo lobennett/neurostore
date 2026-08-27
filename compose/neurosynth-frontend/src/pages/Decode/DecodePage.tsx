@@ -109,10 +109,14 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
 
     const previewRequest = previewState?.request;
     const sourceLabel = previewRequest ? sourceLabelForRequest(previewRequest) : '';
-    const model = previewRequest ? DECODE_MODELS.find(({ id }) => id === previewRequest.modelId) : undefined;
+    const requestModel = previewRequest ? DECODE_MODELS.find(({ id }) => id === previewRequest.modelId) : undefined;
+    const resultModel =
+        previewState?.status === 'success'
+            ? DECODE_MODELS.find(({ id }) => id === previewState.preview.modelId)
+            : undefined;
     const nonDefaultParameters =
-        previewRequest && model
-            ? model.parameters.filter(
+        previewRequest && requestModel
+            ? requestModel.parameters.filter(
                   ({ key, defaultValue }) =>
                       previewRequest.parameters[key] !== undefined && previewRequest.parameters[key] !== defaultValue
               )
@@ -163,7 +167,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
                         </Typography>
                         {!inputsExpanded && previewRequest ? (
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                                {sourceLabel} · {model?.name}
+                                {sourceLabel} · {requestModel?.name}
                             </Typography>
                         ) : null}
                     </Box>
@@ -218,7 +222,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
                                 color="text.secondary"
                                 sx={{ mt: 0.5, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
                             >
-                                {model?.name} · {previewState.request.modelVersion}
+                                {requestModel?.name} · {previewState.request.modelVersion}
                             </Typography>
                             <Divider sx={{ my: 2 }} />
                             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -239,9 +243,9 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
                                     ))}
                                 </Box>
                             ) : null}
-                            {model ? (
+                            {requestModel ? (
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
-                                    {model.interpretationNote}
+                                    {requestModel.interpretationNote}
                                 </Typography>
                             ) : null}
                             <Button variant="outlined" onClick={resetPreview} sx={{ mt: 2 }}>
@@ -249,12 +253,11 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
                             </Button>
                         </Paper>
                         <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-                            {model ? (
+                            {resultModel ? (
                                 <DecodeResults
                                     activeView={activeResultView}
                                     preview={previewState.preview}
-                                    provenance={previewState.provenance}
-                                    model={model}
+                                    model={resultModel}
                                     selectedResult={selectedResult}
                                     sourceLabel={sourceLabel}
                                     onViewChange={setActiveResultView}

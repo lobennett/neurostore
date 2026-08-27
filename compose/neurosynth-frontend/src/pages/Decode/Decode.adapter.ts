@@ -1,4 +1,4 @@
-import { FIXTURE_PROVENANCE, makeExamplePreview } from './Decode.fixtures';
+import { makeExamplePreview } from './Decode.fixtures';
 import type { IDecodeFrontendAdapter } from './Decode.types';
 
 export const createFixtureDecodeAdapter = (): IDecodeFrontendAdapter => ({
@@ -23,6 +23,6 @@ export const createFixtureDecodeAdapter = (): IDecodeFrontendAdapter => ({
         if (scenario === 'decode-error') {
             return { status: 'error', operation: 'Decoder', request, message: 'The example decoder run failed.' };
         }
-        return { status: 'success', request, preview: makeExamplePreview(request, scenario), provenance: FIXTURE_PROVENANCE };
+        return { status: 'success', request, preview: makeExamplePreview(request, scenario) };
     },
 });

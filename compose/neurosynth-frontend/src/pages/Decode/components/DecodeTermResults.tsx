@@ -50,7 +50,8 @@ const DecodeTermResults: React.FC<{
     const [pageSize, setPageSize] = useState(50);
     const metricLabel = METRIC_LABELS[metric];
     const directions = directionOptions(sort, metricLabel);
-    const strongest = Math.max(...terms.map(({ value }) => Math.abs(value)), 0.01);
+    const signedMetric = metric === 'correlation';
+    const scaleMaximum = metric === 'probability' ? 1 : Math.max(...terms.map(({ value }) => Math.abs(value)), 0.01);
     const navigated = useMemo(
         () => paginate(sortTerms(filterTerms(terms, query), sort, direction), page, pageSize),
         [direction, page, pageSize, query, sort, terms]
@@ -178,51 +179,84 @@ const DecodeTermResults: React.FC<{
                                     <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <Box
-                                                aria-label={`${term.label}: ${directionLabel} ${metricLabel.toLocaleLowerCase()} ${term.value.toFixed(3)}`}
-                                                data-direction={directionLabel}
+                                                aria-label={
+                                                    signedMetric
+                                                        ? `${term.label}: ${directionLabel} ${metricLabel.toLocaleLowerCase()} ${term.value.toFixed(3)}`
+                                                        : `${term.label}: ${metricLabel.toLocaleLowerCase()} ${term.value.toFixed(3)}`
+                                                }
+                                                data-direction={signedMetric ? directionLabel : undefined}
+                                                data-scale={
+                                                    signedMetric
+                                                        ? 'zero-centered'
+                                                        : metric === 'probability'
+                                                          ? 'zero-to-one'
+                                                          : 'zero-to-maximum'
+                                                }
                                                 sx={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: '1fr 1fr',
+                                                    display: signedMetric ? 'grid' : 'block',
+                                                    gridTemplateColumns: signedMetric ? '1fr 1fr' : undefined,
                                                     position: 'relative',
                                                     flex: 1,
                                                     minWidth: 96,
                                                     bgcolor: '#f4f8fb',
                                                 }}
                                             >
-                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', minHeight: 8 }}>
-                                                    {term.value < 0 ? (
+                                                {signedMetric ? (
+                                                    <>
                                                         <Box
-                                                            data-testid="decode-correlation-fill"
                                                             sx={{
-                                                                width: `${(Math.abs(term.value) / strongest) * 100}%`,
-                                                                bgcolor: '#023e8a',
-                                                                height: 8,
+                                                                display: 'flex',
+                                                                justifyContent: 'flex-end',
+                                                                minHeight: 8,
+                                                            }}
+                                                        >
+                                                            {term.value < 0 ? (
+                                                                <Box
+                                                                    data-testid="decode-correlation-fill"
+                                                                    sx={{
+                                                                        width: `${(Math.abs(term.value) / scaleMaximum) * 100}%`,
+                                                                        bgcolor: '#023e8a',
+                                                                        height: 8,
+                                                                    }}
+                                                                />
+                                                            ) : null}
+                                                        </Box>
+                                                        <Box sx={{ minHeight: 8 }}>
+                                                            {term.value > 0 ? (
+                                                                <Box
+                                                                    data-testid="decode-correlation-fill"
+                                                                    sx={{
+                                                                        width: `${(Math.abs(term.value) / scaleMaximum) * 100}%`,
+                                                                        bgcolor: '#0096c7',
+                                                                        height: 8,
+                                                                    }}
+                                                                />
+                                                            ) : null}
+                                                        </Box>
+                                                        <Box
+                                                            data-testid="decode-zero-marker"
+                                                            aria-hidden="true"
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                left: '50%',
+                                                                top: -2,
+                                                                bottom: -2,
+                                                                borderLeft: '1px solid #263238',
                                                             }}
                                                         />
-                                                    ) : null}
-                                                </Box>
-                                                <Box sx={{ minHeight: 8 }}>
-                                                    {term.value > 0 ? (
+                                                    </>
+                                                ) : (
+                                                    <Box sx={{ minHeight: 8 }}>
                                                         <Box
-                                                            data-testid="decode-correlation-fill"
+                                                            data-testid="decode-measure-fill"
                                                             sx={{
-                                                                width: `${(Math.abs(term.value) / strongest) * 100}%`,
+                                                                width: `${Math.min(100, Math.max(0, term.value / scaleMaximum) * 100)}%`,
                                                                 bgcolor: '#0096c7',
                                                                 height: 8,
                                                             }}
                                                         />
-                                                    ) : null}
-                                                </Box>
-                                                <Box
-                                                    aria-hidden="true"
-                                                    sx={{
-                                                        position: 'absolute',
-                                                        left: '50%',
-                                                        top: -2,
-                                                        bottom: -2,
-                                                        borderLeft: '1px solid #263238',
-                                                    }}
-                                                />
+                                                    </Box>
+                                                )}
                                             </Box>
                                             <Typography
                                                 variant="body2"

@@ -79,7 +79,7 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         ],
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:
-            'Posterior probabilities include a literature-derived prior; Bayes factors show the change from that prior.',
+            'Posterior probabilities depend on the selected prior; Bayes factors show the change in evidence relative to that prior.',
     },
 ];
 
@@ -139,8 +139,8 @@ export const EXAMPLE_STUDIES: IDecodeStudy[] = [
         authors: 'Example et al.',
         year: 2024,
         matchBasis: 'Matches input and selected concept',
-        url: '/studies/example-study-001',
-        mapUrl: '/maps/example-study-001',
+        url: 'https://neurovault.org/images/25/',
+        mapUrl: 'https://neurovault.org/images/25/',
     },
 ];
 
@@ -165,6 +165,8 @@ export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeF
     modelId: request.modelId,
     modelVersion: request.modelVersion,
     parameters: { ...request.parameters },
+    termMetric: 'correlation',
+    provenance: FIXTURE_PROVENANCE,
     terms: scenario === 'empty-terms' ? [] : EXAMPLE_TERMS,
     studies: scenario === 'empty-studies' ? [] : EXAMPLE_STUDIES,
     modelSummary: {

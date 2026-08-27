@@ -6,7 +6,6 @@ import type {
     IDecodeComparableResult,
     IDecodeModelDefinition,
     IDecodePreview,
-    IDecodeProvenance,
 } from '../Decode.types';
 import DecodeComparison from './DecodeComparison';
 import DecodeMethodSummary from './DecodeMethodSummary';
@@ -21,13 +20,33 @@ const RESULT_VIEWS: Array<{ value: DecodeResultView; label: string }> = [
     { value: 'compare', label: 'Compare maps' },
 ];
 
+const METRIC_SUMMARIES: Record<DecodeMetric, { quantity: string; explanation: string }> = {
+    correlation: {
+        quantity: 'correlation',
+        explanation:
+            'Correlation values describe signed spatial association between the input and each example concept map.',
+    },
+    similarity: {
+        quantity: 'similarity',
+        explanation: 'Similarity values describe model-estimated closeness between the input and each example concept.',
+    },
+    probability: {
+        quantity: 'probability',
+        explanation: 'Probability values describe the model probability assigned to each example concept.',
+    },
+    'bayes-factor': {
+        quantity: 'Bayes factor',
+        explanation:
+            'Bayes factors describe evidence change relative to the configured prior for each example concept.',
+    },
+};
+
 const tabId = (view: DecodeResultView) => `decode-result-tab-${view}`;
 const panelId = (view: DecodeResultView) => `decode-result-panel-${view}`;
 
 const DecodeResults: React.FC<{
     activeView: DecodeResultView;
     preview: IDecodePreview;
-    provenance: IDecodeProvenance;
     model: IDecodeModelDefinition;
     selectedResult?: IDecodeComparableResult;
     sourceLabel: string;
@@ -37,7 +56,6 @@ const DecodeResults: React.FC<{
 }> = ({
     activeView,
     preview,
-    provenance,
     model,
     selectedResult,
     sourceLabel,
@@ -47,8 +65,7 @@ const DecodeResults: React.FC<{
 }) => {
     const tabRefs = useRef<Partial<Record<DecodeResultView, HTMLDivElement | null>>>({});
     const pendingFocusView = useRef<DecodeResultView | undefined>(undefined);
-    const metric: DecodeMetric = preview.terms[0]?.metric ?? (model.id === 'niclip' ? 'probability' : 'similarity');
-
+    const termMetricSummary = METRIC_SUMMARIES[preview.termMetric];
     const changeViewAndFocusTab = (view: DecodeResultView) => {
         pendingFocusView.current = view;
         onViewChange(view);
@@ -65,8 +82,23 @@ const DecodeResults: React.FC<{
         <Box>
             <Stack spacing={1} sx={{ mb: 2 }}>
                 <Alert severity="info" role="note" sx={{ borderLeft: '4px solid #0077b6' }}>
-                    <Box component="span">{provenance.label}</Box> · {provenance.version}
+                    <Box component="span">{preview.provenance.label}</Box> · {preview.provenance.version}
                 </Alert>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.5, sm: 2 }} sx={{ px: 1.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {model.name} · {preview.modelVersion}
+                    </Typography>
+                    {Object.entries(preview.parameters).map(([key, value]) => (
+                        <Typography
+                            key={key}
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
+                        >
+                            {key}: {String(value)}
+                        </Typography>
+                    ))}
+                </Stack>
                 <Box sx={{ px: 1.5, py: 1, bgcolor: '#f4f8fb', borderLeft: '4px solid #023e8a' }}>
                     <Typography variant="body2" color="text.secondary">
                         Ranked associations do not establish the cognitive state that produced the input. They support
@@ -108,7 +140,7 @@ const DecodeResults: React.FC<{
             >
                 <DecodeTermResults
                     terms={preview.terms}
-                    metric={metric}
+                    metric={preview.termMetric}
                     selectedResult={selectedResult}
                     onSelectComparison={onSelectComparison}
                     onCompareSelected={() => changeViewAndFocusTab('compare')}
@@ -139,11 +171,18 @@ const DecodeResults: React.FC<{
                     {model.name} example summary
                 </Typography>
                 {model.id === 'niclip' ? (
-                    <DecodeNiClipResults domains={preview.modelSummary.domains} tasks={preview.modelSummary.tasks} />
+                    <DecodeNiClipResults
+                        domains={preview.modelSummary.domains}
+                        tasks={preview.modelSummary.tasks}
+                        parameters={preview.parameters}
+                    />
                 ) : (
                     <Box>
                         <Typography variant="body2" color="text.secondary">
                             {preview.modelSummary.narrative}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            {termMetricSummary.explanation}
                         </Typography>
                         <Box
                             component="ol"
@@ -157,13 +196,7 @@ const DecodeResults: React.FC<{
                                     key={id}
                                     sx={{ mb: 0.75, breakInside: 'avoid' }}
                                 >
-                                    {label}{' '}
-                                    <Box
-                                        component="span"
-                                        sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
-                                    >
-                                        {value.toFixed(3)}
-                                    </Box>
+                                    {label} · {termMetricSummary.quantity} {value.toFixed(3)}
                                 </Typography>
                             ))}
                         </Box>

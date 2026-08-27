@@ -8,17 +8,30 @@ const evidenceLabel = (bayesFactor: number) => {
     return 'against';
 };
 
-const DecodeNiClipResults: React.FC<Pick<IDecodeModelSummary, 'domains' | 'tasks'>> = ({
-    domains = [],
-    tasks = [],
-}) => (
+const priorLabel = (parameters: Record<string, string | number | boolean>) =>
+    parameters.prior === 'literature'
+        ? 'literature-derived prior'
+        : parameters.prior === 'uniform'
+          ? 'uniform prior'
+          : 'configured prior';
+
+const posteriorPriorLabel = (parameters: Record<string, string | number | boolean>) =>
+    parameters.prior === 'literature' ? 'a literature-derived prior' : `the selected ${priorLabel(parameters)}`;
+
+const referencedPriorLabel = (parameters: Record<string, string | number | boolean>) =>
+    parameters.prior === 'literature' ? 'prior' : priorLabel(parameters);
+
+const DecodeNiClipResults: React.FC<
+    Pick<IDecodeModelSummary, 'domains' | 'tasks'> & { parameters: Record<string, string | number | boolean> }
+> = ({ domains = [], tasks = [], parameters }) => (
     <Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             Cognitive domains highlighted by this illustrative NiCLIP snapshot.
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Posterior probabilities incorporate a literature-derived prior. Bayes factors express the change in evidence
-            from that prior; they are not posterior probabilities or direct measures of task presence.
+            Posterior probabilities incorporate {posteriorPriorLabel(parameters)}. Bayes factors express the change in
+            evidence from that {referencedPriorLabel(parameters)}; they are not posterior probabilities or direct
+            measures of task presence.
         </Typography>
         <Box aria-label="NiCLIP domains" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
             {domains.map(({ label, probability }) => (

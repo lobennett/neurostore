@@ -148,6 +148,8 @@ export interface IDecodePreview {
     modelId: DecodeModelId;
     modelVersion: string;
     parameters: Record<string, string | number | boolean>;
+    termMetric: DecodeMetric;
+    provenance: IDecodeProvenance;
     terms: IDecodeTerm[];
     studies: IDecodeStudy[];
     modelSummary: IDecodeModelSummary;
@@ -163,7 +165,7 @@ export interface IDecodeProvenance {
 export type IDecodePreviewState =
     | { status: 'loading'; request: IDecodeRunRequest }
     | { status: 'error'; operation: string; request: IDecodeRunRequest; message: string }
-    | { status: 'success'; request: IDecodeRunRequest; preview: IDecodePreview; provenance: IDecodeProvenance };
+    | { status: 'success'; request: IDecodeRunRequest; preview: IDecodePreview };
 
 export interface IDecodeFrontendAdapter {
     preview(request: IDecodeRunRequest, scenario: DecodeFixtureScenario): IDecodePreviewState;

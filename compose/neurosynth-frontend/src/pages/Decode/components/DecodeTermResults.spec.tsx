@@ -103,7 +103,10 @@ it('keeps signed correlation values and a zero-centred display', () => {
     });
 
     expect(screen.getByText('-0.118')).toBeVisible();
-    expect(screen.getByLabelText('language: negative correlation -0.118')).toBeVisible();
+    const correlationBar = screen.getByLabelText('language: negative correlation -0.118');
+    expect(correlationBar).toBeVisible();
+    expect(correlationBar).toHaveAttribute('data-scale', 'zero-centered');
+    expect(within(correlationBar).getByTestId('decode-zero-marker')).toBeInTheDocument();
 });
 
 it('renders an exact zero correlation as neutral with no directional fill', () => {
@@ -123,6 +126,22 @@ it('renders an exact zero correlation as neutral with no directional fill', () =
     const zeroBar = screen.getByLabelText('baseline: neutral correlation 0.000');
     expect(zeroBar).toHaveAttribute('data-direction', 'neutral');
     expect(within(zeroBar).queryByTestId('decode-correlation-fill')).not.toBeInTheDocument();
+});
+
+it.each([
+    ['probability', 0.42, 'attention: probability 0.420', 'zero-to-one'],
+    ['bayes-factor', 14.2, 'attention: bayes factor 14.200', 'zero-to-maximum'],
+] as const)('renders %s on a non-directional full-width scale', (metric, value, accessibleName, scale) => {
+    renderTermResults({
+        metric,
+        terms: [{ id: 'attention', label: 'attention', rank: 1, value, metric }],
+    });
+
+    const measureBar = screen.getByLabelText(accessibleName);
+    expect(measureBar).toHaveAttribute('data-scale', scale);
+    expect(measureBar).not.toHaveAttribute('data-direction');
+    expect(within(measureBar).queryByTestId('decode-zero-marker')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(new RegExp(`positive ${metric}`))).not.toBeInTheDocument();
 });
 
 it.each([

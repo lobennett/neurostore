@@ -13,7 +13,7 @@ import type {
 } from '../Decode.types';
 import DecodeResults from './DecodeResults';
 
-const requestFor = (modelId: DecodeModelId): IDecodeRunRequest => ({
+const requestFor = (modelId: DecodeModelId, prior: 'literature' | 'uniform' = 'literature'): IDecodeRunRequest => ({
     source: { kind: 'neurovault', imageId: '25' },
     metadata: {
         mapType: 'z',
@@ -27,11 +27,11 @@ const requestFor = (modelId: DecodeModelId): IDecodeRunRequest => ({
     interpretation: 'Visual processing',
     modelId,
     modelVersion: 'fixture-v1',
-    parameters: modelId === 'niclip' ? { prior: 'literature', evidenceThreshold: 3 } : { resultLimit: 50 },
+    parameters: modelId === 'niclip' ? { prior, evidenceThreshold: 3 } : { resultLimit: 50 },
 });
 
-const successfulPreview = (modelId: DecodeModelId = 'neurovlm') => {
-    const state = createFixtureDecodeAdapter().preview(requestFor(modelId), 'success');
+const successfulPreview = (modelId: DecodeModelId = 'neurovlm', prior: 'literature' | 'uniform' = 'literature') => {
+    const state = createFixtureDecodeAdapter().preview(requestFor(modelId, prior), 'success');
     if (state.status !== 'success') throw new Error('Expected successful fixture preview');
     return state;
 };
@@ -46,7 +46,6 @@ const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }
             <DecodeResults
                 activeView={activeView}
                 preview={state.preview}
-                provenance={state.provenance}
                 model={model}
                 selectedResult={selectedResult}
                 sourceLabel="NeuroVault image 25"
@@ -80,7 +79,10 @@ it('states whether each study matches the input, selected concept, or both', asy
 
     expect(screen.getByText('Matches input and selected concept')).toBeVisible();
     expect(screen.getByText(/Example et al\..*2024/)).toBeVisible();
-    expect(screen.getByRole('link', { name: /Open study/ })).toHaveAttribute('href', '/studies/example-study-001');
+    const relatedMap = screen.getByRole('link', { name: 'Open related map' });
+    expect(relatedMap).toHaveAttribute('href', 'https://neurovault.org/images/25/');
+    expect(relatedMap).toHaveAttribute('target', '_blank');
+    expect(relatedMap).toHaveAttribute('rel', 'noopener noreferrer');
 });
 
 it('uses the same search, sort, page-size, and pagination pattern for studies', async () => {
@@ -102,6 +104,8 @@ it('keeps fixture provenance and the reverse-inference limit visible in every vi
     for (const tabName of ['Terms', 'Associated studies', 'Model summary', 'Compare maps']) {
         await user.click(screen.getByRole('tab', { name: tabName }));
         expect(screen.getByText('Illustrative example — no decoder was called')).toBeVisible();
+        expect(screen.getByText(/NeuroVLM · fixture-v1/)).toBeVisible();
+        expect(screen.getByText(/resultLimit: 50/)).toBeVisible();
         expect(
             screen.getByText(/ranked associations do not establish the cognitive state that produced the input/i)
         ).toBeVisible();
@@ -116,6 +120,8 @@ it('shows NeuroVLM ranked concepts and its example narrative in the model summar
 
     expect(screen.getByText('Illustrative model summary — no decoder was called.')).toBeVisible();
     expect(screen.getByRole('list', { name: 'NeuroVLM ranked concepts' })).toBeVisible();
+    expect(screen.getByText(/Correlation values describe signed spatial association/i)).toBeVisible();
+    expect(screen.getByText(/visual · correlation 0\.312/i)).toBeVisible();
     expect(screen.getByText(/About NeuroVLM decoding/)).toBeVisible();
     expect(screen.getByText(DECODE_MODELS[0].interpretationNote)).toBeVisible();
 });
@@ -132,6 +138,46 @@ it('distinguishes NiCLIP posteriors and Bayes factors from the literature prior'
     expect(screen.getByText(/posterior probabilities incorporate a literature-derived prior/i)).toBeVisible();
     expect(screen.getByText(/Bayes factors express the change in evidence from that prior/i)).toBeVisible();
     expect(screen.getByText(/About NiCLIP decoding/)).toBeVisible();
+});
+
+it('explains NiCLIP quantities relative to a uniform preview prior', async () => {
+    const user = userEvent.setup();
+    renderResults(successfulPreview('niclip', 'uniform'));
+
+    await user.click(screen.getByRole('tab', { name: 'Model summary' }));
+
+    expect(screen.getByText(/posterior probabilities incorporate the selected uniform prior/i)).toBeVisible();
+    expect(screen.getByText(/Bayes factors express the change in evidence from that uniform prior/i)).toBeVisible();
+    expect(screen.queryByText(/literature-derived prior/i)).not.toBeInTheDocument();
+});
+
+it('renders model, metric, parameters, and fixture provenance from the preview snapshot', () => {
+    const state = successfulPreview();
+    const resultState = {
+        ...state,
+        preview: {
+            ...state.preview,
+            modelId: 'niclip' as const,
+            modelVersion: 'result-model-v9',
+            parameters: { prior: 'uniform', evidenceThreshold: 7 },
+            termMetric: 'bayes-factor' as const,
+            provenance: {
+                kind: 'fixture' as const,
+                label: 'Result snapshot provenance',
+                version: 'result-fixture-v9',
+            },
+            terms: [{ ...state.preview.terms[0], metric: 'similarity' as const, value: 8.4 }],
+        },
+    };
+
+    renderResults(resultState);
+
+    expect(screen.getByText('Result snapshot provenance')).toBeVisible();
+    expect(screen.getByText(/NiCLIP · result-model-v9/)).toBeVisible();
+    expect(screen.getByText(/prior: uniform/)).toBeVisible();
+    expect(screen.getByText(/evidenceThreshold: 7/)).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Bayes factor' })).toBeVisible();
+    expect(screen.queryByText('Illustrative example — no decoder was called')).not.toBeInTheDocument();
 });
 
 it('keeps every result panel mounted with reciprocal tab relationships and one accessible panel', () => {

@@ -135,8 +135,13 @@ const DecodeStudyResults: React.FC<{
                             </Typography>
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
                                 {study.url ? (
-                                    <Link href={study.url} aria-label={`Open study: ${study.title}`}>
-                                        Open study
+                                    <Link
+                                        href={study.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label="Open related map"
+                                    >
+                                        Open related map
                                     </Link>
                                 ) : null}
                                 {study.mapUrl ? (

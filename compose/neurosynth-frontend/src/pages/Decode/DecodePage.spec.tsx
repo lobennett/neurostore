@@ -62,8 +62,9 @@ it('records model version and non-default parameters in the preview summary', as
     await userEvent.type(screen.getByLabelText('Number of term results'), '100');
     await userEvent.click(screen.getByRole('button', { name: 'Preview example results' }));
 
-    expect(screen.getByText(/NeuroVLM.*fixture-v1/)).toBeVisible();
-    expect(screen.getByText(/Number of term results: 100/)).toBeVisible();
+    const requestSummary = screen.getByRole('complementary');
+    expect(within(requestSummary).getByText(/NeuroVLM.*fixture-v1/)).toBeVisible();
+    expect(within(requestSummary).getByText(/Number of term results: 100/)).toBeVisible();
     expect(screen.getByRole('status')).toHaveTextContent('Example decoder results ready.');
 });
 
@@ -103,13 +104,22 @@ it('hands the immutable adapter snapshot to the result explorer', async () => {
                 ...state,
                 preview: {
                     ...state.preview,
+                    modelId: 'niclip',
+                    modelVersion: 'result-model-v9',
+                    parameters: { prior: 'uniform', evidenceThreshold: 7 },
+                    termMetric: 'bayes-factor',
+                    provenance: {
+                        kind: 'fixture',
+                        label: 'Adapter result snapshot',
+                        version: 'result-fixture-v9',
+                    },
                     terms: [
                         {
                             id: 'trm_snapshot_only',
                             label: 'snapshot-only concept',
                             rank: 1,
                             metric: 'similarity',
-                            value: 0.901,
+                            value: 8.4,
                             mapUrl: '/maps/example-snapshot-only',
                         },
                     ],
@@ -123,7 +133,10 @@ it('hands the immutable adapter snapshot to the result explorer', async () => {
 
     expect(screen.getByRole('button', { name: 'Select snapshot-only concept for comparison' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Select visual for comparison' })).not.toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Similarity' })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Bayes factor' })).toBeVisible();
+    expect(screen.getByText('Adapter result snapshot')).toBeVisible();
+    expect(screen.getByText(/NiCLIP · result-model-v9/)).toBeVisible();
+    expect(screen.getByText(/prior: uniform/)).toBeVisible();
 });
 
 it('resets the draft, preview, navigation, and source focus', async () => {
