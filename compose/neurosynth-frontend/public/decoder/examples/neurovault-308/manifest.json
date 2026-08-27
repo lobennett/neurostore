@@ -20,6 +20,7 @@
     "attribution": "NeuroVault public image 308; collection authors; DOI 10.1186/2047-217X-2-6"
   },
   "method": {
+    "label": "Recorded Neurosynth Pearson example",
     "name": "Pearson correlation",
     "referenceDataset": "terms_20k",
     "resultEndpoint": "https://neurosynth.org/api/decode/6a6a9cdb07754185b6218dff275112fe",

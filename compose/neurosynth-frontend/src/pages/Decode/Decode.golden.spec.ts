@@ -19,6 +19,7 @@ describe('NeuroVault 308 golden walkthrough assets', () => {
 
         expect(manifest.exampleId).toBe('neurovault-308');
         expect(manifest.input.neurovaultImageId).toBe('308');
+        expect(manifest.method.label).toBe('Recorded Neurosynth Pearson example');
         expect(manifest.method.referenceDataset).toBe('terms_20k');
         expect(manifest.terms).toHaveLength(20);
         expect(manifest.terms.map(({ r }: { r: number }) => Math.abs(r))).toEqual(
