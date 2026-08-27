@@ -1,6 +1,17 @@
 describe('DecodePage', () => {
-    const blockApiRequests = () =>
-        cy.intercept({ url: '**/api/**', resourceType: 'xhr' }, (request) => request.destroy());
+    const blockApiRequests = () => {
+        cy.intercept({ hostname: 'localhost', pathname: '/api/**', resourceType: 'xhr' }, (request) =>
+            request.destroy()
+        ).as('blockedApiXhr');
+        cy.intercept({ hostname: 'localhost', pathname: '/api/**', resourceType: 'fetch' }, (request) =>
+            request.destroy()
+        ).as('blockedApiFetch');
+    };
+
+    const expectNoBlockedApiRequests = () => {
+        cy.get('@blockedApiXhr.all').should('have.length', 0);
+        cy.get('@blockedApiFetch.all').should('have.length', 0);
+    };
 
     const previewPublicNeurovaultImage = () => {
         cy.contains('[role="tab"]', 'NeuroVault image').click();
@@ -17,7 +28,7 @@ describe('DecodePage', () => {
 
     it('reviews the complete fixture-backed flow for public NeuroVault image 25', () => {
         cy.viewport(1440, 900);
-        blockApiRequests().as('blockedApi');
+        blockApiRequests();
         cy.visit('/decode');
 
         previewPublicNeurovaultImage();
@@ -30,11 +41,12 @@ describe('DecodePage', () => {
         cy.contains('[role="tab"]', 'Compare maps').click();
         cy.contains('label', 'Overlay').click();
         cy.get('input[aria-label="Input map opacity"]').should('be.visible');
+        expectNoBlockedApiRequests();
     });
 
     it('keeps mobile comparison panes in order without page overflow', () => {
         cy.viewport(390, 844);
-        blockApiRequests().as('blockedApi');
+        blockApiRequests();
         cy.visit('/decode');
 
         previewPublicNeurovaultImage();
@@ -46,9 +58,11 @@ describe('DecodePage', () => {
             .then(($panes) => {
                 expect($panes[0]).to.have.attr('aria-label', 'Input map pane');
                 expect($panes[1]).to.have.attr('aria-label', 'Comparison map pane');
+                expect($panes[1].getBoundingClientRect().top).to.be.at.least($panes[0].getBoundingClientRect().bottom);
             });
         cy.document().then((document) => {
             expect(document.documentElement.scrollWidth).to.equal(document.documentElement.clientWidth);
         });
+        expectNoBlockedApiRequests();
     });
 });
