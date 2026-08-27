@@ -43,6 +43,7 @@ const DecodeInputPanel = ({ value, onChange, onPreview, autoFocusSource = false 
                 <DecodeModelPanel
                     modelId={value.modelId}
                     parameters={value.modelParameters}
+                    parameterErrors={errors.modelParameters}
                     sourceKind={value.activeSource}
                     onChange={changeModel}
                 />

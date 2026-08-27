@@ -1,4 +1,5 @@
 import { Box, Checkbox, FormControlLabel, FormHelperText, Typography } from '@mui/material';
+import { useState } from 'react';
 import type { IDecodeMetadata } from '../Decode.types';
 
 interface DecodeDepositDisclosureProps {
@@ -12,7 +13,9 @@ interface DecodeDepositDisclosureProps {
 const declared = (value: string) => value || 'Not declared';
 
 const DecodeDepositDisclosure = ({ file, metadata, consent, error, onConsentChange }: DecodeDepositDisclosureProps) => {
+    const [consentTouched, setConsentTouched] = useState(false);
     const errorId = 'decode-deposit-consent-error';
+    const visibleError = consentTouched ? error : undefined;
     return (
         <Box sx={{ bgcolor: '#f4f8fb', borderLeft: 3, borderColor: '#0077b6', mt: 2, p: 2 }}>
             <Typography component="h3" sx={{ color: '#263238', fontWeight: 700 }} variant="subtitle2">
@@ -41,15 +44,18 @@ const DecodeDepositDisclosure = ({ file, metadata, consent, error, onConsentChan
                 control={
                     <Checkbox
                         checked={consent}
-                        onChange={(event) => onConsentChange(event.target.checked)}
-                        aria-describedby={error ? errorId : undefined}
+                        onChange={(event) => {
+                            setConsentTouched(true);
+                            onConsentChange(event.target.checked);
+                        }}
+                        inputProps={{ 'aria-describedby': visibleError ? errorId : undefined }}
                     />
                 }
                 label="I accept the public CC0 deposit terms"
             />
-            {error ? (
+            {visibleError ? (
                 <FormHelperText error id={errorId} role="alert">
-                    {error}
+                    {visibleError}
                 </FormHelperText>
             ) : null}
         </Box>

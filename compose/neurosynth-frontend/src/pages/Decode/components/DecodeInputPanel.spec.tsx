@@ -44,6 +44,15 @@ const completeRequiredFields = async ({ analysisLevel = 'group' }: { analysisLev
     await userEvent.type(screen.getByLabelText('Number of subjects'), '48');
 };
 
+const completeUploadDraft = async () => {
+    await userEvent.click(screen.getByRole('tab', { name: 'Upload NIfTI' }));
+    await userEvent.upload(screen.getByLabelText('Choose a NIfTI file'), new File(['map'], 'map.nii.gz'));
+    await userEvent.selectOptions(screen.getByLabelText('Map type'), 'z');
+    await userEvent.selectOptions(screen.getByLabelText('Analysis level'), 'group');
+    await userEvent.selectOptions(screen.getByLabelText('Modality'), 'fmri-bold');
+    await userEvent.type(screen.getByLabelText('Number of subjects'), '48');
+};
+
 const renderPanel = (onPreview = vi.fn()) => {
     const Wrapper = () => {
         const [value, setValue] = useState<IDecodeDraft>(EMPTY_DECODE_DRAFT);
@@ -208,13 +217,68 @@ it('previews a valid submission through the guarded preview action', async () =>
     expect(onPreview).toHaveBeenCalledOnce();
 });
 
-it('requires acknowledgement before previewing a subject-level map', async () => {
+it.each([
+    ['', 'Number of term results is required.'],
+    ['-1', 'Number of term results must be at least 1.'],
+    ['2.5', 'Number of term results must be a whole number.'],
+])('blocks an invalid result limit %s until one touched correction is resolved', async (value, correction) => {
+    const user = userEvent.setup();
+    renderPanel();
+    await completeRequiredFields();
+    const parameter = screen.getByLabelText('Number of term results');
+    const preview = screen.getByRole('button', { name: 'Preview example results' });
+
+    await user.clear(parameter);
+    if (value) await user.type(parameter, value);
+    expect(preview).toBeDisabled();
+    expect(screen.queryByText(correction)).not.toBeInTheDocument();
+
+    await user.tab();
+    expect(parameter).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getAllByText(correction)).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Reset parameters' }));
+    expect(parameter).toHaveValue(50);
+    expect(preview).toBeEnabled();
+    expect(screen.queryByText(correction)).not.toBeInTheDocument();
+});
+
+it('keeps deposit consent neutral until interaction and shows one correction after unchecking', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await completeUploadDraft();
+    const consent = screen.getByRole('checkbox', { name: /I accept the public CC0 deposit terms/ });
+    const preview = screen.getByRole('button', { name: 'Preview example results' });
+
+    expect(screen.getByText(/publicly accessible under CC0/)).toBeVisible();
+    expect(screen.getByText(/Nothing is uploaded in this preview/)).toBeVisible();
+    expect(screen.queryByText('Accept the public CC0 deposit terms to continue.')).not.toBeInTheDocument();
+    expect(preview).toBeDisabled();
+
+    await user.click(consent);
+    expect(preview).toBeEnabled();
+    await user.click(consent);
+    expect(preview).toBeDisabled();
+    expect(screen.getAllByText('Accept the public CC0 deposit terms to continue.')).toHaveLength(1);
+    expect(consent).toHaveAccessibleDescription('Accept the public CC0 deposit terms to continue.');
+});
+
+it('keeps subject acknowledgement neutral until interaction and shows one correction after unchecking', async () => {
+    const user = userEvent.setup();
     renderPanel();
     await completeRequiredFields({ analysisLevel: 'subject' });
     expect(screen.getByRole('alert')).toHaveTextContent('NiCLIP was designed for group-level maps');
-    expect(screen.getByRole('button', { name: 'Preview example results' })).toBeDisabled();
-    await userEvent.click(screen.getByRole('checkbox', { name: /continue with a subject-level map/i }));
-    expect(screen.getByRole('button', { name: 'Preview example results' })).toBeEnabled();
+    expect(screen.queryByText('Acknowledge the subject-level warning to continue.')).not.toBeInTheDocument();
+    const acknowledgement = screen.getByRole('checkbox', { name: /continue with a subject-level map/i });
+    const preview = screen.getByRole('button', { name: 'Preview example results' });
+    expect(preview).toBeDisabled();
+
+    await user.click(acknowledgement);
+    expect(preview).toBeEnabled();
+    await user.click(acknowledgement);
+    expect(preview).toBeDisabled();
+    expect(screen.getAllByText('Acknowledge the subject-level warning to continue.')).toHaveLength(1);
+    expect(acknowledgement).toHaveAccessibleDescription('Acknowledge the subject-level warning to continue.');
 });
 
 it('keeps an invalid upload visible with its validation error and preview disabled', async () => {

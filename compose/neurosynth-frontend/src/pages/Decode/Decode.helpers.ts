@@ -1,6 +1,13 @@
 import { MNI_LIMITS } from './Decode.constants';
 import { DECODE_MODELS } from './Decode.fixtures';
-import type { IDecodeDraft, IDecodeRunRequest, IDecodeSubmission, IDecodeValidationErrors, IMniPoint } from './Decode.types';
+import type {
+    IDecodeDraft,
+    IDecodeParameterDefinition,
+    IDecodeRunRequest,
+    IDecodeSubmission,
+    IDecodeValidationErrors,
+    IMniPoint,
+} from './Decode.types';
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const NEUROVAULT_HOSTS = new Set(['neurovault.org', 'www.neurovault.org']);
@@ -33,12 +40,55 @@ const coordinateErrors = (point: IMniPoint): string[] =>
         }
     );
 
+const validateModelParameter = (
+    definition: IDecodeParameterDefinition,
+    value: string | number | boolean | undefined
+): string | undefined => {
+    if (value === undefined || value === '') return `${definition.label} is required.`;
+    switch (definition.kind) {
+        case 'integer':
+        case 'number':
+            if (typeof value !== 'number' || !Number.isFinite(value)) {
+                return `${definition.label} must be a finite number.`;
+            }
+            if (definition.kind === 'integer' && !Number.isInteger(value)) {
+                return `${definition.label} must be a whole number.`;
+            }
+            if (definition.min !== undefined && value < definition.min) {
+                return `${definition.label} must be at least ${definition.min}.`;
+            }
+            if (definition.max !== undefined && value > definition.max) {
+                return `${definition.label} must be at most ${definition.max}.`;
+            }
+            return undefined;
+        case 'boolean':
+            return typeof value === 'boolean' ? undefined : `${definition.label} must be selected.`;
+        case 'select':
+            return typeof value === 'string' && definition.options?.some((option) => option.value === value)
+                ? undefined
+                : `Choose a valid ${definition.label}.`;
+        default: {
+            const exhaustiveKind: never = definition.kind;
+            return exhaustiveKind;
+        }
+    }
+};
+
 export const validateDecodeDraft = (draft: IDecodeDraft): IDecodeValidationErrors => {
     const errors: IDecodeValidationErrors = {};
     const model = DECODE_MODELS.find(({ id }) => id === draft.modelId);
     if (!model) errors.modelId = 'Choose a supported decoder model.';
-    else if (!model.supportedSources.includes(draft.activeSource)) {
-        errors.modelId = `${model.name} does not support ${SOURCE_LABELS[draft.activeSource]}.`;
+    else {
+        if (!model.supportedSources.includes(draft.activeSource)) {
+            errors.modelId = `${model.name} does not support ${SOURCE_LABELS[draft.activeSource]}.`;
+        }
+        const modelParameters = Object.fromEntries(
+            model.parameters.flatMap((definition) => {
+                const error = validateModelParameter(definition, draft.modelParameters[definition.key]);
+                return error ? [[definition.key, error]] : [];
+            })
+        );
+        if (Object.keys(modelParameters).length) errors.modelParameters = modelParameters;
     }
     if (draft.activeSource === 'upload') {
         if (!draft.file) errors.source = 'Choose a NIfTI file.';

@@ -101,6 +101,8 @@ export interface IDecodeParameterDefinition {
     kind: DecodeParameterKind;
     defaultValue: string | number | boolean;
     description?: string;
+    min?: number;
+    max?: number;
     options?: ISelectOption[];
 }
 
@@ -186,6 +188,8 @@ export interface IDecodeComparableResult {
     mapUrl?: string;
 }
 
+export type IDecodeParameterErrors = Partial<Record<string, string>>;
+
 export interface IDecodeValidationErrors {
     source?: string;
     modelId?: string;
@@ -196,6 +200,7 @@ export interface IDecodeValidationErrors {
     modality?: string;
     subjectCount?: string;
     subjectWarningAcknowledged?: string;
+    modelParameters?: IDecodeParameterErrors;
 }
 
 /** @deprecated Use DecodeSourceKind and IDecodeDraft. */

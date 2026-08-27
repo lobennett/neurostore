@@ -45,7 +45,9 @@ export const DECODE_MODELS: IDecodeModelDefinition[] = [
         supportedSources: ['neurovault', 'upload', 'coordinates'],
         inputRequirements:
             'For map sources, provide a 3D, unthresholded z- or t-statistic map in MNI152 space; for coordinate sources, provide MNI coordinates.',
-        parameters: [{ key: 'resultLimit', label: 'Number of term results', kind: 'integer', defaultValue: 50 }],
+        parameters: [
+            { key: 'resultLimit', label: 'Number of term results', kind: 'integer', defaultValue: 50, min: 1 },
+        ],
         outputViews: ['terms', 'studies', 'model-summary', 'compare'],
         interpretationNote:
             'An association or high rank is evidence for interpretation, not proof of the cognitive state that produced the input.',

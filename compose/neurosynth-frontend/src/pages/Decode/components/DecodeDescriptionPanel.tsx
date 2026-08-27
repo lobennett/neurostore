@@ -1,4 +1,5 @@
 import { Alert, Checkbox, FormControlLabel, FormHelperText, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
 import type { IDecodeDraft, IDecodeMetadata, IDecodeValidationErrors } from '../Decode.types';
 import DecodeConceptSelector from './DecodeConceptSelector';
 import DecodeInterpretation from './DecodeInterpretation';
@@ -11,10 +12,17 @@ interface DecodeDescriptionPanelProps {
 }
 
 const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPanelProps) => {
-    const updateMetadata = <K extends keyof IDecodeMetadata>(key: K, value: IDecodeMetadata[K]) =>
+    const [subjectAcknowledgementTouched, setSubjectAcknowledgementTouched] = useState(false);
+    const updateMetadata = <K extends keyof IDecodeMetadata>(key: K, value: IDecodeMetadata[K]) => {
+        if (key === 'analysisLevel') setSubjectAcknowledgementTouched(false);
         onChange({ ...draft, metadata: { ...draft.metadata, [key]: value } });
+    };
     const isMapInput = draft.activeSource !== 'coordinates';
     const isSubjectMap = isMapInput && draft.metadata.analysisLevel === 'subject';
+    const subjectAcknowledgementError = subjectAcknowledgementTouched
+        ? errors.subjectWarningAcknowledged
+        : undefined;
+    const subjectAcknowledgementErrorId = 'decode-subject-acknowledgement-error';
 
     return (
         <Stack component="section" spacing={2} aria-label="Map description">
@@ -36,12 +44,24 @@ const DecodeDescriptionPanel = ({ draft, errors, onChange }: DecodeDescriptionPa
                         control={
                             <Checkbox
                                 checked={draft.subjectWarningAcknowledged}
-                                onChange={(event) => onChange({ ...draft, subjectWarningAcknowledged: event.target.checked })}
+                                onChange={(event) => {
+                                    setSubjectAcknowledgementTouched(true);
+                                    onChange({ ...draft, subjectWarningAcknowledged: event.target.checked });
+                                }}
+                                inputProps={{
+                                    'aria-describedby': subjectAcknowledgementError
+                                        ? subjectAcknowledgementErrorId
+                                        : undefined,
+                                }}
                             />
                         }
                         label="Continue with a subject-level map"
                     />
-                    {errors.subjectWarningAcknowledged && <FormHelperText error>{errors.subjectWarningAcknowledged}</FormHelperText>}
+                    {subjectAcknowledgementError ? (
+                        <FormHelperText error id={subjectAcknowledgementErrorId} role="alert">
+                            {subjectAcknowledgementError}
+                        </FormHelperText>
+                    ) : null}
                 </Alert>
             )}
             <DecodeConceptSelector concepts={draft.concepts} onChange={(concepts) => onChange({ ...draft, concepts })} />

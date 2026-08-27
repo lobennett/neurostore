@@ -13,17 +13,20 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
+import { useState } from 'react';
 import { DECODE_MODELS } from '../Decode.fixtures';
 import type {
     DecodeModelId,
     DecodeSourceKind,
     IDecodeModelDefinition,
+    IDecodeParameterErrors,
     IDecodeParameterDefinition,
 } from '../Decode.types';
 
 interface DecodeModelPanelProps {
     modelId: DecodeModelId;
     parameters: Record<string, string | number | boolean>;
+    parameterErrors?: IDecodeParameterErrors;
     sourceKind: DecodeSourceKind;
     onChange: (modelId: DecodeModelId, parameters: Record<string, string | number | boolean>) => void;
 }
@@ -40,12 +43,17 @@ const defaultParameters = (model: IDecodeModelDefinition) =>
 const DecodeParameterControl = ({
     definition,
     value,
+    error,
     onChange,
+    onBlur,
 }: {
     definition: IDecodeParameterDefinition;
     value: string | number | boolean;
+    error?: string;
     onChange: (value: string | number | boolean) => void;
+    onBlur: () => void;
 }) => {
+    const errorId = `decode-model-parameter-${definition.key}-error`;
     switch (definition.kind) {
         case 'integer':
         case 'number':
@@ -55,20 +63,40 @@ const DecodeParameterControl = ({
                     label={definition.label}
                     type="number"
                     value={value}
+                    error={Boolean(error)}
                     onChange={(event) => {
                         const nextValue = event.target.value;
                         onChange(nextValue === '' ? '' : Number(nextValue));
                     }}
-                    helperText={definition.description}
-                    inputProps={{ step: definition.kind === 'integer' ? 1 : 'any' }}
+                    onBlur={onBlur}
+                    helperText={error ?? definition.description}
+                    inputProps={{
+                        step: definition.kind === 'integer' ? 1 : 'any',
+                        min: definition.min,
+                        max: definition.max,
+                    }}
                 />
             );
         case 'boolean':
             return (
-                <FormControlLabel
-                    control={<Checkbox checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />}
-                    label={definition.label}
-                />
+                <Box>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={Boolean(value)}
+                                onBlur={onBlur}
+                                onChange={(event) => onChange(event.target.checked)}
+                                inputProps={{ 'aria-describedby': error ? errorId : undefined }}
+                            />
+                        }
+                        label={definition.label}
+                    />
+                    {error ? (
+                        <Typography id={errorId} color="error" variant="caption" role="alert">
+                            {error}
+                        </Typography>
+                    ) : null}
+                </Box>
             );
         case 'select':
             return (
@@ -79,7 +107,9 @@ const DecodeParameterControl = ({
                     label={definition.label}
                     value={String(value)}
                     onChange={(event) => onChange(event.target.value)}
-                    helperText={definition.description}
+                    onBlur={onBlur}
+                    error={Boolean(error)}
+                    helperText={error ?? definition.description}
                     InputLabelProps={{ shrink: true }}
                 >
                     {definition.options?.map(({ value: optionValue, label }) => (
@@ -96,14 +126,18 @@ const DecodeParameterControl = ({
     }
 };
 
-const DecodeModelPanel = ({ modelId, parameters, sourceKind, onChange }: DecodeModelPanelProps) => {
+const DecodeModelPanel = ({ modelId, parameters, parameterErrors, sourceKind, onChange }: DecodeModelPanelProps) => {
+    const [touchedParameters, setTouchedParameters] = useState<Partial<Record<string, boolean>>>({});
     const model = DECODE_MODELS.find(({ id }) => id === modelId) ?? DECODE_MODELS[0];
     const compatible = model.supportedSources.includes(sourceKind);
     const neuroVlm = DECODE_MODELS.find(({ id }) => id === 'neurovlm');
 
     const selectModel = (nextModelId: string) => {
         const nextModel = DECODE_MODELS.find(({ id }) => id === nextModelId);
-        if (nextModel) onChange(nextModel.id, defaultParameters(nextModel));
+        if (nextModel) {
+            setTouchedParameters({});
+            onChange(nextModel.id, defaultParameters(nextModel));
+        }
     };
 
     return (
@@ -192,7 +226,7 @@ const DecodeModelPanel = ({ modelId, parameters, sourceKind, onChange }: DecodeM
                             <Button
                                 color="inherit"
                                 size="small"
-                                onClick={() => onChange(neuroVlm.id, defaultParameters(neuroVlm))}
+                                onClick={() => selectModel(neuroVlm.id)}
                             >
                                 Use NeuroVLM instead
                             </Button>
@@ -206,7 +240,13 @@ const DecodeModelPanel = ({ modelId, parameters, sourceKind, onChange }: DecodeM
             <Stack spacing={1.5} sx={{ mt: 2 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
                     <Typography variant="subtitle2">{model.name} parameters</Typography>
-                    <Button size="small" onClick={() => onChange(model.id, defaultParameters(model))}>
+                    <Button
+                        size="small"
+                        onClick={() => {
+                            setTouchedParameters({});
+                            onChange(model.id, defaultParameters(model));
+                        }}
+                    >
                         Reset parameters
                     </Button>
                 </Stack>
@@ -215,7 +255,11 @@ const DecodeModelPanel = ({ modelId, parameters, sourceKind, onChange }: DecodeM
                         key={parameter.key}
                         definition={parameter}
                         value={parameters[parameter.key] ?? parameter.defaultValue}
+                        error={touchedParameters[parameter.key] ? parameterErrors?.[parameter.key] : undefined}
                         onChange={(value) => onChange(model.id, { ...parameters, [parameter.key]: value })}
+                        onBlur={() =>
+                            setTouchedParameters((current) => ({ ...current, [parameter.key]: true }))
+                        }
                     />
                 ))}
             </Stack>

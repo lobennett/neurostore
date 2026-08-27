@@ -141,6 +141,27 @@ describe('decode input helpers', () => {
         expect(() => buildDecodeRunRequest(draft)).toThrow('Cannot build a decoder request from an invalid draft.');
     });
 
+    it.each([
+        ['', 'Number of term results is required.'],
+        [Number.NaN, 'Number of term results must be a finite number.'],
+        [-1, 'Number of term results must be at least 1.'],
+        [2.5, 'Number of term results must be a whole number.'],
+    ])('rejects invalid registry-defined integer parameter %s', (resultLimit, expectedError) => {
+        const draft = completeDraft({ modelParameters: { resultLimit } });
+
+        expect(validateDecodeDraft(draft).modelParameters?.resultLimit).toBe(expectedError);
+        expect(() => buildDecodeRunRequest(draft)).toThrow('Cannot build a decoder request from an invalid draft.');
+    });
+
+    it('rejects a select value outside the selected model parameter schema', () => {
+        const draft = completeDraft({
+            modelId: 'niclip',
+            modelParameters: { prior: 'unsupported', evidenceThreshold: 3 },
+        });
+
+        expect(validateDecodeDraft(draft).modelParameters?.prior).toBe('Choose a valid NiCLIP prior.');
+    });
+
     it('marks scientific input changes stale but ignores viewer display changes', () => {
         const draft = completeDraft({ modelId: 'neurovlm' });
         const request = buildDecodeRunRequest(draft);
