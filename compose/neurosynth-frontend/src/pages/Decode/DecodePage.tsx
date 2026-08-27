@@ -262,6 +262,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, initialFixtureScenario, fixture
                         <Stack spacing={{ xs: 2, md: 3 }}>
                             <DecodeViewer
                                 source={successfulState.request.source}
+                                visualization={successfulState.preview.visualization}
                                 atlasReadouts={successfulState.preview.atlasReadouts}
                                 value={viewerState}
                                 onChange={setViewerState}

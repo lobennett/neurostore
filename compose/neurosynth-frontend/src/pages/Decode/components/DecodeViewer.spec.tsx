@@ -2,17 +2,77 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
-import type { DecodeRunSource, IAtlasReadout, IViewerState } from '../Decode.types';
+import type { DecodeRunSource, IDecodeVisualization, IAtlasReadout, IViewerState } from '../Decode.types';
 import DecodeViewer from './DecodeViewer';
+
+vi.mock('./DecodeNiiVueCanvas', () => ({
+    default: ({
+        volumes,
+        onCoordinateChange,
+        onVolumeRangesChange,
+    }: {
+        volumes: Array<{ id: string }>;
+        onCoordinateChange: (coordinate: { x: number; y: number; z: number }) => void;
+        onVolumeRangesChange: (ranges: Record<string, { globalMin: number; globalMax: number }>) => void;
+    }) => (
+        <section aria-label="Recorded decoder maps">
+            <span>{volumes.map(({ id }) => id).join(', ')}</span>
+            <button type="button" onClick={() => onCoordinateChange({ x: -42, y: 8, z: 30 })}>
+                Move map crosshair
+            </button>
+            <button
+                type="button"
+                onClick={() =>
+                    onVolumeRangesChange({
+                        'response-control': { globalMin: -4.25, globalMax: 7.5 },
+                    })
+                }
+            >
+                Report map range
+            </button>
+        </section>
+    ),
+}));
 
 const atlasReadouts: IAtlasReadout[] = [
     { atlas: 'Harvard-Oxford cortical atlas', region: 'Left inferior frontal gyrus', percentage: 72 },
 ];
 
+const anatomical = {
+    id: 'generic-mni',
+    url: '/recorded/generic-mni.nii.gz',
+    filename: 'generic-mni.nii.gz',
+    kind: 'anatomical' as const,
+    statisticType: 'anatomical' as const,
+    provenance: {
+        sourceUrl: 'https://example.test/generic-mni.nii.gz',
+        license: 'CC0' as const,
+        sha256: 'mni',
+        bytes: 1,
+    },
+};
+const input = {
+    id: 'response-control',
+    url: '/recorded/response-control.nii.gz',
+    filename: 'response-control.nii.gz',
+    kind: 'input-statistic' as const,
+    statisticType: 'z' as const,
+    provenance: {
+        sourceUrl: 'https://example.test/response-control.nii.gz',
+        license: 'CC0' as const,
+        sha256: 'input',
+        bytes: 1,
+    },
+};
+const recordedVisualization: IDecodeVisualization = { anatomical, input, comparisonByResultId: {} };
+
 let onDisplayChange = vi.fn();
 let onPreview = vi.fn();
 
-const renderViewer = (source: DecodeRunSource = { kind: 'neurovault', imageId: '25' }) => {
+const renderViewer = (
+    source: DecodeRunSource = { kind: 'neurovault', imageId: '25' },
+    visualization?: IDecodeVisualization
+) => {
     onDisplayChange = vi.fn();
     onPreview = vi.fn();
 
@@ -23,13 +83,21 @@ const renderViewer = (source: DecodeRunSource = { kind: 'neurovault', imageId: '
             setViewer(nextViewer);
         };
 
-        return <DecodeViewer source={source} atlasReadouts={atlasReadouts} value={viewer} onChange={handleChange} />;
+        return (
+            <DecodeViewer
+                source={source}
+                visualization={visualization}
+                atlasReadouts={atlasReadouts}
+                value={viewer}
+                onChange={handleChange}
+            />
+        );
     };
 
     return render(<Wrapper />);
 };
 
-it('labels the viewer, planes, and atlas values as examples', () => {
+it('keeps an explicitly illustrative, no-map viewer when visualization is absent', () => {
     renderViewer();
 
     const viewer = screen.getByRole('region', { name: 'Example map viewer' });
@@ -39,6 +107,43 @@ it('labels the viewer, planes, and atlas values as examples', () => {
     expect(within(viewer).getByText('Axial plane')).toBeVisible();
     expect(screen.getByText('Example atlas readout')).toBeVisible();
     expect(screen.getByText(/has not loaded or inspected your map/)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Recorded decoder maps' })).not.toBeInTheDocument();
+});
+
+it('renders recorded anatomy and input assets and synchronizes canvas coordinates', async () => {
+    const user = userEvent.setup();
+    renderViewer({ kind: 'neurovault', imageId: '308' }, recordedVisualization);
+
+    expect(await screen.findByRole('region', { name: 'Recorded decoder maps' })).toHaveTextContent(
+        'generic-mni, response-control'
+    );
+    expect(screen.getByText(/Recorded map viewer/)).toBeVisible();
+    expect(screen.getByText('Example atlas readout')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Move map crosshair' }));
+
+    expect(screen.getByText(/Selected MNI coordinate: x −42, y 8, z 30/)).toBeVisible();
+    expect(onDisplayChange).toHaveBeenLastCalledWith({ x: -42, y: 8, z: 30, threshold: 0 });
+});
+
+it('loads only anatomy for a recorded coordinate source and derives signed thresholds from its input range', async () => {
+    const user = userEvent.setup();
+    const coordinateVisualization: IDecodeVisualization = { anatomical, comparisonByResultId: {} };
+    const coordinateViewer = renderViewer(
+        { kind: 'coordinates', points: [{ id: 'p1', label: 'Seed', x: 0, y: 0, z: 0 }] },
+        coordinateVisualization
+    );
+
+    expect(await screen.findByRole('region', { name: 'Recorded decoder maps' })).toHaveTextContent('generic-mni');
+    expect(screen.getByRole('region', { name: 'Recorded decoder maps' })).not.toHaveTextContent('response-control');
+
+    coordinateViewer.unmount();
+    renderViewer({ kind: 'neurovault', imageId: '308' }, recordedVisualization);
+    await user.click(screen.getByRole('button', { name: 'Report map range' }));
+
+    expect(screen.getByText(/Input display range: −4.25 to 7.50/)).toBeVisible();
+    expect(screen.getByRole('slider', { name: 'Positive input threshold' })).toHaveAttribute('aria-valuemax', '7.5');
+    expect(screen.getByRole('slider', { name: 'Negative input threshold' })).toHaveAttribute('aria-valuemin', '-4.25');
 });
 
 it('updates the active coordinate and corresponding text readout', async () => {
