@@ -11,11 +11,14 @@ import type {
     IDecodeFrontendAdapter,
     IDecodePreviewState,
     IDecodeRunRequest,
+    IViewerState,
 } from './Decode.types';
 import DecodeInputPanel from './components/DecodeInputPanel';
 import DecodeResults from './components/DecodeResults';
+import DecodeViewer from './components/DecodeViewer';
 
 const DEFAULT_ADAPTER = createFixtureDecodeAdapter();
+const DEFAULT_VIEWER_STATE: IViewerState = { x: 0, y: 0, z: 0, threshold: 0 };
 
 interface DecodePageProps {
     adapter?: IDecodeFrontendAdapter;
@@ -55,6 +58,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
     const [announcement, setAnnouncement] = useState('');
     const [autoFocusSource, setAutoFocusSource] = useState(false);
     const [workspaceVersion, setWorkspaceVersion] = useState(0);
+    const [viewerState, setViewerState] = useState<IViewerState>(DEFAULT_VIEWER_STATE);
 
     usePageMetadata({
         title: 'Decode a brain map | Neurosynth Compose',
@@ -77,6 +81,12 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
     const openPreview = () => {
         const request = buildDecodeRunRequest(draft);
         setPreviewState(adapter.preview(request, fixtureScenario));
+        const initialCoordinate = request.source.kind === 'coordinates' ? request.source.points[0] : undefined;
+        setViewerState(
+            initialCoordinate
+                ? { x: initialCoordinate.x, y: initialCoordinate.y, z: initialCoordinate.z, threshold: 0 }
+                : DEFAULT_VIEWER_STATE
+        );
         setInputsExpanded(false);
         setActiveResultView('terms');
         setSelectedTerm(undefined);
@@ -92,6 +102,7 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
         setSelectedTerm(undefined);
         setAnnouncement('Preview reset. Choose another map source.');
         setAutoFocusSource(true);
+        setViewerState(DEFAULT_VIEWER_STATE);
         setWorkspaceVersion((version) => version + 1);
     };
 
@@ -174,72 +185,80 @@ const DecodePage = ({ adapter = DEFAULT_ADAPTER, fixtureScenario = 'success' }: 
             </Paper>
 
             {previewState?.status === 'success' ? (
-                <Box
-                    role="region"
-                    aria-label="Illustrative decoder results"
-                    sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(250px, 0.38fr) minmax(0, 1fr)' },
-                        gap: { xs: 2, md: 3 },
-                        alignItems: 'start',
-                    }}
-                >
-                    <Paper component="aside" variant="outlined" sx={{ p: 2.5, borderTop: '3px solid #023e8a' }}>
-                        {previewIsStale ? (
-                            <Alert severity="warning" sx={{ mb: 2 }}>
-                                This example preview is out of date.
-                            </Alert>
-                        ) : null}
-                        <Typography component="h2" variant="h6" sx={{ fontWeight: 700 }}>
-                            Preview snapshot
-                        </Typography>
-                        <Typography sx={{ mt: 1, overflowWrap: 'anywhere' }}>{sourceLabel}</Typography>
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: 0.5, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
-                        >
-                            {model?.name} · {previewState.request.modelVersion}
-                        </Typography>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            Declared input
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            Declared input: {declaredInputForRequest(previewState.request)}
-                        </Typography>
-                        {nonDefaultParameters.length ? (
-                            <Box sx={{ mt: 2 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                    Changed parameters
-                                </Typography>
-                                {nonDefaultParameters.map(({ key, label }) => (
-                                    <Typography key={key} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                        {label}: {String(previewState.request.parameters[key])}
-                                    </Typography>
-                                ))}
-                            </Box>
-                        ) : null}
-                        {model ? (
-                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
-                                {model.interpretationNote}
+                <Stack spacing={{ xs: 2, md: 3 }}>
+                    <DecodeViewer
+                        source={previewState.request.source}
+                        atlasReadouts={previewState.preview.atlasReadouts}
+                        value={viewerState}
+                        onChange={setViewerState}
+                    />
+                    <Box
+                        role="region"
+                        aria-label="Illustrative decoder results"
+                        sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(250px, 0.38fr) minmax(0, 1fr)' },
+                            gap: { xs: 2, md: 3 },
+                            alignItems: 'start',
+                        }}
+                    >
+                        <Paper component="aside" variant="outlined" sx={{ p: 2.5, borderTop: '3px solid #023e8a' }}>
+                            {previewIsStale ? (
+                                <Alert severity="warning" sx={{ mb: 2 }}>
+                                    This example preview is out of date.
+                                </Alert>
+                            ) : null}
+                            <Typography component="h2" variant="h6" sx={{ fontWeight: 700 }}>
+                                Preview snapshot
                             </Typography>
-                        ) : null}
-                        <Button variant="outlined" onClick={resetPreview} sx={{ mt: 2 }}>
-                            Start another preview
-                        </Button>
-                    </Paper>
-                    <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-                        <DecodeResults
-                            activeView={activeResultView}
-                            selectedTerm={selectedTerm}
-                            sourceLabel={sourceLabel}
-                            onViewChange={setActiveResultView}
-                            onSelectTerm={setSelectedTerm}
-                            autoFocusActiveTab
-                        />
-                    </Paper>
-                </Box>
+                            <Typography sx={{ mt: 1, overflowWrap: 'anywhere' }}>{sourceLabel}</Typography>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.5, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
+                            >
+                                {model?.name} · {previewState.request.modelVersion}
+                            </Typography>
+                            <Divider sx={{ my: 2 }} />
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                Declared input
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Declared input: {declaredInputForRequest(previewState.request)}
+                            </Typography>
+                            {nonDefaultParameters.length ? (
+                                <Box sx={{ mt: 2 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                        Changed parameters
+                                    </Typography>
+                                    {nonDefaultParameters.map(({ key, label }) => (
+                                        <Typography key={key} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                            {label}: {String(previewState.request.parameters[key])}
+                                        </Typography>
+                                    ))}
+                                </Box>
+                            ) : null}
+                            {model ? (
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
+                                    {model.interpretationNote}
+                                </Typography>
+                            ) : null}
+                            <Button variant="outlined" onClick={resetPreview} sx={{ mt: 2 }}>
+                                Start another preview
+                            </Button>
+                        </Paper>
+                        <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
+                            <DecodeResults
+                                activeView={activeResultView}
+                                selectedTerm={selectedTerm}
+                                sourceLabel={sourceLabel}
+                                onViewChange={setActiveResultView}
+                                onSelectTerm={setSelectedTerm}
+                                autoFocusActiveTab
+                            />
+                        </Paper>
+                    </Box>
+                </Stack>
             ) : null}
         </Box>
     );
