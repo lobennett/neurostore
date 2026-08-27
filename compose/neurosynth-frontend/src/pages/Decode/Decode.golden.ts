@@ -22,6 +22,7 @@ interface IRecordedManifestAsset {
     statisticType: DecodeStatisticType;
     sourceUrl: string;
     license: IDecodeVolumeAsset['provenance']['license'];
+    attribution: string;
 }
 
 interface IRecordedManifest {
@@ -30,18 +31,25 @@ interface IRecordedManifest {
     input: {
         neurovaultImageId: string;
         sourceUrl: string;
+        collection: string;
+        collectionId: string;
         statisticType: 't';
         analysisLevel: 'group';
         modality: 'fMRI BOLD';
         subjectCount: number;
+        doi: string;
+        license: 'CC0';
+        attribution: string;
     };
     method: {
         label: 'Recorded Neurosynth Pearson example';
         name: 'Pearson correlation';
         referenceDataset: 'terms_20k';
+        resultEndpoint: string;
         resultId: string;
         rankingRule: 'absolute-correlation-descending';
         sourceUrl: string;
+        attribution: string;
     };
     assets: IRecordedManifestAsset[];
     terms: Array<{ id: string; label: string; rank: number; r: number; mapAssetId?: string }>;
@@ -66,6 +74,7 @@ const toVolumeAsset = (asset: IRecordedManifestAsset): IDecodeVolumeAsset => ({
     provenance: {
         sourceUrl: asset.sourceUrl,
         license: asset.license,
+        attribution: asset.attribution,
         sha256: asset.sha256,
         bytes: asset.bytes,
     },
@@ -136,6 +145,22 @@ export const loadGoldenWalkthrough = async (): Promise<{ draft: IDecodeDraft; pr
                 retrievedAt: manifest.retrievalDate,
                 rankingRule: manifest.method.rankingRule,
                 sourceUrl: manifest.method.sourceUrl,
+                resultUrl: manifest.method.resultEndpoint,
+                input: {
+                    imageId: manifest.input.neurovaultImageId,
+                    sourceUrl: manifest.input.sourceUrl,
+                    collectionId: manifest.input.collectionId,
+                    collectionName: manifest.input.collection,
+                    collectionUrl: `https://neurovault.org/collections/${manifest.input.collectionId}/`,
+                    doi: manifest.input.doi,
+                    doiUrl: `https://doi.org/${manifest.input.doi}`,
+                    license: manifest.input.license,
+                    attribution: manifest.input.attribution,
+                },
+                termMaps: {
+                    license: 'ODbL-derived',
+                    attribution: manifest.method.attribution,
+                },
             },
             terms: manifest.terms.map(({ id, label, rank, r, mapAssetId }) => ({
                 id,

@@ -1,14 +1,17 @@
 import { Box, Divider, Stack, Typography } from '@mui/material';
 import type { IDecodeModelDefinition } from '../Decode.types';
 
-const DecodeMethodSummary: React.FC<{ model: IDecodeModelDefinition }> = ({ model }) => (
+const DecodeMethodSummary: React.FC<{ model: IDecodeModelDefinition; recorded?: boolean }> = ({
+    model,
+    recorded = false,
+}) => (
     <Box
         component="section"
         aria-labelledby="decode-method-heading"
         sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}
     >
         <Typography id="decode-method-heading" component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-            About {model.name} decoding
+            {recorded ? 'Recorded Neurosynth Pearson method' : `About ${model.name} decoding`}
         </Typography>
         <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -18,7 +21,7 @@ const DecodeMethodSummary: React.FC<{ model: IDecodeModelDefinition }> = ({ mode
         >
             <Box sx={{ flex: 1 }}>
                 <Typography variant="caption" color="text.secondary">
-                    Model purpose
+                    {recorded ? 'Method purpose' : 'Model purpose'}
                 </Typography>
                 <Typography variant="body2">{model.purpose}</Typography>
             </Box>
@@ -38,7 +41,7 @@ const DecodeMethodSummary: React.FC<{ model: IDecodeModelDefinition }> = ({ mode
             display="block"
             sx={{ mt: 1, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
         >
-            Model snapshot: {model.version}
+            {recorded ? 'Recorded method snapshot' : 'Model snapshot'}: {model.version}
         </Typography>
     </Box>
 );

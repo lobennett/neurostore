@@ -7,6 +7,7 @@ import {
     isCanonicalGoldenDraft,
     isPreviewStale,
     parseNeurovaultImageId,
+    sortTerms,
     validateDecodeDraft,
     validateDecodeSubmission,
 } from './Decode.helpers';
@@ -27,6 +28,17 @@ const completeDraft = (overrides: Partial<IDecodeDraft> = {}): IDecodeDraft => (
 });
 
 describe('decode input helpers', () => {
+    it('sorts signed correlations by absolute magnitude without changing their signs', () => {
+        const terms = [
+            { id: 'medial', label: 'medial', rank: 4, metric: 'correlation' as const, value: 0.3 },
+            { id: 'negative', label: 'negative', rank: 3, metric: 'correlation' as const, value: -0.307 },
+            { id: 'motor', label: 'motor', rank: 2, metric: 'correlation' as const, value: 0.395 },
+            { id: 'premotor', label: 'premotor', rank: 1, metric: 'correlation' as const, value: 0.442 },
+        ];
+
+        expect(sortTerms(terms, 'magnitude', 'desc').map(({ value }) => value)).toEqual([0.442, 0.395, -0.307, 0.3]);
+    });
+
     it('recognizes canonical walkthrough inputs while preserving free-text interpretation', () => {
         const draft = makeGoldenWalkthroughDraft('reviewer notes');
 

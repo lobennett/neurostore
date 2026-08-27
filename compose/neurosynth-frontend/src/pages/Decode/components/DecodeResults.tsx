@@ -1,4 +1,4 @@
-import { Alert, Box, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Alert, Box, Link, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useEffect, useRef } from 'react';
 import type {
     DecodeMetric,
@@ -46,6 +46,77 @@ const METRIC_SUMMARIES: Record<DecodeMetric, { quantity: string; explanation: st
 const tabId = (view: DecodeResultView) => `decode-result-tab-${view}`;
 const panelId = (view: DecodeResultView) => `decode-result-panel-${view}`;
 
+const externalLinkProps = { target: '_blank', rel: 'noopener noreferrer' } as const;
+
+const RecordedProvenance: React.FC<{ preview: IDecodePreview }> = ({ preview }) => {
+    if (preview.provenance.kind !== 'recorded') return null;
+    const provenance = preview.provenance;
+    const mapSources = Object.entries(preview.visualization?.comparisonByResultId ?? {}).map(([resultId, asset]) => ({
+        label: preview.terms.find(({ id }) => id === resultId)?.label ?? resultId,
+        url: asset.provenance.sourceUrl,
+    }));
+
+    return (
+        <Alert severity="info" role="note" sx={{ borderLeft: `4px solid ${DECODE_COLORS.blue}` }}>
+            <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {provenance.label}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {provenance.method} · {provenance.referenceDataset} reference dataset ·{' '}
+                <Link href={provenance.sourceUrl} {...externalLinkProps}>
+                    Neurosynth method source
+                </Link>
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                Scores describe spatial similarity—not probability, diagnosis, or causal evidence. Ranked by absolute
+                correlation magnitude, strongest first; signed values are preserved.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                Retrieved {provenance.retrievedAt} · Result ID{' '}
+                <Link href={provenance.resultUrl} {...externalLinkProps}>
+                    Open recorded result {provenance.resultId}
+                </Link>
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                Source:{' '}
+                <Link href={provenance.input.sourceUrl} {...externalLinkProps}>
+                    NeuroVault image {provenance.input.imageId}
+                </Link>{' '}
+                from{' '}
+                <Link href={provenance.input.collectionUrl} {...externalLinkProps}>
+                    collection {provenance.input.collectionId}: {provenance.input.collectionName}
+                </Link>{' '}
+                ·{' '}
+                <Link href={provenance.input.doiUrl} {...externalLinkProps}>
+                    Collection DOI {provenance.input.doi}
+                </Link>
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {provenance.input.license} input map · {provenance.input.attribution}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {provenance.termMaps.license} term maps · {provenance.termMaps.attribution}
+            </Typography>
+            {mapSources.length ? (
+                <Stack
+                    component="ul"
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={{ xs: 0.25, sm: 1.5 }}
+                    sx={{ m: 0, mt: 0.5, pl: 2.5 }}
+                >
+                    {mapSources.map(({ label, url }) => (
+                        <Typography component="li" variant="body2" key={url}>
+                            <Link href={url} {...externalLinkProps}>
+                                {label.charAt(0).toLocaleUpperCase() + label.slice(1)} map source
+                            </Link>
+                        </Typography>
+                    ))}
+                </Stack>
+            ) : null}
+        </Alert>
+    );
+};
+
 const DecodeResults: React.FC<{
     activeView: DecodeResultView;
     preview: IDecodePreview;
@@ -71,6 +142,7 @@ const DecodeResults: React.FC<{
 }) => {
     const tabRefs = useRef<Partial<Record<DecodeResultView, HTMLDivElement | null>>>({});
     const pendingFocusView = useRef<DecodeResultView | undefined>(undefined);
+    const recorded = preview.provenance.kind === 'recorded';
     const termMetricSummary = METRIC_SUMMARIES[preview.termMetric];
     const availableResultViews = RESULT_VIEWS.filter(({ value }) => model.outputViews.includes(value));
     const resolvedActiveView = model.outputViews.includes(activeView)
@@ -96,9 +168,13 @@ const DecodeResults: React.FC<{
     return (
         <Box>
             <Stack spacing={1} sx={{ mb: 2 }}>
-                <Alert severity="info" role="note" sx={{ borderLeft: `4px solid ${DECODE_COLORS.blue}` }}>
-                    <Box component="span">{preview.provenance.label}</Box> · {preview.provenance.version}
-                </Alert>
+                {recorded ? (
+                    <RecordedProvenance preview={preview} />
+                ) : (
+                    <Alert severity="info" role="note" sx={{ borderLeft: `4px solid ${DECODE_COLORS.blue}` }}>
+                        <Box component="span">{preview.provenance.label}</Box> · {preview.provenance.version}
+                    </Alert>
+                )}
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.5, sm: 2 }} sx={{ px: 1.5 }}>
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                         {model.name} · {preview.modelVersion}
@@ -174,6 +250,7 @@ const DecodeResults: React.FC<{
                         <DecodeTermResults
                             terms={preview.terms}
                             metric={preview.termMetric}
+                            recorded={recorded}
                             selectedResult={selectedResult}
                             onSelectComparison={onSelectComparison}
                             onCompareSelected={canCompare ? () => changeViewAndFocusTab('compare') : undefined}
@@ -217,7 +294,7 @@ const DecodeResults: React.FC<{
                     sx={{ py: 2 }}
                 >
                     <Typography component="h2" variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                        {model.name} example summary
+                        {recorded ? 'Recorded result summary' : `${model.name} example summary`}
                     </Typography>
                     {model.id === 'niclip' ? (
                         <DecodeNiClipResults
@@ -231,11 +308,13 @@ const DecodeResults: React.FC<{
                                 {preview.modelSummary.narrative}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                {termMetricSummary.explanation}
+                                {recorded
+                                    ? 'Pearson correlation describes signed spatial similarity between the input image and each reference term map; it is not a probability.'
+                                    : termMetricSummary.explanation}
                             </Typography>
                             <Box
                                 component="ol"
-                                aria-label="NeuroVLM ranked concepts"
+                                aria-label={recorded ? 'Recorded Pearson ranked concepts' : 'NeuroVLM ranked concepts'}
                                 sx={{ m: 0, mt: 2, pl: 3, columnCount: { xs: 1, sm: 2 }, columnGap: 3 }}
                             >
                                 {preview.terms.slice(0, 10).map(({ id, label, value }) => (
@@ -251,7 +330,7 @@ const DecodeResults: React.FC<{
                             </Box>
                         </Box>
                     )}
-                    <DecodeMethodSummary model={model} />
+                    <DecodeMethodSummary model={model} recorded={recorded} />
                 </Box>
             ) : null}
             {canCompare ? (

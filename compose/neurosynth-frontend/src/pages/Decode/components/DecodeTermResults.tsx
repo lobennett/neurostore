@@ -28,6 +28,7 @@ const PAGE_SIZES = [25, 50, 100];
 
 const directionOptions = (sort: DecodeTermSort, metricLabel: string) => {
     if (sort === 'label') return { asc: 'A to Z', desc: 'Z to A' };
+    if (sort === 'magnitude') return { asc: 'Weakest first', desc: 'Strongest first' };
     if (sort === 'value') {
         return {
             asc: `Lowest ${metricLabel.toLocaleLowerCase()} first`,
@@ -40,13 +41,14 @@ const directionOptions = (sort: DecodeTermSort, metricLabel: string) => {
 const DecodeTermResults: React.FC<{
     terms: IDecodeTerm[];
     metric: DecodeMetric;
+    recorded?: boolean;
     selectedResult?: IDecodeComparableResult;
     onSelectComparison: (result: IDecodeComparableResult) => void;
     onCompareSelected?: () => void;
-}> = ({ terms, metric, selectedResult, onSelectComparison, onCompareSelected }) => {
+}> = ({ terms, metric, recorded = false, selectedResult, onSelectComparison, onCompareSelected }) => {
     const [query, setQuery] = useState('');
-    const [sort, setSort] = useState<DecodeTermSort>('rank');
-    const [direction, setDirection] = useState<DecodeSortDirection>('asc');
+    const [sort, setSort] = useState<DecodeTermSort>(recorded ? 'magnitude' : 'rank');
+    const [direction, setDirection] = useState<DecodeSortDirection>(recorded ? 'desc' : 'asc');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(50);
     const metricLabel = METRIC_LABELS[metric];
@@ -63,8 +65,9 @@ const DecodeTermResults: React.FC<{
     return (
         <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Ranked example concepts from this preview snapshot. Search labels or stable vocabulary identifiers, then
-                select a mapped result for comparison.
+                {recorded
+                    ? 'Recorded concepts from this walkthrough snapshot. Search terms or stable result identifiers, then select any result for comparison.'
+                    : 'Ranked example concepts from this preview snapshot. Search labels or stable vocabulary identifiers, then select a mapped result for comparison.'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
                 <TextField
@@ -92,6 +95,7 @@ const DecodeTermResults: React.FC<{
                 >
                     <option value="rank">Rank</option>
                     <option value="label">Term label</option>
+                    {recorded ? <option value="magnitude">Magnitude</option> : null}
                     <option value="value">{metricLabel} value</option>
                 </TextField>
                 <TextField
@@ -154,7 +158,11 @@ const DecodeTermResults: React.FC<{
                                         <Button
                                             variant="text"
                                             aria-pressed={selected}
-                                            aria-label={`Select ${term.label} for comparison`}
+                                            aria-label={
+                                                recorded && !term.mapUrl
+                                                    ? `Select ${term.label}; comparison map not bundled`
+                                                    : `Select ${term.label} for comparison`
+                                            }
                                             onClick={() =>
                                                 onSelectComparison({
                                                     id: term.id,
@@ -173,6 +181,16 @@ const DecodeTermResults: React.FC<{
                                         >
                                             {term.label}
                                         </Button>
+                                        {recorded ? (
+                                            <Typography
+                                                component="span"
+                                                variant="caption"
+                                                color="text.secondary"
+                                                sx={{ display: 'block' }}
+                                            >
+                                                {term.mapUrl ? 'Map bundled' : 'Map not bundled'}
+                                            </Typography>
+                                        ) : null}
                                     </TableCell>
                                     <TableCell
                                         sx={{ fontFamily: 'monospace', fontSize: '0.75rem', overflowWrap: 'anywhere' }}
@@ -307,7 +325,11 @@ const DecodeTermResults: React.FC<{
                         Next page
                     </Button>
                     {onCompareSelected ? (
-                        <Button variant="contained" disabled={!selectedResult?.mapUrl} onClick={onCompareSelected}>
+                        <Button
+                            variant="contained"
+                            disabled={recorded ? !selectedResult : !selectedResult?.mapUrl}
+                            onClick={onCompareSelected}
+                        >
                             Compare selected result
                         </Button>
                     ) : null}

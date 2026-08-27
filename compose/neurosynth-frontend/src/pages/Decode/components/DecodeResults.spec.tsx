@@ -70,7 +70,10 @@ const renderComparison = ({ selectedResult }: { selectedResult?: IDecodeComparab
     return render(<Harness />);
 };
 
-const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }> = successfulPreview()) => {
+const renderResults = (
+    state: Extract<IDecodePreviewState, { status: 'success' }> = successfulPreview(),
+    sourceLabel = 'NeuroVault image 25'
+) => {
     const Harness = () => {
         const [activeView, setActiveView] = useState<DecodeResultView>('terms');
         const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
@@ -83,7 +86,7 @@ const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }
                 preview={state.preview}
                 model={model}
                 selectedResult={selectedResult}
-                sourceLabel="NeuroVault image 25"
+                sourceLabel={sourceLabel}
                 viewerState={viewerState}
                 onViewChange={setActiveView}
                 onSelectComparison={setSelectedResult}
@@ -92,6 +95,112 @@ const renderResults = (state: Extract<IDecodePreviewState, { status: 'success' }
         );
     };
     return render(<Harness />);
+};
+
+const recordedPreview = (): Extract<IDecodePreviewState, { status: 'success' }> => {
+    const request: IDecodeRunRequest = {
+        ...requestFor('neurovlm'),
+        source: { kind: 'neurovault', imageId: '308' },
+        modelId: 'neurosynth-pearson-recorded',
+        modelVersion: 'terms_20k-recorded-2026-08-26',
+        parameters: {},
+        exampleId: 'neurovault-308',
+    };
+    const provenance = {
+        kind: 'recorded' as const,
+        label: 'Recorded Neurosynth Pearson example' as const,
+        version: 'terms_20k-recorded-2026-08-26',
+        resultId: '6a6a9cdb07754185b6218dff275112fe',
+        method: 'Pearson correlation' as const,
+        referenceDataset: 'terms_20k' as const,
+        retrievedAt: '2026-08-26',
+        rankingRule: 'absolute-correlation-descending' as const,
+        sourceUrl: 'https://neurosynth.org/',
+        resultUrl: 'https://neurosynth.org/api/decode/6a6a9cdb07754185b6218dff275112fe',
+        input: {
+            imageId: '308',
+            sourceUrl: 'https://neurovault.org/images/308/',
+            collectionId: '63',
+            collectionName: 'A test-retest fMRI dataset for motor, language and spatial attention functions',
+            collectionUrl: 'https://neurovault.org/collections/63/',
+            doi: '10.1186/2047-217X-2-6',
+            doiUrl: 'https://doi.org/10.1186/2047-217X-2-6',
+            license: 'CC0' as const,
+            attribution: 'NeuroVault public image 308; collection authors; DOI 10.1186/2047-217X-2-6',
+        },
+        termMaps: {
+            license: 'ODbL-derived' as const,
+            attribution: 'Neurosynth contributors and Neurosynth database; term maps are ODbL-derived',
+        },
+    };
+    const anatomy = {
+        id: 'generic-mni',
+        url: '/decoder/examples/neurovault-308/generic-mni.nii.gz',
+        filename: 'generic-mni.nii.gz',
+        kind: 'anatomical' as const,
+        statisticType: 'anatomical' as const,
+        provenance: {
+            sourceUrl: 'https://neurovault.org/static/images/GenericMNI.nii.gz',
+            license: 'CC0' as const,
+            attribution: 'NeuroVault GenericMNI template; public under CC0',
+            sha256: 'anatomy',
+            bytes: 1,
+        },
+    };
+    const input = {
+        ...anatomy,
+        id: 'response-control',
+        url: '/decoder/examples/neurovault-308/response-control.nii.gz',
+        filename: 'response-control.nii.gz',
+        kind: 'input-statistic' as const,
+        statisticType: 't' as const,
+        provenance: {
+            ...anatomy.provenance,
+            sourceUrl: 'https://neurovault.org/media/images/63/task005_cope04_Response_Control.nii.gz',
+            attribution: 'NeuroVault image 308, collection 63; public under CC0',
+        },
+    };
+    const premotor = {
+        ...anatomy,
+        id: 'premotor-map',
+        url: '/decoder/examples/neurovault-308/premotor-association-z.nii.gz',
+        filename: 'premotor-association-z.nii.gz',
+        kind: 'association-z' as const,
+        statisticType: 'z' as const,
+        provenance: {
+            ...anatomy.provenance,
+            sourceUrl: 'https://neurosynth.org/api/analyses/premotor/images/association/?unthresholded',
+            license: 'ODbL-derived' as const,
+            attribution: 'Neurosynth database-derived association map; ODbL provenance',
+        },
+    };
+
+    return {
+        status: 'success',
+        request,
+        preview: {
+            modelId: 'neurosynth-pearson-recorded',
+            modelVersion: 'terms_20k-recorded-2026-08-26',
+            parameters: {},
+            termMetric: 'correlation',
+            provenance,
+            terms: [
+                { id: 'motor', label: 'motor', rank: 2, metric: 'correlation', value: 0.395 },
+                {
+                    id: 'premotor',
+                    label: 'premotor',
+                    rank: 1,
+                    metric: 'correlation',
+                    value: 0.442,
+                    mapUrl: premotor.url,
+                },
+            ],
+            studies: [],
+            modelSummary: { narrative: 'Recorded Pearson spatial-correlation results.' },
+            atlasReadouts: [],
+            visualization: { anatomical: anatomy, input, comparisonByResultId: { premotor } },
+        },
+    };
 };
 
 it('makes terms the first and default result view', () => {
@@ -194,6 +303,61 @@ it('keeps fixture provenance and the reverse-inference limit visible in every vi
             screen.getByText(/ranked associations do not establish the cognitive state that produced the input/i)
         ).toBeVisible();
     }
+});
+
+it('discloses the recorded method, source, ranking, retrieval date, and licenses with upstream links', async () => {
+    const user = userEvent.setup();
+    renderResults(recordedPreview(), 'NeuroVault image 308');
+
+    expect(screen.getByText('Recorded Neurosynth Pearson example')).toBeVisible();
+    expect(screen.getByText(/Pearson correlation.*terms_20k/)).toBeVisible();
+    expect(screen.getByText(/spatial similarity—not probability/i)).toBeVisible();
+    expect(screen.getByText(/Ranked by absolute correlation magnitude, strongest first/)).toBeVisible();
+    expect(screen.getByText(/Retrieved 2026-08-26/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open recorded result 6a6a9cdb07754185b6218dff275112fe' })).toHaveAttribute(
+        'href',
+        'https://neurosynth.org/api/decode/6a6a9cdb07754185b6218dff275112fe'
+    );
+    expect(screen.getByRole('link', { name: 'Neurosynth method source' })).toHaveAttribute(
+        'href',
+        'https://neurosynth.org/'
+    );
+    expect(screen.getByRole('link', { name: 'NeuroVault image 308' })).toHaveAttribute(
+        'href',
+        'https://neurovault.org/images/308/'
+    );
+    expect(screen.getByRole('link', { name: /collection 63/i })).toHaveAttribute(
+        'href',
+        'https://neurovault.org/collections/63/'
+    );
+    expect(screen.getByRole('link', { name: /collection DOI/i })).toHaveAttribute(
+        'href',
+        'https://doi.org/10.1186/2047-217X-2-6'
+    );
+    expect(screen.getByText(/CC0 input map/)).toBeVisible();
+    expect(screen.getByText(/ODbL-derived term maps/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Premotor map source' })).toHaveAttribute(
+        'href',
+        'https://neurosynth.org/api/analyses/premotor/images/association/?unthresholded'
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Model summary' }));
+    expect(screen.getByRole('heading', { name: 'Recorded Neurosynth Pearson method' })).toBeVisible();
+    expect(screen.queryByText('Neurosynth Pearson example summary')).not.toBeInTheDocument();
+});
+
+it('keeps an unmapped recorded selection available for the explicit comparison fallback', async () => {
+    const user = userEvent.setup();
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    renderResults(recordedPreview(), 'NeuroVault image 308');
+
+    await user.click(screen.getByRole('button', { name: 'Select motor; comparison map not bundled' }));
+    await user.click(screen.getByRole('button', { name: 'Compare selected result' }));
+
+    const unavailable = screen.getByRole('status', { name: 'Unavailable comparison map' });
+    expect(unavailable).toHaveTextContent('Comparison map not included in this walkthrough');
+    expect(unavailable).toHaveTextContent('Selected result: motor');
+    getContext.mockRestore();
 });
 
 it('shows NeuroVLM ranked concepts and its example narrative in the model summary', async () => {

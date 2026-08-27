@@ -45,11 +45,36 @@ describe('loadGoldenWalkthrough', () => {
 
         expect(draft.activeSource).toBe('neurovault');
         expect(draft.neurovaultReference).toBe('https://neurovault.org/images/308/');
-        expect(draft.metadata).toMatchObject({ mapType: 't', analysisLevel: 'group', modality: 'fmri-bold', subjectCount: '10' });
+        expect(draft.metadata).toMatchObject({
+            mapType: 't',
+            analysisLevel: 'group',
+            modality: 'fmri-bold',
+            subjectCount: '10',
+        });
         expect(draft.modelId).toBe('neurosynth-pearson-recorded');
         expect(preview.provenance.kind).toBe('recorded');
         expect(preview.provenance.resultId).toBe('6a6a9cdb07754185b6218dff275112fe');
+        expect(preview.provenance).toMatchObject({
+            resultUrl: 'https://neurosynth.org/api/decode/6a6a9cdb07754185b6218dff275112fe',
+            input: {
+                imageId: '308',
+                sourceUrl: 'https://neurovault.org/images/308/',
+                collectionId: '63',
+                collectionName: 'A test-retest fMRI dataset for motor, language and spatial attention functions',
+                collectionUrl: 'https://neurovault.org/collections/63/',
+                doi: '10.1186/2047-217X-2-6',
+                doiUrl: 'https://doi.org/10.1186/2047-217X-2-6',
+                license: 'CC0',
+            },
+            termMaps: {
+                license: 'ODbL-derived',
+                attribution: 'Neurosynth contributors and Neurosynth database; term maps are ODbL-derived',
+            },
+        });
         expect(preview.visualization?.comparisonByResultId['premotor'].id).toBe('premotor-map');
+        expect(preview.visualization?.comparisonByResultId['premotor'].provenance.attribution).toBe(
+            'Neurosynth database-derived association map; ODbL provenance'
+        );
         expect(preview.terms.map(({ value }) => value)).toContain(-0.307);
     });
 

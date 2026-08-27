@@ -21,9 +21,11 @@ const makeTerms = (count: number, metric: DecodeMetric = 'similarity'): IDecodeT
 const renderTermResults = ({
     terms = makeTerms(3),
     metric = 'similarity',
+    recorded = false,
 }: {
     terms?: IDecodeTerm[];
     metric?: DecodeMetric;
+    recorded?: boolean;
 } = {}) => {
     const Harness = () => {
         const [selectedResult, setSelectedResult] = useState<IDecodeComparableResult>();
@@ -31,6 +33,7 @@ const renderTermResults = ({
             <DecodeTermResults
                 terms={terms}
                 metric={metric}
+                recorded={recorded}
                 selectedResult={selectedResult}
                 onSelectComparison={setSelectedResult}
                 onCompareSelected={() => undefined}
@@ -39,6 +42,62 @@ const renderTermResults = ({
     };
     return render(<Harness />);
 };
+
+it('defaults recorded correlations to strongest absolute magnitude first', () => {
+    renderTermResults({
+        recorded: true,
+        metric: 'correlation',
+        terms: [
+            { id: 'medial', label: 'medial', rank: 20, metric: 'correlation', value: -0.298 },
+            { id: 'posterior', label: 'posterior cingulate', rank: 16, metric: 'correlation', value: -0.307 },
+            { id: 'premotor', label: 'premotor', rank: 1, metric: 'correlation', value: 0.442 },
+        ],
+    });
+
+    expect(screen.getByRole('combobox', { name: 'Sort term results' })).toHaveValue('magnitude');
+    expect(screen.getByRole('combobox', { name: 'Sort direction' })).toHaveValue('desc');
+    expect(within(screen.getByRole('combobox', { name: 'Sort term results' })).getByText('Magnitude')).toBeVisible();
+    expect(within(screen.getByRole('combobox', { name: 'Sort direction' })).getByText('Strongest first')).toBeVisible();
+    expect(
+        screen
+            .getAllByRole('row')
+            .slice(1)
+            .map((row) => within(row).getByRole('button').textContent)
+    ).toEqual(['premotor', 'posterior cingulate', 'medial']);
+});
+
+it('keeps illustrative results on rank ascending by default', () => {
+    renderTermResults();
+
+    expect(screen.getByRole('combobox', { name: 'Sort term results' })).toHaveValue('rank');
+    expect(screen.getByRole('combobox', { name: 'Sort direction' })).toHaveValue('asc');
+});
+
+it('selects mapped and unmapped recorded terms with accurate comparison affordances', async () => {
+    const user = userEvent.setup();
+    renderTermResults({
+        recorded: true,
+        metric: 'correlation',
+        terms: [
+            {
+                id: 'premotor',
+                label: 'premotor',
+                rank: 1,
+                metric: 'correlation',
+                value: 0.442,
+                mapUrl: '/decoder/examples/neurovault-308/premotor-association-z.nii.gz',
+            },
+            { id: 'motor', label: 'motor', rank: 2, metric: 'correlation', value: 0.395 },
+        ],
+    });
+
+    expect(screen.getByRole('button', { name: 'Select premotor for comparison' })).toBeVisible();
+    expect(screen.getByText('Map not bundled')).toBeVisible();
+    const unmapped = screen.getByRole('button', { name: 'Select motor; comparison map not bundled' });
+    await user.click(unmapped);
+    expect(unmapped).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Compare selected result' })).toBeEnabled();
+});
 
 it('searches, sorts, and paginates model-labeled term results', async () => {
     const user = userEvent.setup();

@@ -177,6 +177,7 @@ export interface IDecodePreview {
 export interface IDecodeAssetProvenance {
     sourceUrl: string;
     license: 'CC0' | 'ODbL-derived';
+    attribution?: string;
     sha256: string;
     bytes: number;
 }
@@ -208,6 +209,22 @@ export type IDecodeProvenance =
           retrievedAt: string;
           rankingRule: 'absolute-correlation-descending';
           sourceUrl: string;
+          resultUrl: string;
+          input: {
+              imageId: string;
+              sourceUrl: string;
+              collectionId: string;
+              collectionName: string;
+              collectionUrl: string;
+              doi: string;
+              doiUrl: string;
+              license: 'CC0';
+              attribution: string;
+          };
+          termMaps: {
+              license: 'ODbL-derived';
+              attribution: string;
+          };
       };
 
 export type IDecodePreviewState =

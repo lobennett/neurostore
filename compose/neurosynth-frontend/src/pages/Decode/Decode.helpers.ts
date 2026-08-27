@@ -11,7 +11,7 @@ import type {
     IMniPoint,
 } from './Decode.types';
 
-export type DecodeTermSort = 'rank' | 'label' | 'value';
+export type DecodeTermSort = 'rank' | 'label' | 'magnitude' | 'value';
 export type DecodeSortDirection = 'asc' | 'desc';
 
 export const filterTerms = (terms: IDecodeTerm[], query: string): IDecodeTerm[] => {
@@ -30,9 +30,11 @@ export const sortTerms = (
         const comparison =
             sort === 'label'
                 ? left.label.localeCompare(right.label, undefined, { numeric: true })
-                : sort === 'value'
-                  ? left.value - right.value
-                  : left.rank - right.rank;
+                : sort === 'magnitude'
+                  ? Math.abs(left.value) - Math.abs(right.value)
+                  : sort === 'value'
+                    ? left.value - right.value
+                    : left.rank - right.rank;
         return comparison * factor || left.rank - right.rank;
     });
 };
