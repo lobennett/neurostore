@@ -180,7 +180,9 @@ export interface IViewerState {
 
 export interface IDecodeComparableResult {
     id: string;
+    kind: 'term' | 'study';
     label: string;
+    mapLabel: string;
     mapUrl?: string;
 }
 

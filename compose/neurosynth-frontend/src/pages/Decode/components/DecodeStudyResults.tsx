@@ -153,7 +153,9 @@ const DecodeStudyResults: React.FC<{
                                         onClick={() =>
                                             onSelectComparison({
                                                 id: study.id,
+                                                kind: 'study',
                                                 label: study.title,
+                                                mapLabel: `${study.title} related map`,
                                                 mapUrl: study.mapUrl,
                                             })
                                         }

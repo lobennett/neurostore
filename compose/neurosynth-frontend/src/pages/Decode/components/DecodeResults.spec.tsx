@@ -41,7 +41,9 @@ const successfulPreview = (modelId: DecodeModelId = 'neurovlm', prior: 'literatu
 const visualFixture = EXAMPLE_TERMS.find(({ id }) => id === 'trm_visual')!;
 const visualTerm: IDecodeComparableResult = {
     id: visualFixture.id,
+    kind: 'term',
     label: visualFixture.label,
+    mapLabel: 'visual meta-analytic map',
     mapUrl: visualFixture.mapUrl,
 };
 const onChooseTerm = vi.fn();
@@ -249,6 +251,24 @@ it('opens comparison only after selecting a result and choosing compare', async 
     expect(screen.getByText('visual meta-analytic map')).toBeVisible();
 });
 
+it('renders a selected study related-map label verbatim in both comparison modes', async () => {
+    const user = userEvent.setup();
+    renderResults();
+
+    await user.click(screen.getByRole('tab', { name: 'Associated studies' }));
+    await user.click(
+        screen.getByRole('button', { name: 'Select Illustrative visual processing study for comparison' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Compare selected result' }));
+
+    expect(screen.getByText('Illustrative visual processing study related map')).toBeVisible();
+    expect(screen.queryByText('Illustrative visual processing study meta-analytic map')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Overlay' }));
+    expect(screen.getByText('Illustrative visual processing study related map')).toBeVisible();
+    expect(screen.queryByText('Illustrative visual processing study meta-analytic map')).not.toBeInTheDocument();
+});
+
 it('directs an empty comparison back to term selection', async () => {
     const user = userEvent.setup();
     renderResults();
@@ -314,4 +334,13 @@ it('labels independent overlay opacity and named color presets', async () => {
     expect(screen.getByRole('combobox', { name: 'Comparison map color' })).toHaveValue('slice-cyan');
     expect(screen.getAllByRole('option', { name: 'Deep coordinate navy' })).toHaveLength(2);
     expect(screen.getAllByRole('option', { name: 'Slice cyan' })).toHaveLength(2);
+});
+
+it('keeps overlay title text at theme contrast while retaining cyan for the comparison graphic', async () => {
+    renderComparison({ selectedResult: visualTerm });
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Overlay' }));
+
+    expect(screen.getByText('visual meta-analytic map')).toHaveStyle({ color: 'rgba(0, 0, 0, 0.87)' });
+    expect(screen.getByRole('combobox', { name: 'Comparison map color' })).toHaveValue('slice-cyan');
 });

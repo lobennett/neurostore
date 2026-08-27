@@ -186,7 +186,7 @@ const DecodeComparison: React.FC<{
                     <MapPlaceholder ariaLabel="Input map pane" label={sourceLabel} viewerState={viewerState} />
                     <MapPlaceholder
                         ariaLabel="Comparison map pane"
-                        label={`${selectedResult.label} meta-analytic map`}
+                        label={selectedResult.mapLabel}
                         viewerState={viewerState}
                     />
                 </Box>
@@ -206,10 +206,7 @@ const DecodeComparison: React.FC<{
                                 <Typography variant="caption" color="text.secondary" display="block">
                                     Input layer
                                 </Typography>
-                                <Typography
-                                    variant="subtitle2"
-                                    sx={{ color: colorForPreset(inputColor), fontWeight: 700 }}
-                                >
+                                <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
                                     {sourceLabel}
                                 </Typography>
                             </Box>
@@ -217,11 +214,8 @@ const DecodeComparison: React.FC<{
                                 <Typography variant="caption" color="text.secondary" display="block">
                                     Comparison layer
                                 </Typography>
-                                <Typography
-                                    variant="subtitle2"
-                                    sx={{ color: colorForPreset(comparisonColor), fontWeight: 700 }}
-                                >
-                                    {selectedResult.label} meta-analytic map
+                                <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                                    {selectedResult.mapLabel}
                                 </Typography>
                             </Box>
                         </Stack>

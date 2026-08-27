@@ -157,7 +157,9 @@ const DecodeTermResults: React.FC<{
                                             onClick={() =>
                                                 onSelectComparison({
                                                     id: term.id,
+                                                    kind: 'term',
                                                     label: term.label,
+                                                    mapLabel: `${term.label} meta-analytic map`,
                                                     mapUrl: term.mapUrl,
                                                 })
                                             }
