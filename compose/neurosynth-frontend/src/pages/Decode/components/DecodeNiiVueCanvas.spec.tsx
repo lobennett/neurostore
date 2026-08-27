@@ -283,7 +283,9 @@ describe('DecodeNiiVueCanvas', () => {
 
         expect(onCoordinateChange).toHaveBeenCalledWith({ x: 2, y: -2, z: 4 });
         expect(onValuesChange).toHaveBeenCalledWith({ 'response-control': 2.314 });
-        expect(screen.getByText('MNI x 2, y -2, z 4 · response-control value 2.314')).toBeVisible();
+        await waitFor(() =>
+            expect(screen.getByText('MNI x 2, y -2, z 4 · response-control value 2.314')).toBeVisible()
+        );
     });
 
     it('shows pending filenames inside the busy canvas region', () => {
