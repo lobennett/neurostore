@@ -63,6 +63,14 @@ vi.mock('./DecodeNiiVueCanvas', () => ({
     },
 }));
 
+vi.mock('./DecodeAtlasReadout', () => ({
+    default: ({ coordinate }: { coordinate: Pick<IViewerState, 'x' | 'y' | 'z'> }) => (
+        <section aria-label="Live atlas readout">
+            Live coordinate: {coordinate.x}, {coordinate.y}, {coordinate.z}
+        </section>
+    ),
+}));
+
 const atlasReadouts: IAtlasReadout[] = [
     { atlas: 'Harvard-Oxford cortical atlas', region: 'Left inferior frontal gyrus', percentage: 72 },
 ];
@@ -132,7 +140,7 @@ it('keeps an explicitly illustrative, no-map viewer when visualization is absent
     expect(within(viewer).getByText('Sagittal plane')).toBeVisible();
     expect(within(viewer).getByText('Coronal plane')).toBeVisible();
     expect(within(viewer).getByText('Axial plane')).toBeVisible();
-    expect(screen.getByText('Example atlas readout')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toBeVisible();
     expect(screen.getByText(/has not loaded or inspected your map/)).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Recorded decoder maps' })).not.toBeInTheDocument();
     expect(canvasMock.evaluations).toBe(0);
@@ -146,7 +154,7 @@ it('renders recorded anatomy and input assets and synchronizes canvas coordinate
         'generic-mni, response-control'
     );
     expect(screen.getByText(/Recorded map viewer/)).toBeVisible();
-    expect(screen.getByText('Example atlas readout')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: 'Move map crosshair' }));
 
@@ -207,8 +215,7 @@ it('updates the active coordinate and corresponding text readout', async () => {
     await user.clear(screen.getByLabelText('Viewer x coordinate'));
     await user.type(screen.getByLabelText('Viewer x coordinate'), '-42');
 
-    expect(screen.getByText('Left inferior frontal gyrus')).toBeVisible();
-    expect(screen.getByText('72%')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toHaveTextContent('Live coordinate: -42, 0, 0');
     expect(screen.getByText(/Selected MNI coordinate: x −42, y 0, z 0/)).toBeVisible();
 });
 
@@ -236,18 +243,15 @@ it('selects among entered coordinates without changing the decoder source', asyn
     await user.selectOptions(screen.getByRole('listbox', { name: 'Entered coordinates' }), 'p2');
 
     expect(screen.getByLabelText('Viewer x coordinate')).toHaveValue(-42);
-    expect(screen.getByText('Left inferior frontal gyrus')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toHaveTextContent('Live coordinate: -42, 0, 0');
     expect(source.points[0]).toEqual({ id: 'p1', label: 'Seed', x: 0, y: 0, z: 0 });
     expect(source.points[1]).toEqual({ id: 'p2', label: 'Language focus', x: -42, y: 0, z: 0 });
 });
 
-it('provides semantic example provenance and an explicit no-label state', () => {
+it('keeps the live atlas child mounted at the current viewer coordinate', () => {
     renderViewer();
 
-    const atlas = screen.getByRole('region', { name: 'Example atlas readout' });
-    expect(within(atlas).getByRole('list')).toBeVisible();
-    expect(within(atlas).getByText('No example atlas label at this coordinate')).toBeVisible();
-    expect(atlas).toHaveAccessibleDescription(/deterministic examples/i);
+    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toHaveTextContent('Live coordinate: 0, 0, 0');
 });
 
 it('synchronizes a temporarily blank field when a new preview resets the coordinate', async () => {

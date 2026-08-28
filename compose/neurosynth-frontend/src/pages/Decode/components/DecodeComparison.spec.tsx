@@ -76,6 +76,14 @@ vi.mock('./DecodeNiiVueCanvas', () => ({
     },
 }));
 
+vi.mock('./DecodeAtlasReadout', () => ({
+    default: ({ coordinate }: { coordinate: { x: number; y: number; z: number } }) => (
+        <section aria-label="Live atlas readout">
+            Live coordinate: {coordinate.x}, {coordinate.y}, {coordinate.z}
+        </section>
+    ),
+}));
+
 const asset = (
     id: string,
     kind: 'anatomical' | 'input-statistic' | 'association-z',

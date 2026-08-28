@@ -6,6 +6,14 @@ import { makeExamplePreview } from './Decode.fixtures';
 import type { DecodeFixtureScenario, IDecodeFrontendAdapter } from './Decode.types';
 import DecodePage from './DecodePage';
 
+vi.mock('./components/DecodeAtlasReadout', () => ({
+    default: ({ coordinate }: { coordinate: { x: number; y: number; z: number } }) => (
+        <section aria-label="Live atlas readout">
+            Live coordinate: {coordinate.x}, {coordinate.y}, {coordinate.z}
+        </section>
+    ),
+}));
+
 afterEach(() => {
     window.history.replaceState({}, '', '/');
 });
