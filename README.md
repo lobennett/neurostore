@@ -4,9 +4,9 @@ Review evidence for [`enh/decoder-atlas-readout`](https://github.com/lobennett/n
 
 ## Video walkthrough
 
-[Watch or download the 57-second MP4 walkthrough](./decoder-walkthrough.mp4).
+[Watch or download the 58-second app-only MP4 walkthrough](./decoder-walkthrough.mp4).
 
-The walkthrough opens the public NeuroVault image 308 example, inspects the submitted NIfTI, moves to MNI coordinate −42, 8, 30, reviews the Harvard–Oxford and DiFuMo 512 readout, examines the recorded Neurosynth Pearson terms, and compares the submitted map with the premotor association map side by side and as an overlay.
+The walkthrough opens the public NeuroVault image 308 example, inspects the submitted NIfTI, selects MNI coordinate −42, 0, 30 directly on the map, reviews the Harvard–Oxford and DiFuMo 512 readout, examines the recorded Neurosynth Pearson terms, and compares the submitted map with the premotor association map side by side and as an overlay. The recording contains only the public application—not the Cypress runner or command log.
 
 ## Still walkthrough
 
@@ -22,35 +22,41 @@ The spatial workspace renders the recorded input statistic over bundled MNI anat
 
 ![Interactive submitted NIfTI map](./02-real-submitted-map.png)
 
-### 3. Atlas readout at the selected coordinate
+### 3. Map selection flows into the atlas readout
 
-At MNI −42, 8, 30, the compact readout reports real Harvard–Oxford probabilities and signed DiFuMo feature loadings directly beneath the map coordinate.
+Selecting MNI −42, 0, 30 directly on the canvas produces a real statistic value and places the selected coordinate immediately above the atlas readout.
 
-![Harvard–Oxford and DiFuMo atlas readout](./03-live-atlas-readout.png)
+![Map, sampled statistic, selected coordinate, and beginning of atlas readout](./03-map-coordinate-atlas.png)
 
-### 4. Recorded decoding results
+### 4. Complete live atlas readout
+
+The compact readout reports real Harvard–Oxford probabilities and signed DiFuMo feature loadings without repeating the coordinate.
+
+![Harvard–Oxford and DiFuMo atlas readout](./04-live-atlas-readout.png)
+
+### 5. Recorded decoding results
 
 The terms table exposes signed Pearson correlations, stable identifiers, map availability, searching, and sorting.
 
-![Recorded Neurosynth Pearson term results](./04-recorded-pearson-results.png)
+![Recorded Neurosynth Pearson term results](./05-recorded-pearson-results.png)
 
-### 5. Side-by-side comparison
+### 6. Side-by-side comparison
 
-The submitted NIfTI and the real premotor association map share coordinates while retaining independent display controls.
+The submitted NIfTI and the real premotor association map share coordinates, expose their sampled values, and retain independent display controls.
 
-![Submitted and premotor maps side by side](./05-side-by-side-comparison.png)
+![Submitted and premotor maps side by side](./06-side-by-side-comparison.png)
 
-### 6. Overlay comparison
+### 7. Overlay comparison
 
-The overlay view combines the submitted and comparison maps with explicit layer labels and separate display settings.
+The overlay view combines the submitted and comparison maps with explicit layer labels, numeric values, and separate display settings.
 
-![Submitted and premotor map overlay](./06-overlay-comparison.png)
+![Submitted and premotor map overlay](./07-overlay-comparison.png)
 
-### 7. Mobile atlas layout
+### 8. Mobile coordinate-to-atlas layout
 
-The atlas readout retains its hierarchy and wraps labels, provenance, probabilities, and component loadings at a 390-pixel viewport.
+The sampled map value and selected coordinate lead directly into the atlas readout at a 390-pixel viewport. Labels, provenance, probabilities, and component loadings wrap without horizontal overflow.
 
-![Compact atlas readout on mobile](./07-mobile-atlas-readout.png)
+![Selected coordinate and compact atlas readout on mobile](./08-mobile-coordinate-atlas.png)
 
 ## Evidence boundaries
 
@@ -58,3 +64,4 @@ The atlas readout retains its hierarchy and wraps labels, provenance, probabilit
 - The term ranking is a recorded Neurosynth Pearson result; this branch does not claim to run a decoder backend.
 - The atlas labels shown here came from the packaged local Harvard–Oxford and DiFuMo 512 service rather than test fixtures.
 - The capture used the public `/decode?example=neurovault-308` route and required no login.
+- Every displayed map value was sampled by interacting with its real NIfTI canvas before capture.
