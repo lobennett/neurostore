@@ -5,6 +5,7 @@ import {
 } from 'hooks/extractions/useGetAllExtractedDataForStudies';
 import { StoreApi } from '../neurostore-typescript-sdk';
 import { ComposeApi } from '../neurosynth-compose-typescript-sdk';
+import { fetchAtlasReadout } from '../pages/Decode/Decode.atlas.api';
 import { axiosInstance, neurostoreConfig, neurosynthConfig } from './api.state';
 
 const storeApi = new StoreApi(neurostoreConfig, undefined, axiosInstance);
@@ -66,6 +67,7 @@ const NeurosynthServices = {
     AnnotationsService: composeApi,
     ProjectsService: composeApi,
     NeurosynthDefaultApi: composeApi,
+    AtlasReadoutService: { fetchAtlasReadout },
 };
 
 const API = {
