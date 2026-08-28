@@ -1,7 +1,99 @@
 describe('DecodePage', () => {
     const GOLDEN_ASSET_PREFIX = '/decoder/examples/neurovault-308/';
 
+    const atlasResponse = (x: number, y: number, z: number) => {
+        const coordinateLabel = `x ${x}, y ${y}, z ${z}`;
+
+        return {
+            coordinate: { x, y, z },
+            space: 'MNI152',
+            atlases: [
+                {
+                    id: 'harvardoxford-cortical',
+                    name: 'Harvard–Oxford Cortical Structural Atlas',
+                    category: 'anatomical',
+                    valueType: 'probability',
+                    version: '2103.0',
+                    sourceUrl: 'https://example.test/atlases/harvard-oxford-cortical',
+                    matches: [
+                        {
+                            id: 'harvardoxford-cortical:1',
+                            label: `Cortical match at ${coordinateLabel}`,
+                            value: 54,
+                        },
+                    ],
+                },
+                {
+                    id: 'harvardoxford-subcortical',
+                    name: 'Harvard–Oxford Subcortical Structural Atlas',
+                    category: 'anatomical',
+                    valueType: 'probability',
+                    version: '2103.0',
+                    sourceUrl: 'https://example.test/atlases/harvard-oxford-subcortical',
+                    matches: [
+                        {
+                            id: 'harvardoxford-subcortical:1',
+                            label: `Subcortical match at ${coordinateLabel}`,
+                            value: 42,
+                        },
+                    ],
+                },
+                {
+                    id: 'difumo-512',
+                    name: 'DiFuMo 512',
+                    category: 'functional',
+                    valueType: 'loading',
+                    version: '1.0',
+                    sourceUrl: 'https://example.test/atlases/difumo-512',
+                    matches: [
+                        { id: 'difumo-512:1', label: `DiFuMo match 1 at ${coordinateLabel}`, value: 0.71234 },
+                        { id: 'difumo-512:2', label: `DiFuMo match 2 at ${coordinateLabel}`, value: 0.28567 },
+                        { id: 'difumo-512:3', label: `DiFuMo match 3 at ${coordinateLabel}`, value: 0.1044 },
+                        {
+                            id: 'difumo-512:4',
+                            label: `A deliberately long DiFuMo coordinate-encoded functional mode at ${coordinateLabel} that wraps on narrow screens`,
+                            value: 0.0312,
+                        },
+                    ],
+                },
+            ],
+        };
+    };
+
+    const interceptAtlasReadout = ({ failOnce = false }: { failOnce?: boolean } = {}) => {
+        let shouldFail = failOnce;
+
+        cy.intercept({ method: 'GET', url: '**/api/atlases/readout*', middleware: true }, (request) => {
+            const url = new URL(request.url);
+            const x = Number(url.searchParams.get('x'));
+            const y = Number(url.searchParams.get('y'));
+            const z = Number(url.searchParams.get('z'));
+
+            expect(Number.isFinite(x), 'atlas x coordinate').to.equal(true);
+            expect(Number.isFinite(y), 'atlas y coordinate').to.equal(true);
+            expect(Number.isFinite(z), 'atlas z coordinate').to.equal(true);
+
+            if (shouldFail) {
+                shouldFail = false;
+                request.reply({
+                    statusCode: 503,
+                    headers: { 'content-type': 'application/problem+json' },
+                    body: {
+                        type: 'https://neurostore.org/problems/atlas-readout-unavailable',
+                        title: 'Atlas readout unavailable',
+                        status: 503,
+                        detail: 'The atlas service is temporarily unavailable.',
+                    },
+                });
+                return;
+            }
+
+            request.reply({ statusCode: 200, body: atlasResponse(x, y, z) });
+        }).as('atlasReadout');
+    };
+
     const blockApiRequests = () => {
+        interceptAtlasReadout();
         cy.intercept({ hostname: 'localhost', pathname: '/api/**', resourceType: 'xhr' }, (request) =>
             request.destroy()
         ).as('blockedApiXhr');
@@ -15,9 +107,10 @@ describe('DecodePage', () => {
         cy.get('@blockedApiFetch.all').should('have.length', 0);
     };
 
-    const guardRecordedWalkthroughNetwork = () => {
+    const guardRecordedWalkthroughNetwork = (atlasOptions: { failOnce?: boolean } = {}) => {
         const successfulLocalAssets: string[] = [];
 
+        interceptAtlasReadout(atlasOptions);
         cy.intercept('GET', `${GOLDEN_ASSET_PREFIX}**`, (request) => {
             delete request.headers['if-modified-since'];
             delete request.headers['if-none-match'];
@@ -147,10 +240,16 @@ describe('DecodePage', () => {
         expectNoBlockedApiRequests();
     });
 
-    it('reviews the recorded NeuroVault 308 maps without contacting a backend', () => {
+    it('reviews live atlas coordinates beside the recorded NeuroVault 308 maps without contacting other backends', () => {
         cy.viewport(1440, 900);
         const successfulLocalAssets = guardRecordedWalkthroughNetwork();
         cy.visit('/decode?example=neurovault-308');
+
+        cy.wait('@atlasReadout').then(({ request, response }) => {
+            const url = new URL(request.url);
+            expect(Object.fromEntries(url.searchParams.entries())).to.deep.equal({ x: '0', y: '0', z: '0' });
+            expect(response?.statusCode).to.equal(200);
+        });
 
         cy.contains('Recorded Neurosynth Pearson example').should('be.visible');
         cy.contains('terms_20k reference dataset').should('be.visible');
@@ -168,6 +267,7 @@ describe('DecodePage', () => {
         expectSuccessfulAsset(successfulLocalAssets, 'generic-mni.nii.gz');
         expectSuccessfulAsset(successfulLocalAssets, 'response-control.nii.gz');
         expectViewerReady('Recorded decoder maps');
+        cy.contains('Cortical match at x 0, y 0, z 0').should('be.visible');
 
         cy.get('button[aria-label="Select premotor for comparison"]').click();
         cy.contains('button', 'Compare selected result').click();
@@ -177,8 +277,21 @@ describe('DecodePage', () => {
         expectViewerReady('premotor association map viewer');
 
         fieldByLabel('Comparison x coordinate').clear().type('12');
+        cy.wait('@atlasReadout').then(({ request, response }) => {
+            const url = new URL(request.url);
+            expect(Object.fromEntries(url.searchParams.entries())).to.deep.equal({ x: '12', y: '0', z: '0' });
+            expect(response?.statusCode).to.equal(200);
+        });
         expectViewerCoordinate('Submitted map viewer', 12);
         expectViewerCoordinate('premotor association map viewer', 12);
+        cy.contains('MNI152 coordinate: x 12, y 0, z 0 mm').should('be.visible');
+        cy.contains('Cortical match at x 12, y 0, z 0').should('be.visible');
+        cy.get('button[aria-label="Show all nonzero matches for DiFuMo 512"]').click();
+        cy.contains('A deliberately long DiFuMo coordinate-encoded functional mode at x 12, y 0, z 0').should(
+            'be.visible'
+        );
+        expectViewerReady('Submitted map viewer');
+        expectViewerReady('premotor association map viewer');
         cy.contains('label', 'Overlay').click();
         expectViewerReady('Submitted and premotor map overlay viewer');
         setRangeValue('Input map opacity', '0.45');
@@ -206,10 +319,53 @@ describe('DecodePage', () => {
         expectNoRecordedWalkthroughBackendRequests();
     });
 
+    it('recovers a local atlas 503 at the current coordinate without losing recorded maps or results', () => {
+        cy.viewport(1440, 900);
+        guardRecordedWalkthroughNetwork({ failOnce: true });
+        cy.visit('/decode?example=neurovault-308');
+
+        cy.wait('@atlasReadout').its('response.statusCode').should('equal', 503);
+        cy.location('pathname').should('equal', '/decode');
+        cy.location('search').should('equal', '?example=neurovault-308');
+        cy.get('#decode-result-panel-terms tbody tr').should('have.length', 20);
+        expectViewerReady('Recorded decoder maps');
+        cy.get('[role="alert"]').should('contain.text', 'Atlas readout unavailable');
+        cy.contains('The map and decoder results are unaffected').should('be.visible');
+
+        cy.contains('button', 'Retry atlas readout').click();
+        cy.wait('@atlasReadout').then(({ request, response }) => {
+            const url = new URL(request.url);
+            expect(Object.fromEntries(url.searchParams.entries())).to.deep.equal({ x: '0', y: '0', z: '0' });
+            expect(response?.statusCode).to.equal(200);
+        });
+
+        cy.get('[role="alert"]').should('not.exist');
+        cy.contains('Cortical match at x 0, y 0, z 0').should('be.visible');
+        cy.get('#decode-result-panel-terms tbody tr').should('have.length', 20);
+        expectViewerReady('Recorded decoder maps');
+        cy.location('pathname').should('equal', '/decode');
+        cy.location('search').should('equal', '?example=neurovault-308');
+        expectNoRecordedWalkthroughBackendRequests();
+    });
+
     it('keeps the negative recorded comparison readable and ordered on mobile', () => {
         cy.viewport(390, 844);
         const successfulLocalAssets = guardRecordedWalkthroughNetwork();
         cy.visit('/decode?example=neurovault-308');
+
+        cy.wait('@atlasReadout').its('response.statusCode').should('equal', 200);
+        cy.get('button[aria-label="Show all nonzero matches for DiFuMo 512"]').click();
+        cy.document().then((applicationDocument) => {
+            cy.contains('A deliberately long DiFuMo coordinate-encoded functional mode at x 0, y 0, z 0')
+                .parents('li')
+                .find('p')
+                .then(($rows) => {
+                    const label = $rows[0].getBoundingClientRect();
+                    const loading = $rows[1].getBoundingClientRect();
+                    expect(loading.top).to.be.at.least(label.bottom);
+                    expect(label.right).to.be.at.most(applicationDocument.documentElement.clientWidth);
+                });
+        });
 
         cy.get('button[aria-label="Select posterior cingulate for comparison"]')
             .scrollIntoView()
