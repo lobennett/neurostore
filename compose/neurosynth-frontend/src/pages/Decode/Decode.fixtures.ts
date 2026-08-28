@@ -9,7 +9,6 @@ import type {
     IDecodedTerm,
     IDecodeStudy,
     IDecodeTerm,
-    IAtlasReadout,
     INiClipDomain,
     INiClipTask,
 } from './Decode.types';
@@ -163,11 +162,6 @@ export const EXAMPLE_NICLIP_TASKS: INiClipTask[] = [
     { task: 'Spatial attention', probability: 0.09, bayesFactor: 1 },
 ];
 
-export const EXAMPLE_ATLAS_READOUTS: IAtlasReadout[] = [
-    { atlas: 'Example cortical atlas', region: 'Occipital cortex', percentage: 72 },
-    { atlas: 'Example subcortical atlas', region: 'No example label', percentage: 0 },
-];
-
 export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeFixtureScenario): IDecodePreview => ({
     modelId: request.modelId,
     modelVersion: request.modelVersion,
@@ -193,7 +187,6 @@ export const makeExamplePreview = (request: IDecodeRunRequest, scenario: DecodeF
             bayesFactor,
         })),
     },
-    atlasReadouts: EXAMPLE_ATLAS_READOUTS,
 });
 
 /** @deprecated Use EMPTY_DECODE_DRAFT. Kept until input components migrate. */

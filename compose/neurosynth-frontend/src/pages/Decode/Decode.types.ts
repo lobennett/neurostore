@@ -154,12 +154,6 @@ export interface IDecodeStudy {
     mapUrl?: string;
 }
 
-export interface IAtlasReadout {
-    atlas: string;
-    region: string;
-    percentage: number;
-}
-
 export interface IDecodeModelSummary {
     narrative: string;
     domains?: Array<{ label: string; probability: number }>;
@@ -175,7 +169,6 @@ export interface IDecodePreview {
     terms: IDecodeTerm[];
     studies: IDecodeStudy[];
     modelSummary: IDecodeModelSummary;
-    atlasReadouts: IAtlasReadout[];
     visualization?: IDecodeVisualization;
 }
 

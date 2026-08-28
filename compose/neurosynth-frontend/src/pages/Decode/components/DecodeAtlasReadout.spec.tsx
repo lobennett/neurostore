@@ -86,7 +86,6 @@ it('names the live readout by its exact selected MNI coordinate and separates an
     expect(within(panel).getByRole('group', { name: 'Harvard–Oxford Cortical Structural Atlas' })).toBeVisible();
     expect(within(panel).getByRole('group', { name: 'Harvard–Oxford Subcortical Structural Atlas' })).toBeVisible();
     expect(within(panel).getByRole('group', { name: 'DiFuMo 512' })).toBeVisible();
-    expect(screen.queryByText('Example atlas readout')).not.toBeInTheDocument();
 });
 
 it('shows the top three matches in fixed atlas order and expands each atlas independently', async () => {
@@ -161,8 +160,6 @@ it('reserves the semantic panel while the initial readout is loading without sho
     expect(screen.getByRole('status')).toHaveTextContent('Loading atlas readout');
     expect(screen.getByRole('heading', { name: 'Anatomical location' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Decoder feature space' })).toBeVisible();
-    expect(screen.queryByText('Left inferior frontal gyrus')).not.toBeInTheDocument();
-    expect(screen.queryByText('Example atlas readout')).not.toBeInTheDocument();
 });
 
 it('keeps prior matches visible while announcing a nonblocking update', () => {

@@ -1,6 +1,6 @@
 import { Box, Checkbox, FormControlLabel, Slider, Stack, TextField, Typography } from '@mui/material';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import type { DecodeRunSource, IDecodeVisualization, IAtlasReadout, IViewerState } from '../Decode.types';
+import type { DecodeRunSource, IDecodeVisualization, IViewerState } from '../Decode.types';
 import { DECODE_COLORS } from '../Decode.styles';
 import DecodeAtlasReadout from './DecodeAtlasReadout';
 import type { DecodeSliceType, IDecodeVolumeDisplay, IDecodeVolumeRange } from './DecodeNiiVueCanvas';
@@ -118,10 +118,9 @@ const displayForVisualization = (
 const DecodeViewer: React.FC<{
     source: DecodeRunSource;
     visualization?: IDecodeVisualization;
-    atlasReadouts: IAtlasReadout[];
     value: IViewerState;
     onChange: (value: IViewerState) => void;
-}> = ({ source, visualization, atlasReadouts, value, onChange }) => {
+}> = ({ source, visualization, value, onChange }) => {
     const [coordinateInputs, setCoordinateInputs] = useState<Record<CoordinateAxis, string>>({
         x: String(value.x),
         y: String(value.y),
@@ -525,7 +524,7 @@ const DecodeViewer: React.FC<{
                             </Typography>
                         </Box>
                     )}
-                    <DecodeAtlasReadout atlasReadouts={atlasReadouts} coordinate={value} />
+                    <DecodeAtlasReadout coordinate={value} />
                 </Stack>
             </Box>
         </Box>

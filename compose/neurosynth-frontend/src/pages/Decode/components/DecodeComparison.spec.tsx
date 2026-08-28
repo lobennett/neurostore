@@ -216,7 +216,6 @@ it('uses unique component-scoped opacity IDs and matching labels with the top vi
             <DecodeViewer
                 source={{ kind: 'neurovault', imageId: '308' }}
                 visualization={visualization}
-                atlasReadouts={[]}
                 value={{ x: 4, y: -6, z: 18, threshold: 25 }}
                 onChange={vi.fn()}
             />
@@ -342,7 +341,6 @@ it('receives the recorded visualization through the result workspace', async () 
         terms: [],
         studies: [],
         modelSummary: { narrative: '' },
-        atlasReadouts: [],
         visualization,
     };
 

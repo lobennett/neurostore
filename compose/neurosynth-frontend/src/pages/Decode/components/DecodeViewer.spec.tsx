@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { expect, it, vi } from 'vitest';
-import type { DecodeRunSource, IDecodeVisualization, IAtlasReadout, IViewerState } from '../Decode.types';
+import { beforeEach, expect, it, vi } from 'vitest';
+import type { DecodeRunSource, IDecodeVisualization, IViewerState } from '../Decode.types';
 import DecodeViewer from './DecodeViewer';
 
 const canvasMock = vi.hoisted(() => ({
     evaluations: 0,
+    neverResolves: new Promise<never>(() => undefined),
     props: [] as Array<{
         volumes: Array<{ id: string }>;
         displayByVolumeId: Record<
@@ -16,6 +17,11 @@ const canvasMock = vi.hoisted(() => ({
         sliceType: string;
         crosshairs: boolean;
     }>,
+    suspend: false,
+}));
+
+const atlasReadoutMock = vi.hoisted(() => ({
+    props: [] as Array<Record<string, unknown> & { coordinate: Pick<IViewerState, 'x' | 'y' | 'z'> }>,
 }));
 
 vi.mock('./DecodeNiiVueCanvas', () => ({
@@ -39,6 +45,7 @@ vi.mock('./DecodeNiiVueCanvas', () => ({
             onCoordinateChange: (coordinate: { x: number; y: number; z: number }) => void;
             onVolumeRangesChange: (ranges: Record<string, { globalMin: number; globalMax: number }>) => void;
         }) => {
+            if (canvasMock.suspend) throw canvasMock.neverResolves;
             canvasMock.props.push({ volumes, displayByVolumeId, sliceType, crosshairs });
             return (
                 <section aria-label="Recorded decoder maps">
@@ -64,16 +71,23 @@ vi.mock('./DecodeNiiVueCanvas', () => ({
 }));
 
 vi.mock('./DecodeAtlasReadout', () => ({
-    default: ({ coordinate }: { coordinate: Pick<IViewerState, 'x' | 'y' | 'z'> }) => (
-        <section aria-label="Live atlas readout">
-            Live coordinate: {coordinate.x}, {coordinate.y}, {coordinate.z}
-        </section>
-    ),
+    default: function DecodeAtlasReadoutMock(
+        props: Record<string, unknown> & { coordinate: Pick<IViewerState, 'x' | 'y' | 'z'> }
+    ) {
+        atlasReadoutMock.props.push(props);
+        const { coordinate } = props;
+        return (
+            <section aria-label="Live atlas readout">
+                Live coordinate: {coordinate.x}, {coordinate.y}, {coordinate.z}
+            </section>
+        );
+    },
 }));
 
-const atlasReadouts: IAtlasReadout[] = [
-    { atlas: 'Harvard-Oxford cortical atlas', region: 'Left inferior frontal gyrus', percentage: 72 },
-];
+beforeEach(() => {
+    atlasReadoutMock.props = [];
+    canvasMock.suspend = false;
+});
 
 const anatomical = {
     id: 'generic-mni',
@@ -118,15 +132,7 @@ const renderViewer = (
             setViewer(nextViewer);
         };
 
-        return (
-            <DecodeViewer
-                source={source}
-                visualization={visualization}
-                atlasReadouts={atlasReadouts}
-                value={viewer}
-                onChange={handleChange}
-            />
-        );
+        return <DecodeViewer source={source} visualization={visualization} value={viewer} onChange={handleChange} />;
     };
 
     return render(<Wrapper />);
@@ -141,6 +147,8 @@ it('keeps an explicitly illustrative, no-map viewer when visualization is absent
     expect(within(viewer).getByText('Coronal plane')).toBeVisible();
     expect(within(viewer).getByText('Axial plane')).toBeVisible();
     expect(screen.getByRole('region', { name: 'Live atlas readout' })).toBeVisible();
+    expect(screen.getAllByRole('region', { name: 'Live atlas readout' })).toHaveLength(1);
+    expect(atlasReadoutMock.props.at(-1)).toStrictEqual({ coordinate: { x: 0, y: 0, z: 0, threshold: 0 } });
     expect(screen.getByText(/has not loaded or inspected your map/)).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Recorded decoder maps' })).not.toBeInTheDocument();
     expect(canvasMock.evaluations).toBe(0);
@@ -159,6 +167,7 @@ it('renders recorded anatomy and input assets and synchronizes canvas coordinate
     await user.click(screen.getByRole('button', { name: 'Move map crosshair' }));
 
     expect(screen.getByText(/Selected MNI coordinate: x −42, y 8, z 30/)).toBeVisible();
+    expect(atlasReadoutMock.props.at(-1)?.coordinate).toEqual({ x: -42, y: 8, z: 30, threshold: 0 });
     expect(onDisplayChange).toHaveBeenLastCalledWith({ x: -42, y: 8, z: 30, threshold: 0 });
 });
 
@@ -172,6 +181,30 @@ it('loads only anatomy and no input controls for a coordinate source with an ove
     expect(screen.getByRole('region', { name: 'Recorded decoder maps' })).not.toHaveTextContent('response-control');
     expect(screen.queryByText('Recorded input display')).not.toBeInTheDocument();
     expect(screen.queryByRole('slider', { name: 'Input opacity' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('region', { name: 'Live atlas readout' })).toHaveLength(1);
+});
+
+it('mounts one live atlas child for an upload source without a visualization', () => {
+    renderViewer({
+        kind: 'upload',
+        filename: 'local-map.nii.gz',
+        license: 'CC0',
+        size: 1024,
+        mediaType: 'application/gzip',
+        lastModified: 1,
+        selectionId: 1,
+    });
+
+    expect(screen.getAllByRole('region', { name: 'Live atlas readout' })).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'Example map viewer' })).toBeVisible();
+});
+
+it('keeps the live atlas child available while a recorded map is still loading', async () => {
+    canvasMock.suspend = true;
+    renderViewer({ kind: 'neurovault', imageId: '308' }, recordedVisualization);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading recorded map viewer');
+    expect(screen.getAllByRole('region', { name: 'Live atlas readout' })).toHaveLength(1);
 });
 
 it('calibrates the 0–97 anatomy and signed input from their loaded ranges', async () => {
@@ -208,25 +241,32 @@ it('calibrates the 0–97 anatomy and signed input from their loaded ranges', as
     });
 });
 
-it('updates the active coordinate and corresponding text readout', async () => {
+it('passes typed coordinate edits to the live atlas child', async () => {
     const user = userEvent.setup();
     renderViewer();
 
     await user.clear(screen.getByLabelText('Viewer x coordinate'));
     await user.type(screen.getByLabelText('Viewer x coordinate'), '-42');
+    await user.clear(screen.getByLabelText('Viewer y coordinate'));
+    await user.type(screen.getByLabelText('Viewer y coordinate'), '8.5');
+    await user.clear(screen.getByLabelText('Viewer z coordinate'));
+    await user.type(screen.getByLabelText('Viewer z coordinate'), '30');
 
-    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toHaveTextContent('Live coordinate: -42, 0, 0');
-    expect(screen.getByText(/Selected MNI coordinate: x −42, y 0, z 0/)).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Live atlas readout' })).toHaveTextContent(
+        'Live coordinate: -42, 8.5, 30'
+    );
+    expect(atlasReadoutMock.props.at(-1)?.coordinate).toEqual({ x: -42, y: 8.5, z: 30, threshold: 0 });
+    expect(screen.getByText(/Selected MNI coordinate: x −42, y 8.5, z 30/)).toBeVisible();
 });
 
-it('changes illustrative display threshold through the shared viewer state', async () => {
-    const user = userEvent.setup();
+it('keeps the live atlas x, y, and z unchanged across threshold-only changes', () => {
     renderViewer();
 
     const threshold = screen.getByRole('slider', { name: 'Display threshold' });
-    await user.click(threshold);
+    fireEvent.change(threshold, { target: { value: '40' } });
 
-    expect(onDisplayChange).toHaveBeenCalled();
+    expect(onDisplayChange).toHaveBeenLastCalledWith({ x: 0, y: 0, z: 0, threshold: 40 });
+    expect(atlasReadoutMock.props.at(-1)?.coordinate).toEqual({ x: 0, y: 0, z: 0, threshold: 40 });
 });
 
 it('selects among entered coordinates without changing the decoder source', async () => {
@@ -244,6 +284,7 @@ it('selects among entered coordinates without changing the decoder source', asyn
 
     expect(screen.getByLabelText('Viewer x coordinate')).toHaveValue(-42);
     expect(screen.getByRole('region', { name: 'Live atlas readout' })).toHaveTextContent('Live coordinate: -42, 0, 0');
+    expect(atlasReadoutMock.props.at(-1)?.coordinate).toEqual({ x: -42, y: 0, z: 0, threshold: 0 });
     expect(source.points[0]).toEqual({ id: 'p1', label: 'Seed', x: 0, y: 0, z: 0 });
     expect(source.points[1]).toEqual({ id: 'p2', label: 'Language focus', x: -42, y: 0, z: 0 });
 });
@@ -263,12 +304,7 @@ it('synchronizes a temporarily blank field when a new preview resets the coordin
                 <button type="button" onClick={() => setViewer({ x: 0, y: 0, z: 0, threshold: 0 })}>
                     Load another example preview
                 </button>
-                <DecodeViewer
-                    source={{ kind: 'neurovault', imageId: '25' }}
-                    atlasReadouts={atlasReadouts}
-                    value={viewer}
-                    onChange={setViewer}
-                />
+                <DecodeViewer source={{ kind: 'neurovault', imageId: '25' }} value={viewer} onChange={setViewer} />
             </>
         );
     };

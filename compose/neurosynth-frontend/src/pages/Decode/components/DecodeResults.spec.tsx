@@ -201,7 +201,6 @@ const recordedPreview = (): Extract<IDecodePreviewState, { status: 'success' }> 
             ],
             studies: [],
             modelSummary: { narrative: 'Recorded Pearson spatial-correlation results.' },
-            atlasReadouts: [],
             visualization: { anatomical: anatomy, input, comparisonByResultId: { premotor } },
         },
     };

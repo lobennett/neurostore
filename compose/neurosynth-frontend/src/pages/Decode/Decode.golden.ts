@@ -307,7 +307,6 @@ export const loadGoldenWalkthrough = async (): Promise<{ draft: IDecodeDraft; pr
             modelSummary: {
                 narrative: 'Recorded Pearson spatial-correlation results from the terms_20k reference dataset.',
             },
-            atlasReadouts: [],
             visualization,
         },
     };

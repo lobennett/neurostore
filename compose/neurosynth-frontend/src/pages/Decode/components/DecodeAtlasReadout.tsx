@@ -51,8 +51,6 @@ const signedCoordinate = (value: number) => (value < 0 ? `−${Math.abs(value)}`
 
 interface DecodeAtlasReadoutProps {
     coordinate: Pick<IViewerState, 'x' | 'y' | 'z'>;
-    // Task 9 removes the fixture prop from DecodeViewer; it is ignored here so that step remains isolated.
-    atlasReadouts?: unknown;
 }
 
 interface AtlasGroupProps {
