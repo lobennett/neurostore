@@ -48,25 +48,37 @@ class DifumoAtlasProvider:
                     :,
                 ]
             )
+            if sampled.shape != (len(components),):
+                raise AtlasUnavailableError(
+                    "DiFuMo sampled component count does not match its labels"
+                )
+            if sampled.dtype.kind not in "fiu":
+                raise AtlasUnavailableError(
+                    "DiFuMo sampled values must be real numbers"
+                )
+            values = tuple(float(value) for value in sampled)
+            if not np.all(np.isfinite(values)):
+                raise AtlasUnavailableError(
+                    "DiFuMo sampled values must be finite"
+                )
+        except AtlasUnavailableError:
+            raise
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise AtlasUnavailableError(
+                "DiFuMo sampled values could not be converted"
+            ) from exc
         except Exception as exc:
             raise AtlasUnavailableError(
                 "DiFuMo atlas data could not be sampled"
             ) from exc
 
-        if sampled.shape != (len(components),):
-            raise AtlasUnavailableError(
-                "DiFuMo sampled component count does not match its labels"
-            )
-        if not np.all(np.isfinite(sampled)):
-            raise AtlasUnavailableError("DiFuMo sampled values must be finite")
-
         matches = tuple(
             AtlasMatch(
                 id=f"{self.atlas_id}:{component_id}",
                 label=label,
-                value=float(value),
+                value=value,
             )
-            for (component_id, label), value in zip(components, sampled)
+            for (component_id, label), value in zip(components, values)
             if value != 0.0
         )
         return self._result(
@@ -105,29 +117,46 @@ class DifumoAtlasProvider:
         return image, inverse_affine, components
 
     def _read_components(self):
-        with self._labels_path.open(
-            "r", encoding="utf-8", newline=""
-        ) as stream:
-            reader = csv.DictReader(stream)
-            if reader.fieldnames != ["component_id", "label"]:
-                raise AtlasUnavailableError(
-                    "DiFuMo component table must have normalized columns"
-                )
-
-            by_id = {}
-            for row in reader:
-                try:
-                    component_id = int(row["component_id"])
-                    label = row["label"].strip()
-                except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        try:
+            with self._labels_path.open(
+                "r", encoding="utf-8", newline=""
+            ) as stream:
+                reader = csv.DictReader(stream, strict=True)
+                required_fields = ["component_id", "label"]
+                if reader.fieldnames != required_fields:
                     raise AtlasUnavailableError(
-                        "DiFuMo component table contains invalid rows"
-                    ) from exc
-                if component_id in by_id or not label:
-                    raise AtlasUnavailableError(
-                        "DiFuMo component table contains invalid components"
+                        "DiFuMo component table must have normalized columns"
                     )
-                by_id[component_id] = label
+
+                by_id = {}
+                for row in reader:
+                    if set(row) != set(required_fields):
+                        raise AtlasUnavailableError(
+                            "DiFuMo component table contains invalid records"
+                        )
+                    try:
+                        component_id = int(row["component_id"])
+                        label = row["label"].strip()
+                    except (
+                        AttributeError,
+                        KeyError,
+                        TypeError,
+                        ValueError,
+                    ) as exc:
+                        raise AtlasUnavailableError(
+                            "DiFuMo component table contains invalid rows"
+                        ) from exc
+                    if component_id in by_id or not label:
+                        raise AtlasUnavailableError(
+                            "DiFuMo component table contains invalid components"
+                        )
+                    by_id[component_id] = label
+        except AtlasUnavailableError:
+            raise
+        except (csv.Error, UnicodeError) as exc:
+            raise AtlasUnavailableError(
+                "DiFuMo component table contains invalid records"
+            ) from exc
 
         expected_ids = set(range(1, len(by_id) + 1))
         if set(by_id) != expected_ids:

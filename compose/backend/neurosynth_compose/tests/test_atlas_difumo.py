@@ -2,6 +2,7 @@ import csv
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import FrozenInstanceError
 import time
+import warnings
 
 import nibabel as nib
 import numpy as np
@@ -58,6 +59,17 @@ def _write_assets(tmp_path, data=None, labels=LABELS):
 
 def _provider(tmp_path, data=None, labels=LABELS):
     image_path, labels_path = _write_assets(tmp_path, data, labels)
+    return DifumoAtlasProvider(
+        image_path=image_path,
+        labels_path=labels_path,
+        version="synthetic-v1",
+        source_url="https://example.test/difumo",
+    )
+
+
+def _provider_with_labels_csv(tmp_path, payload):
+    image_path, labels_path = _write_assets(tmp_path)
+    labels_path.write_text(payload, encoding="utf-8")
     return DifumoAtlasProvider(
         image_path=image_path,
         labels_path=labels_path,
@@ -202,6 +214,50 @@ def test_provider_rejects_component_count_or_id_mismatch(tmp_path, labels):
         provider.query(Coordinate(x=12.0, y=-8.0, z=4.0))
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "component_id,label\n"
+        "1,Mode one,unexpected\n"
+        "2,Mode two\n"
+        "3,Mode three\n"
+        "4,Mode four\n",
+        "component_id,label\n"
+        '1,"Mode one"unexpected\n'
+        "2,Mode two\n"
+        "3,Mode three\n"
+        "4,Mode four\n",
+        "component_id,label\n"
+        "1\n"
+        "2,Mode two\n"
+        "3,Mode three\n"
+        "4,Mode four\n",
+        "component_id,label\n"
+        "1,   \n"
+        "2,Mode two\n"
+        "3,Mode three\n"
+        "4,Mode four\n",
+        "component_id,label,unexpected\n"
+        "1,Mode one,value\n"
+        "2,Mode two,value\n"
+        "3,Mode three,value\n"
+        "4,Mode four,value\n",
+    ],
+    ids=[
+        "extra column",
+        "broken quoting",
+        "missing field",
+        "blank value",
+        "unexpected key",
+    ],
+)
+def test_provider_rejects_malformed_component_records(tmp_path, payload):
+    provider = _provider_with_labels_csv(tmp_path, payload)
+
+    with pytest.raises(AtlasUnavailableError, match="component|assets"):
+        provider.query(Coordinate(x=12.0, y=-8.0, z=4.0))
+
+
 @pytest.mark.parametrize("nonfinite", [float("nan"), float("inf"), -float("inf")])
 def test_provider_rejects_nonfinite_sampled_voxels(tmp_path, nonfinite):
     data = np.zeros((3, 3, 3, 4), dtype=np.float32)
@@ -209,6 +265,44 @@ def test_provider_rejects_nonfinite_sampled_voxels(tmp_path, nonfinite):
     provider = _provider(tmp_path, data)
 
     with pytest.raises(AtlasUnavailableError, match="finite"):
+        provider.query(Coordinate(x=12.0, y=-8.0, z=4.0))
+
+
+def test_provider_rejects_finite_complex_voxels_without_conversion_warning(
+    tmp_path,
+):
+    data = np.zeros((3, 3, 3, 4), dtype=np.complex64)
+    data[1, 1, 1, 2] = 0.75 + 0.25j
+    provider = _provider(tmp_path, data)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with pytest.raises(AtlasUnavailableError, match="real"):
+            provider.query(Coordinate(x=12.0, y=-8.0, z=4.0))
+
+    assert not any(
+        issubclass(warning.category, np.exceptions.ComplexWarning)
+        for warning in caught
+    )
+
+
+def test_provider_normalizes_unsupported_sample_dtype_errors(
+    tmp_path, monkeypatch
+):
+    provider = _provider(tmp_path)
+
+    class UnsupportedData:
+        def __getitem__(self, key):
+            return np.asarray([object(), object(), object(), object()])
+
+    class UnsupportedImage:
+        shape = (3, 3, 3, 4)
+        affine = AFFINE
+        dataobj = UnsupportedData()
+
+    monkeypatch.setattr(nib, "load", lambda path: UnsupportedImage())
+
+    with pytest.raises(AtlasUnavailableError, match="sampled"):
         provider.query(Coordinate(x=12.0, y=-8.0, z=4.0))
 
 
