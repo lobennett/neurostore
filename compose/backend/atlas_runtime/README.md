@@ -39,6 +39,11 @@ Deployments configure:
 - `ATLAS_DIFUMO_DIR`: the verified DiFuMo 512 artifact directory; and
 - `ATLAS_MANIFEST`: the checked-in manifest path.
 
+The service passes `ATLAS_FSLDIR` to each `atlasq` process as `FSLDIR` while
+preserving the rest of the process environment (including `PATH`). It does not
+read atlas data from an ambient FSL installation when an external runtime is
+configured.
+
 The verified installer command is:
 
 ```bash

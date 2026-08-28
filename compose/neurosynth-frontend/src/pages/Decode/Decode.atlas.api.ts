@@ -8,6 +8,7 @@ export const fetchAtlasReadout = async (
     const response = await axiosInstance.get<unknown>(`${neurosynthConfig.basePath}/atlases/readout`, {
         params: { x: coordinate.x, y: coordinate.y, z: coordinate.z },
         signal,
+        skipAuth: true,
     });
     return parseAtlasReadoutResponse(response.data, coordinate);
 };

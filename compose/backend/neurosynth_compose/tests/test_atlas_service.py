@@ -2,7 +2,9 @@
 
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 import json
+import os
 from pathlib import Path
+import shlex
 import threading
 
 import nibabel as nib
@@ -536,6 +538,36 @@ def test_factory_builds_fixed_providers_and_memoizes_by_frozen_config(tmp_path):
 
     changed = {**settings, "ATLAS_CACHE_SIZE": 3}
     assert get_atlas_readout_service(changed) is not first
+
+
+def test_factory_supplies_configured_fsldir_and_preserves_ambient_env(
+    tmp_path, monkeypatch
+):
+    settings = _runtime_settings(tmp_path)
+    configured_fsldir = str(settings["ATLAS_FSLDIR"])
+    ambient_fsldir = str(tmp_path / "conflicting-ambient-fsl")
+    atlasq = Path(configured_fsldir) / "bin" / "atlasq"
+    atlasq.write_text(
+        "#!/bin/sh\n"
+        f"test \"$FSLDIR\" = {shlex.quote(configured_fsldir)} || exit 17\n"
+        'test "$ATLAS_TEST_SENTINEL" = preserved || exit 18\n'
+        'if [ "$2" = "harvardoxford-cortical" ]; then\n'
+        "  printf 'coordinate\\t0 0 0\\tCortical 0 25.0\\n'\n"
+        "else\n"
+        "  printf 'coordinate\\t0 0 0\\tSubcortical 0 50.0\\n'\n"
+        "fi\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("FSLDIR", ambient_fsldir)
+    monkeypatch.setenv("ATLAS_TEST_SENTINEL", "preserved")
+
+    payload = get_atlas_readout_service(settings).query(
+        Coordinate(0.0, 0.0, 0.0)
+    )
+
+    assert [atlas["id"] for atlas in payload["atlases"]] == list(ATLAS_IDS)
+    assert os.environ["FSLDIR"] == ambient_fsldir
+    assert os.environ["ATLAS_TEST_SENTINEL"] == "preserved"
 
 
 def test_factory_uses_manifest_content_as_service_cache_version(tmp_path):

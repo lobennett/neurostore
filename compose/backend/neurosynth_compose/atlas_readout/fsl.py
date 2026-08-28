@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 import math
+import os
 import subprocess
 from types import MappingProxyType
 
@@ -24,19 +25,29 @@ _ATLAS_NAMES = {
 class SubprocessAtlasRunner:
     """Run one atlas command with bounded, non-shell process semantics."""
 
+    def __init__(self, fsl_dir=None):
+        self._fsl_dir = None if fsl_dir is None else os.fspath(fsl_dir)
+
     def run(
         self,
         arguments: Sequence[str],
         timeout_seconds: float,
     ) -> str:
         try:
+            run_options = {
+                "shell": False,
+                "check": True,
+                "capture_output": True,
+                "text": True,
+                "timeout": timeout_seconds,
+            }
+            if self._fsl_dir is not None:
+                environment = os.environ.copy()
+                environment["FSLDIR"] = self._fsl_dir
+                run_options["env"] = environment
             completed = subprocess.run(
                 arguments,
-                shell=False,
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
+                **run_options,
             )
             output = completed.stdout
             if not isinstance(output, str):
@@ -110,6 +121,7 @@ class FslAtlasProvider:
         version: str,
         source_url: str,
         executable: str = "/opt/decoder-atlases/bin/atlasq",
+        fsl_dir=None,
         timeout_seconds: float = 2.0,
         runner=None,
     ):
@@ -122,7 +134,11 @@ class FslAtlasProvider:
         self._source_url = source_url
         self._executable = executable
         self._timeout_seconds = timeout_seconds
-        self._runner = runner if runner is not None else SubprocessAtlasRunner()
+        self._runner = (
+            runner
+            if runner is not None
+            else SubprocessAtlasRunner(fsl_dir=fsl_dir)
+        )
 
     def query(self, coordinate: Coordinate) -> AtlasResult:
         arguments = [

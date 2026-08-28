@@ -1,9 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
-import { AxiosError } from 'axios';
+import { AxiosError, type AxiosAdapter } from 'axios';
 import type { ReactNode } from 'react';
 import API from 'api/api.config';
-import { axiosInstance, neurosynthConfig } from 'api/api.state';
+import 'api/axios.config';
+import {
+    _getAccessTokenSilentlyFunc,
+    _setAccessTokenSilentlyFunc,
+    axiosInstance,
+    neurosynthConfig,
+} from 'api/api.state';
 import { fetchAtlasReadout } from './Decode.atlas.api';
 import { parseAtlasReadoutResponse } from './Decode.atlas.types';
 import useDecodeAtlasReadout from './useDecodeAtlasReadout';
@@ -268,7 +274,74 @@ describe('fetchAtlasReadout', () => {
         expect(get).toHaveBeenCalledWith(`${neurosynthConfig.basePath}/atlases/readout`, {
             params: coordinate,
             signal,
+            skipAuth: true,
         });
+    });
+
+    it('never acquires or sends an auth token for the public atlas endpoint', async () => {
+        const coordinate = { x: -42.5, y: 0.125, z: 8.25 };
+        const getAccessToken = vi.fn().mockResolvedValue('private-token');
+        const originalGetAccessToken = _getAccessTokenSilentlyFunc;
+        const originalAdapter = axiosInstance.defaults.adapter;
+        const originalAuthorization = axiosInstance.defaults.headers.common.Authorization;
+        let observedAuthorization: unknown;
+        const adapter: AxiosAdapter = async (config) => {
+            observedAuthorization = config.headers.get('Authorization');
+            return {
+                config,
+                data: responseFor(coordinate),
+                headers: {},
+                status: 200,
+                statusText: 'OK',
+            };
+        };
+
+        _setAccessTokenSilentlyFunc(getAccessToken);
+        axiosInstance.defaults.headers.common.Authorization = 'Bearer stale-token';
+        axiosInstance.defaults.adapter = adapter;
+        try {
+            await fetchAtlasReadout(coordinate, new AbortController().signal);
+        } finally {
+            _setAccessTokenSilentlyFunc(originalGetAccessToken as () => Promise<string>);
+            axiosInstance.defaults.adapter = originalAdapter;
+            if (originalAuthorization === undefined) {
+                delete axiosInstance.defaults.headers.common.Authorization;
+            } else {
+                axiosInstance.defaults.headers.common.Authorization = originalAuthorization;
+            }
+        }
+
+        expect(getAccessToken).not.toHaveBeenCalled();
+        expect(observedAuthorization).toBeUndefined();
+    });
+
+    it('continues to acquire and send auth tokens for ordinary shared requests', async () => {
+        const getAccessToken = vi.fn().mockResolvedValue('private-token');
+        const originalGetAccessToken = _getAccessTokenSilentlyFunc;
+        const originalAdapter = axiosInstance.defaults.adapter;
+        let observedAuthorization: unknown;
+        const adapter: AxiosAdapter = async (config) => {
+            observedAuthorization = config.headers.get('Authorization');
+            return {
+                config,
+                data: {},
+                headers: {},
+                status: 200,
+                statusText: 'OK',
+            };
+        };
+
+        _setAccessTokenSilentlyFunc(getAccessToken);
+        axiosInstance.defaults.adapter = adapter;
+        try {
+            await axiosInstance.get('/authenticated-resource');
+        } finally {
+            _setAccessTokenSilentlyFunc(originalGetAccessToken as () => Promise<string>);
+            axiosInstance.defaults.adapter = originalAdapter;
+        }
+
+        expect(getAccessToken).toHaveBeenCalledOnce();
+        expect(observedAuthorization).toBe('Bearer private-token');
     });
 
     it('rejects a transport response that does not match the requested coordinate', async () => {

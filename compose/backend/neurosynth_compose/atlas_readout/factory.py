@@ -110,6 +110,7 @@ def _build_service(configuration):
             version=fsl_version,
             source_url=fsl["sourceUrl"],
             executable=str(executable),
+            fsl_dir=configuration.fsl_dir,
             timeout_seconds=configuration.timeout_seconds,
         ),
         ATLAS_ORDER[0]: FslAtlasProvider(
@@ -118,6 +119,7 @@ def _build_service(configuration):
             version=fsl_version,
             source_url=fsl["sourceUrl"],
             executable=str(executable),
+            fsl_dir=configuration.fsl_dir,
             timeout_seconds=configuration.timeout_seconds,
         ),
     }

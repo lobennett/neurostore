@@ -55,6 +55,21 @@ class FakeAtlasReadoutService:
                     ],
                 },
                 {
+                    "id": "harvardoxford-subcortical",
+                    "name": "Harvard–Oxford Subcortical Structural Atlas",
+                    "category": "anatomical",
+                    "valueType": "probability",
+                    "version": "2103.0",
+                    "sourceUrl": "https://example.org/harvard-oxford",
+                    "matches": [
+                        {
+                            "id": "harvardoxford-subcortical:4",
+                            "label": "Left Thalamus",
+                            "value": 71.5,
+                        }
+                    ],
+                },
+                {
                     "id": "difumo-512",
                     "name": "DiFuMo 512",
                     "category": "functional",
@@ -125,6 +140,38 @@ async def test_anonymous_readout_preserves_decimals_and_uses_request_settings(
     assert factory_settings == [app.config]
     assert service.coordinates == [Coordinate(x=-42.5, y=0.0, z=8.25)]
     assert service.thread_ids != [event_loop_thread]
+
+
+async def test_readout_returns_the_frontend_three_atlas_contract_in_order(
+    atlas_client,
+    app,
+    monkeypatch,
+):
+    service = FakeAtlasReadoutService()
+    _install_fake_factory(monkeypatch, service, app.config)
+
+    response = await atlas_client.get(
+        _READOUT_PATH,
+        params={"x": "-42.5", "y": "0", "z": "8.25"},
+    )
+
+    assert response.status_code == 200
+    assert [
+        (atlas["id"], atlas["category"], atlas["valueType"])
+        for atlas in response.json()["atlases"]
+    ] == [
+        (
+            "harvardoxford-cortical",
+            "anatomical",
+            "probability",
+        ),
+        (
+            "harvardoxford-subcortical",
+            "anatomical",
+            "probability",
+        ),
+        ("difumo-512", "functional", "loading"),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -266,12 +313,29 @@ async def test_readout_response_obeys_closed_openapi_schema(
     invalid_category["atlases"][0]["category"] = "unknown"
     invalid_value_type = copy.deepcopy(response.json())
     invalid_value_type["atlases"][0]["valueType"] = "percentage"
+    too_few_atlases = copy.deepcopy(response.json())
+    too_few_atlases["atlases"] = too_few_atlases["atlases"][:1]
+    too_many_atlases = copy.deepcopy(response.json())
+    too_many_atlases["atlases"].append(
+        copy.deepcopy(too_many_atlases["atlases"][0])
+    )
+    unknown_atlas_id = copy.deepcopy(response.json())
+    unknown_atlas_id["atlases"][0]["id"] = "visitor-selected-atlas"
+    anatomical_loading = copy.deepcopy(response.json())
+    anatomical_loading["atlases"][0]["valueType"] = "loading"
+    functional_probability = copy.deepcopy(response.json())
+    functional_probability["atlases"][-1]["valueType"] = "probability"
 
     for invalid in (
         *closed_schema_mutations,
         *required_schema_mutations,
         invalid_category,
         invalid_value_type,
+        too_few_atlases,
+        too_many_atlases,
+        unknown_atlas_id,
+        anatomical_loading,
+        functional_probability,
     ):
         with pytest.raises(ValidationError):
             validator.validate(invalid)

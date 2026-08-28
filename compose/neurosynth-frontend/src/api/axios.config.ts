@@ -7,6 +7,10 @@ const env = import.meta.env.VITE_APP_ENV as 'DEV' | 'STAGING' | 'PROD';
 
 axiosInstance.interceptors.request.use(
     async (config) => {
+        if (config.skipAuth) {
+            config.headers.delete('Authorization');
+            return config;
+        }
         try {
             if (!_getAccessTokenSilentlyFunc) {
                 console.warn('Auth not initialized');
