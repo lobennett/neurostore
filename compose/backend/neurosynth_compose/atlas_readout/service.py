@@ -15,6 +15,15 @@ ATLAS_ORDER = (
 _UNAVAILABLE_MESSAGE = "Atlas readout is unavailable"
 
 
+class _InFlightQuery:
+    def __init__(self, cache_lock):
+        self.condition = threading.Condition(cache_lock)
+        self.owner_ident = threading.get_ident()
+        self.complete = False
+        self.failed = False
+        self.results = None
+
+
 class AtlasReadoutService:
     """Query all required providers and cache complete immutable results."""
 
@@ -40,7 +49,8 @@ class AtlasReadoutService:
         self._manifest_version = manifest_version
         self._cache_size = cache_size
         self._cache = OrderedDict()
-        self._cache_lock = threading.RLock()
+        self._cache_lock = threading.Lock()
+        self._in_flight = {}
 
     def query(self, coordinate: Coordinate) -> dict:
         """Return one complete, freshly serialized three-atlas response."""
@@ -56,11 +66,30 @@ class AtlasReadoutService:
             if results is not None:
                 self._cache.move_to_end(key)
             else:
+                in_flight = self._in_flight.get(key)
+                if in_flight is None:
+                    in_flight = _InFlightQuery(self._cache_lock)
+                    self._in_flight[key] = in_flight
+                    owns_query = True
+                else:
+                    if in_flight.owner_ident == threading.get_ident():
+                        raise AtlasUnavailableError(_UNAVAILABLE_MESSAGE)
+                    owns_query = False
+
+                if not owns_query:
+                    while not in_flight.complete:
+                        in_flight.condition.wait()
+                    if in_flight.failed:
+                        raise AtlasUnavailableError(_UNAVAILABLE_MESSAGE)
+                    results = in_flight.results
+
+        if results is None:
+            try:
                 results = self._query_providers(coordinate)
-                self._cache[key] = results
-                self._cache.move_to_end(key)
-                while len(self._cache) > self._cache_size:
-                    self._cache.popitem(last=False)
+            except BaseException:
+                self._publish_failure(key, in_flight)
+                raise
+            self._publish_success(key, in_flight, results)
 
         return {
             "coordinate": {
@@ -71,6 +100,24 @@ class AtlasReadoutService:
             "space": "MNI152",
             "atlases": [result.to_dict() for result in results],
         }
+
+    def _publish_success(self, key, in_flight, results):
+        with self._cache_lock:
+            self._cache[key] = results
+            self._cache.move_to_end(key)
+            while len(self._cache) > self._cache_size:
+                self._cache.popitem(last=False)
+            in_flight.results = results
+            in_flight.complete = True
+            self._in_flight.pop(key, None)
+            in_flight.condition.notify_all()
+
+    def _publish_failure(self, key, in_flight):
+        with self._cache_lock:
+            in_flight.failed = True
+            in_flight.complete = True
+            self._in_flight.pop(key, None)
+            in_flight.condition.notify_all()
 
     def _query_providers(self, coordinate):
         try:

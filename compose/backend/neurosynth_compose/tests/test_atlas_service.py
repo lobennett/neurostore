@@ -1,7 +1,9 @@
 """Deterministic orchestration and construction of atlas readouts."""
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 import json
 from pathlib import Path
+import threading
 
 import nibabel as nib
 import numpy as np
@@ -49,6 +51,74 @@ class RecordingProvider:
         if self.failure is not None:
             raise self.failure
         return self.result
+
+
+class CoordinateBlockingProvider(RecordingProvider):
+    def __init__(self, result, blocked_coordinate):
+        super().__init__(result)
+        self.blocked_coordinate = blocked_coordinate
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def query(self, coordinate):
+        self.coordinates.append(coordinate)
+        if coordinate == self.blocked_coordinate:
+            self.entered.set()
+            if not self.release.wait(timeout=2):
+                raise AssertionError("blocked provider was not released")
+        return self.result
+
+
+class OverlapProvider(RecordingProvider):
+    def __init__(self, result):
+        super().__init__(result)
+        self._active_lock = threading.Lock()
+        self._active = 0
+        self.two_active = threading.Event()
+        self.release = threading.Event()
+
+    def query(self, coordinate):
+        with self._active_lock:
+            self.coordinates.append(coordinate)
+            self._active += 1
+            if self._active == 2:
+                self.two_active.set()
+        try:
+            if not self.release.wait(timeout=2):
+                raise AssertionError("overlapping providers were not released")
+            return self.result
+        finally:
+            with self._active_lock:
+                self._active -= 1
+
+
+class FailFirstBlockingProvider(RecordingProvider):
+    def __init__(self, result):
+        super().__init__(result)
+        self._attempt_lock = threading.Lock()
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def query(self, coordinate):
+        with self._attempt_lock:
+            self.coordinates.append(coordinate)
+            attempt = len(self.coordinates)
+        if attempt == 1:
+            self.entered.set()
+            if not self.release.wait(timeout=2):
+                raise AssertionError("failing provider was not released")
+            raise RuntimeError("provider details")
+        return self.result
+
+
+class SameKeyReentrantProvider(RecordingProvider):
+    def __init__(self, result):
+        super().__init__(result)
+        self.service = None
+
+    def query(self, coordinate):
+        self.coordinates.append(coordinate)
+        return self.service.query(coordinate)
 
 
 def _providers(**overrides):
@@ -150,6 +220,133 @@ def test_service_uses_bounded_least_recently_used_eviction():
         4,
         4,
     ]
+
+
+def test_cached_hit_completes_while_unrelated_slow_miss_is_in_flight():
+    cached = Coordinate(1.0, 0.0, 0.0)
+    slow = Coordinate(2.0, 0.0, 0.0)
+    cortical = CoordinateBlockingProvider(_result(ATLAS_IDS[0], 1.0), slow)
+    providers = _providers(**{ATLAS_IDS[0]: cortical})
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    service.query(cached)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        slow_future = executor.submit(service.query, slow)
+        assert cortical.entered.wait(timeout=1)
+        hit_future = executor.submit(service.query, cached)
+        try:
+            hit = hit_future.result(timeout=0.5)
+        except FutureTimeout:
+            pytest.fail("cached hit waited for an unrelated provider query")
+        finally:
+            cortical.release.set()
+        slow_payload = slow_future.result(timeout=1)
+
+    assert hit["coordinate"] == {"x": 1.0, "y": 0.0, "z": 0.0}
+    assert slow_payload["coordinate"] == {"x": 2.0, "y": 0.0, "z": 0.0}
+
+
+def test_distinct_slow_cache_misses_execute_providers_concurrently():
+    cortical = OverlapProvider(_result(ATLAS_IDS[0], 1.0))
+    providers = _providers(**{ATLAS_IDS[0]: cortical})
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    first = Coordinate(1.0, 0.0, 0.0)
+    second = Coordinate(2.0, 0.0, 0.0)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_future = executor.submit(service.query, first)
+        second_future = executor.submit(service.query, second)
+        try:
+            assert cortical.two_active.wait(timeout=0.5)
+        finally:
+            cortical.release.set()
+        first_payload = first_future.result(timeout=1)
+        second_payload = second_future.result(timeout=1)
+
+    assert first_payload["coordinate"]["x"] == 1.0
+    assert second_payload["coordinate"]["x"] == 2.0
+
+
+def test_same_key_concurrent_calls_query_once_and_serialize_independently():
+    coordinate = Coordinate(1.0, 0.0, 0.0)
+    cortical = CoordinateBlockingProvider(
+        _result(ATLAS_IDS[0], 1.0), coordinate
+    )
+    providers = _providers(**{ATLAS_IDS[0]: cortical})
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    start = threading.Barrier(3)
+
+    def query():
+        start.wait(timeout=1)
+        return service.query(coordinate)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_future = executor.submit(query)
+        second_future = executor.submit(query)
+        start.wait(timeout=1)
+        assert cortical.entered.wait(timeout=1)
+        cortical.release.set()
+        first = first_future.result(timeout=1)
+        second = second_future.result(timeout=1)
+
+    first["atlases"][0]["matches"][0]["label"] = "caller mutation"
+    assert second["atlases"][0]["matches"][0]["label"] == "Match"
+    assert first is not second
+    assert [len(provider.coordinates) for provider in providers.values()] == [
+        1,
+        1,
+        1,
+    ]
+
+
+def test_same_key_failure_wakes_waiters_and_does_not_poison_retry():
+    coordinate = Coordinate(1.0, 0.0, 0.0)
+    cortical = FailFirstBlockingProvider(_result(ATLAS_IDS[0], 1.0))
+    providers = _providers(**{ATLAS_IDS[0]: cortical})
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    start = threading.Barrier(3)
+
+    def query():
+        start.wait(timeout=1)
+        return service.query(coordinate)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_future = executor.submit(query)
+        second_future = executor.submit(query)
+        start.wait(timeout=1)
+        assert cortical.entered.wait(timeout=1)
+        cortical.release.set()
+        with pytest.raises(AtlasUnavailableError):
+            first_future.result(timeout=1)
+        with pytest.raises(AtlasUnavailableError):
+            second_future.result(timeout=1)
+
+    assert len(cortical.coordinates) == 1
+    recovered = service.query(coordinate)
+    assert recovered["coordinate"] == {"x": 1.0, "y": 0.0, "z": 0.0}
+    assert len(cortical.coordinates) == 2
+
+
+def test_same_thread_same_key_reentrancy_fails_instead_of_deadlocking():
+    coordinate = Coordinate(1.0, 0.0, 0.0)
+    cortical = SameKeyReentrantProvider(_result(ATLAS_IDS[0], 1.0))
+    providers = _providers(**{ATLAS_IDS[0]: cortical})
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    cortical.service = service
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(service.query, coordinate)
+        try:
+            with pytest.raises(AtlasUnavailableError):
+                future.result(timeout=0.5)
+        except FutureTimeout:
+            with service._cache_lock:
+                in_flight = next(iter(service._in_flight.values()))
+                in_flight.failed = True
+                in_flight.complete = True
+                service._in_flight.clear()
+                in_flight.condition.notify_all()
+            pytest.fail("same-key recursive query deadlocked its owner")
 
 
 @pytest.mark.parametrize(
