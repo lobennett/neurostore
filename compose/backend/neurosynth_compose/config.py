@@ -76,6 +76,19 @@ class Config:
 
     FILE_DIR = Path("/file-data")
     ASGI_THREAD_TOKENS = int(get_env_var("ASGI_THREAD_TOKENS", "16"))
+    ATLAS_FSLDIR = Path(get_env_var("ATLAS_FSLDIR", "/opt/decoder-atlases"))
+    ATLAS_DIFUMO_DIR = Path(
+        get_env_var(
+            "ATLAS_DIFUMO_DIR", "/opt/decoder-atlases/data/difumo-512"
+        )
+    )
+    ATLAS_MANIFEST = Path(
+        get_env_var("ATLAS_MANIFEST", "/opt/decoder-atlases/manifest.json")
+    )
+    ATLAS_QUERY_TIMEOUT_SECONDS = float(
+        get_env_var("ATLAS_QUERY_TIMEOUT_SECONDS", "2")
+    )
+    ATLAS_CACHE_SIZE = int(get_env_var("ATLAS_CACHE_SIZE", "512"))
     POSTGRES_HOST = get_env_var("POSTGRES_HOST", required=True)
     POSTGRES_PASSWORD = get_env_var("POSTGRES_PASSWORD", "")
     DB_NAME = resolve_database_name("compose", "production")

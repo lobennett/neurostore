@@ -1,0 +1,422 @@
+"""Deterministic orchestration and construction of atlas readouts."""
+
+import json
+from pathlib import Path
+
+import nibabel as nib
+import numpy as np
+import pytest
+
+from neurosynth_compose.atlas_readout import (
+    AtlasMatch,
+    AtlasReadoutService,
+    AtlasResult,
+    AtlasUnavailableError,
+    Coordinate,
+    get_atlas_readout_service,
+)
+from neurosynth_compose.config import Config
+
+
+ATLAS_IDS = (
+    "harvardoxford-cortical",
+    "harvardoxford-subcortical",
+    "difumo-512",
+)
+
+
+def _result(atlas_id, value):
+    anatomical = atlas_id != "difumo-512"
+    return AtlasResult(
+        id=atlas_id,
+        name=atlas_id,
+        category="anatomical" if anatomical else "functional",
+        value_type="probability" if anatomical else "loading",
+        version="atlas-version",
+        source_url="https://example.com/atlas",
+        matches=(AtlasMatch(f"{atlas_id}:1", "Match", value),),
+    )
+
+
+class RecordingProvider:
+    def __init__(self, result, failure=None):
+        self.result = result
+        self.failure = failure
+        self.coordinates = []
+
+    def query(self, coordinate):
+        self.coordinates.append(coordinate)
+        if self.failure is not None:
+            raise self.failure
+        return self.result
+
+
+def _providers(**overrides):
+    providers = {
+        atlas_id: RecordingProvider(_result(atlas_id, index + 1.0))
+        for index, atlas_id in enumerate(ATLAS_IDS)
+    }
+    providers.update(overrides)
+    return providers
+
+
+def test_service_returns_fixed_order_regardless_of_mapping_order():
+    providers = _providers()
+    reversed_providers = {
+        atlas_id: providers[atlas_id] for atlas_id in reversed(ATLAS_IDS)
+    }
+    service = AtlasReadoutService(
+        reversed_providers,
+        manifest_version="manifest-v1",
+        cache_size=8,
+    )
+    coordinate = Coordinate(-42.5, 0.0, 8.25)
+
+    payload = service.query(coordinate)
+
+    assert payload == {
+        "coordinate": {"x": -42.5, "y": 0.0, "z": 8.25},
+        "space": "MNI152",
+        "atlases": [
+            providers[atlas_id].result.to_dict() for atlas_id in ATLAS_IDS
+        ],
+    }
+
+
+def test_service_reuses_exact_coordinate_and_returns_fresh_serialization():
+    providers = _providers()
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    coordinate = Coordinate(-42.5, 0.0, 8.25)
+
+    first = service.query(coordinate)
+    first["coordinate"]["x"] = 90.0
+    first["atlases"][0]["matches"][0]["label"] = "caller mutation"
+    second = service.query(coordinate)
+
+    assert second["coordinate"]["x"] == -42.5
+    assert second["atlases"][0]["matches"][0]["label"] == "Match"
+    assert [len(provider.coordinates) for provider in providers.values()] == [
+        1,
+        1,
+        1,
+    ]
+
+
+def test_service_does_not_round_coordinate_cache_keys():
+    providers = _providers()
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+
+    service.query(Coordinate(-42.5, 0.0, 8.25))
+    service.query(Coordinate(-42.5001, 0.0, 8.25))
+
+    assert [len(provider.coordinates) for provider in providers.values()] == [
+        2,
+        2,
+        2,
+    ]
+
+
+def test_service_manifest_version_is_part_of_the_cache_key():
+    providers = _providers()
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    coordinate = Coordinate(-42.5, 0.0, 8.25)
+
+    service.query(coordinate)
+    service._manifest_version = "manifest-v2"
+    service.query(coordinate)
+
+    assert [len(provider.coordinates) for provider in providers.values()] == [
+        2,
+        2,
+        2,
+    ]
+
+
+def test_service_uses_bounded_least_recently_used_eviction():
+    providers = _providers()
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=2)
+    first = Coordinate(1.0, 0.0, 0.0)
+    second = Coordinate(2.0, 0.0, 0.0)
+    third = Coordinate(3.0, 0.0, 0.0)
+
+    service.query(first)
+    service.query(second)
+    service.query(first)
+    service.query(third)
+    service.query(second)
+
+    assert [len(provider.coordinates) for provider in providers.values()] == [
+        4,
+        4,
+        4,
+    ]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [AtlasUnavailableError("provider unavailable"), RuntimeError("details")],
+)
+def test_service_normalizes_provider_failure_without_caching_partial_state(
+    failure,
+):
+    failing = RecordingProvider(_result(ATLAS_IDS[1], 2.0), failure=failure)
+    providers = _providers(**{ATLAS_IDS[1]: failing})
+    service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+    coordinate = Coordinate(-42.5, 0.0, 8.25)
+
+    with pytest.raises(AtlasUnavailableError, match="Atlas readout is unavailable"):
+        service.query(coordinate)
+    with pytest.raises(AtlasUnavailableError):
+        service.query(coordinate)
+
+    assert len(providers[ATLAS_IDS[0]].coordinates) == 2
+    assert len(failing.coordinates) == 2
+    assert providers[ATLAS_IDS[2]].coordinates == []
+
+
+@pytest.mark.parametrize(
+    "providers",
+    [
+        {},
+        {
+            **_providers(),
+            "unexpected": RecordingProvider(_result(ATLAS_IDS[0], 1)),
+        },
+        {
+            atlas_id: provider
+            for atlas_id, provider in _providers().items()
+            if atlas_id != ATLAS_IDS[2]
+        },
+    ],
+)
+def test_service_requires_exactly_the_three_fixed_providers(providers):
+    with pytest.raises(AtlasUnavailableError):
+        AtlasReadoutService(providers, "manifest-v1", cache_size=8)
+
+
+@pytest.mark.parametrize("cache_size", [True, 0, -1, 1.5, "8"])
+def test_service_rejects_invalid_cache_size(cache_size):
+    with pytest.raises(AtlasUnavailableError):
+        AtlasReadoutService(_providers(), "manifest-v1", cache_size=cache_size)
+
+
+def _valid_manifest():
+    return {
+        "schemaVersion": 1,
+        "space": "MNI152",
+        "fsl": {
+            "sourceUrl": "https://example.com/harvard-oxford",
+            "packages": {"fsl-data_atlases": "2103.0"},
+            "atlasIds": list(ATLAS_IDS[:2]),
+            "labelIndexMaps": {
+                ATLAS_IDS[0]: [
+                    {"index": index, "label": f"Cortical {index}"}
+                    for index in range(48)
+                ],
+                ATLAS_IDS[1]: [
+                    {"index": index, "label": f"Subcortical {index}"}
+                    for index in range(21)
+                ],
+            },
+        },
+        "difumo": {
+            "name": "DiFuMo 512",
+            "version": "version 1",
+            "dimension": 512,
+            "resolutionMm": 2,
+            "interpolation": "nearest",
+            "canonicalUrl": "https://example.com/difumo",
+            "assets": [
+                {
+                    "filename": "difumo-512-2mm.nii.gz",
+                    "sha256": "1" * 64,
+                    "bytes": 1,
+                },
+                {
+                    "filename": "difumo-512-labels.csv",
+                    "sha256": "2" * 64,
+                    "bytes": 1,
+                },
+            ],
+        },
+    }
+
+
+def _runtime_settings(tmp_path, manifest=None):
+    fsl_dir = tmp_path / "fsl"
+    difumo_dir = tmp_path / "difumo"
+    executable = fsl_dir / "bin" / "atlasq"
+    executable.parent.mkdir(parents=True)
+    executable.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$2\" = \"harvardoxford-cortical\" ]; then\n"
+        "  printf 'coordinate\\t0 0 0\\tCortical 0 25.0\\n'\n"
+        "else\n"
+        "  printf 'coordinate\\t0 0 0\\tSubcortical 0 50.0\\n'\n"
+        "fi\n",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+
+    difumo_dir.mkdir()
+    values = np.zeros((1, 1, 1, 512), dtype=np.float32)
+    values[0, 0, 0, 0] = 0.75
+    nib.save(
+        nib.Nifti1Image(values, np.eye(4)),
+        difumo_dir / "difumo-512-2mm.nii.gz",
+    )
+    (difumo_dir / "difumo-512-labels.csv").write_text(
+        "component_id,label\n"
+        + "".join(f"{index},Mode {index}\n" for index in range(1, 513)),
+        encoding="utf-8",
+    )
+
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(_valid_manifest() if manifest is None else manifest),
+        encoding="utf-8",
+    )
+    return {
+        "ATLAS_FSLDIR": fsl_dir,
+        "ATLAS_DIFUMO_DIR": difumo_dir,
+        "ATLAS_MANIFEST": manifest_path,
+        "ATLAS_QUERY_TIMEOUT_SECONDS": 1.0,
+        "ATLAS_CACHE_SIZE": 2,
+    }
+
+
+def test_factory_builds_fixed_providers_and_memoizes_by_frozen_config(tmp_path):
+    settings = _runtime_settings(tmp_path)
+
+    first = get_atlas_readout_service(settings)
+    second = get_atlas_readout_service(dict(settings))
+    payload = first.query(Coordinate(0.0, 0.0, 0.0))
+
+    assert first is second
+    assert [atlas["id"] for atlas in payload["atlases"]] == list(ATLAS_IDS)
+    assert payload["atlases"][0]["matches"][0] == {
+        "id": f"{ATLAS_IDS[0]}:0",
+        "label": "Cortical 0",
+        "value": 25.0,
+    }
+    assert payload["atlases"][1]["matches"][0]["id"] == (
+        f"{ATLAS_IDS[1]}:0"
+    )
+    assert payload["atlases"][2]["matches"][0] == {
+        "id": "difumo-512:1",
+        "label": "Mode 1",
+        "value": 0.75,
+    }
+
+    changed = {**settings, "ATLAS_CACHE_SIZE": 3}
+    assert get_atlas_readout_service(changed) is not first
+
+
+def test_factory_uses_manifest_content_as_service_cache_version(tmp_path):
+    settings_v1 = _runtime_settings(tmp_path / "v1")
+    manifest_v2 = _valid_manifest()
+    manifest_v2["difumo"]["version"] = "version 2"
+    settings_v2 = _runtime_settings(tmp_path / "v2", manifest=manifest_v2)
+
+    service_v1 = get_atlas_readout_service(settings_v1)
+    service_v2 = get_atlas_readout_service(settings_v2)
+
+    assert service_v1._manifest_version != service_v2._manifest_version
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("ATLAS_FSLDIR", ""),
+        ("ATLAS_DIFUMO_DIR", object()),
+        ("ATLAS_MANIFEST", None),
+        ("ATLAS_QUERY_TIMEOUT_SECONDS", True),
+        ("ATLAS_QUERY_TIMEOUT_SECONDS", 0),
+        ("ATLAS_QUERY_TIMEOUT_SECONDS", float("inf")),
+        ("ATLAS_CACHE_SIZE", True),
+        ("ATLAS_CACHE_SIZE", 0),
+        ("ATLAS_CACHE_SIZE", 2.5),
+    ],
+)
+def test_factory_rejects_invalid_settings_safely(tmp_path, key, value):
+    settings = _runtime_settings(tmp_path)
+    settings[key] = value
+
+    with pytest.raises(AtlasUnavailableError, match="configuration is invalid"):
+        get_atlas_readout_service(settings)
+
+
+def test_factory_rejects_missing_required_setting(tmp_path):
+    settings = _runtime_settings(tmp_path)
+    del settings["ATLAS_MANIFEST"]
+
+    with pytest.raises(AtlasUnavailableError, match="configuration is invalid"):
+        get_atlas_readout_service(settings)
+
+
+@pytest.mark.parametrize(
+    "manifest_update",
+    [
+        {"space": "Talairach"},
+        {"schemaVersion": 0},
+        {"schemaVersion": 2},
+        {"fsl": {"atlasIds": [ATLAS_IDS[1], ATLAS_IDS[0]]}},
+        {"difumo": {"dimension": 511}},
+        {"difumo": {"dimension": 512.0}},
+        {"fsl": {"sourceUrl": "ftp://example.com/atlas"}},
+        {"difumo": {"canonicalUrl": "http://example.com/difumo"}},
+    ],
+)
+def test_factory_rejects_invalid_manifest_safely(tmp_path, manifest_update):
+    manifest = _valid_manifest()
+    for section, value in manifest_update.items():
+        if isinstance(value, dict):
+            manifest[section].update(value)
+        else:
+            manifest[section] = value
+    settings = _runtime_settings(tmp_path, manifest=manifest)
+
+    with pytest.raises(AtlasUnavailableError, match="manifest is invalid"):
+        get_atlas_readout_service(settings)
+
+
+def test_factory_rejects_malformed_manifest_without_leaking_path(tmp_path):
+    settings = _runtime_settings(tmp_path)
+    Path(settings["ATLAS_MANIFEST"]).write_text("not json", encoding="utf-8")
+
+    with pytest.raises(AtlasUnavailableError) as error:
+        get_atlas_readout_service(settings)
+
+    assert "manifest is unavailable" in str(error.value)
+    assert str(tmp_path) not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "missing_relative_path",
+    [
+        Path("fsl/bin/atlasq"),
+        Path("difumo/difumo-512-2mm.nii.gz"),
+        Path("difumo/difumo-512-labels.csv"),
+    ],
+)
+def test_factory_rejects_missing_runtime_files_safely(
+    tmp_path, missing_relative_path
+):
+    settings = _runtime_settings(tmp_path)
+    (tmp_path / missing_relative_path).unlink()
+
+    with pytest.raises(AtlasUnavailableError) as error:
+        get_atlas_readout_service(settings)
+
+    assert "runtime is unavailable" in str(error.value)
+    assert str(tmp_path) not in str(error.value)
+
+
+def test_config_declares_the_five_deployment_defaults():
+    assert Config.ATLAS_FSLDIR == Path("/opt/decoder-atlases")
+    assert Config.ATLAS_DIFUMO_DIR == Path(
+        "/opt/decoder-atlases/data/difumo-512"
+    )
+    assert Config.ATLAS_MANIFEST == Path("/opt/decoder-atlases/manifest.json")
+    assert Config.ATLAS_QUERY_TIMEOUT_SECONDS == 2.0
+    assert Config.ATLAS_CACHE_SIZE == 512
