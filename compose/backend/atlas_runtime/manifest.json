@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "space": "MNI152",
+  "fsl": {
+    "sourceUrl": "https://fsl.fmrib.ox.ac.uk/fsl/docs/other/datasets.html",
+    "packages": {
+      "fslpy": "3.29.1",
+      "fslpyBuild": "pyhc364b38_0",
+      "fsl-data_atlases": "2103.0",
+      "fsl-data_atlasesBuild": "0"
+    },
+    "atlasIds": [
+      "harvardoxford-cortical",
+      "harvardoxford-subcortical"
+    ],
+    "license": {
+      "spdx": "CC-BY-SA-4.0",
+      "sourceUrl": "https://fsl.fmrib.ox.ac.uk/fsl/docs/license.html",
+      "noticePath": "/opt/decoder-atlases/licenses/harvard-oxford/CC-BY-SA-4.0.txt"
+    },
+    "labelIndexMaps": {
+      "harvardoxford-cortical": [
+        {"index": 0, "label": "Frontal Pole"},
+        {"index": 1, "label": "Insular Cortex"},
+        {"index": 2, "label": "Superior Frontal Gyrus"},
+        {"index": 3, "label": "Middle Frontal Gyrus"},
+        {"index": 4, "label": "Inferior Frontal Gyrus, pars triangularis"},
+        {"index": 5, "label": "Inferior Frontal Gyrus, pars opercularis"},
+        {"index": 6, "label": "Precentral Gyrus"},
+        {"index": 7, "label": "Temporal Pole"},
+        {"index": 8, "label": "Superior Temporal Gyrus, anterior division"},
+        {"index": 9, "label": "Superior Temporal Gyrus, posterior division"},
+        {"index": 10, "label": "Middle Temporal Gyrus, anterior division"},
+        {"index": 11, "label": "Middle Temporal Gyrus, posterior division"},
+        {"index": 12, "label": "Middle Temporal Gyrus, temporooccipital part"},
+        {"index": 13, "label": "Inferior Temporal Gyrus, anterior division"},
+        {"index": 14, "label": "Inferior Temporal Gyrus, posterior division"},
+        {"index": 15, "label": "Inferior Temporal Gyrus, temporooccipital part"},
+        {"index": 16, "label": "Postcentral Gyrus"},
+        {"index": 17, "label": "Superior Parietal Lobule"},
+        {"index": 18, "label": "Supramarginal Gyrus, anterior division"},
+        {"index": 19, "label": "Supramarginal Gyrus, posterior division"},
+        {"index": 20, "label": "Angular Gyrus"},
+        {"index": 21, "label": "Lateral Occipital Cortex, superior division"},
+        {"index": 22, "label": "Lateral Occipital Cortex, inferior division"},
+        {"index": 23, "label": "Intracalcarine Cortex"},
+        {"index": 24, "label": "Frontal Medial Cortex"},
+        {"index": 25, "label": "Juxtapositional Lobule Cortex (formerly Supplementary Motor Cortex)"},
+        {"index": 26, "label": "Subcallosal Cortex"},
+        {"index": 27, "label": "Paracingulate Gyrus"},
+        {"index": 28, "label": "Cingulate Gyrus, anterior division"},
+        {"index": 29, "label": "Cingulate Gyrus, posterior division"},
+        {"index": 30, "label": "Precuneous Cortex"},
+        {"index": 31, "label": "Cuneal Cortex"},
+        {"index": 32, "label": "Frontal Orbital Cortex"},
+        {"index": 33, "label": "Parahippocampal Gyrus, anterior division"},
+        {"index": 34, "label": "Parahippocampal Gyrus, posterior division"},
+        {"index": 35, "label": "Lingual Gyrus"},
+        {"index": 36, "label": "Temporal Fusiform Cortex, anterior division"},
+        {"index": 37, "label": "Temporal Fusiform Cortex, posterior division"},
+        {"index": 38, "label": "Temporal Occipital Fusiform Cortex"},
+        {"index": 39, "label": "Occipital Fusiform Gyrus"},
+        {"index": 40, "label": "Frontal Operculum Cortex"},
+        {"index": 41, "label": "Central Opercular Cortex"},
+        {"index": 42, "label": "Parietal Operculum Cortex"},
+        {"index": 43, "label": "Planum Polare"},
+        {"index": 44, "label": "Heschl's Gyrus (includes H1 and H2)"},
+        {"index": 45, "label": "Planum Temporale"},
+        {"index": 46, "label": "Supracalcarine Cortex"},
+        {"index": 47, "label": "Occipital Pole"}
+      ],
+      "harvardoxford-subcortical": [
+        {"index": 0, "label": "Left Cerebral White Matter"},
+        {"index": 1, "label": "Left Cerebral Cortex"},
+        {"index": 2, "label": "Left Lateral Ventricle"},
+        {"index": 3, "label": "Left Thalamus"},
+        {"index": 4, "label": "Left Caudate"},
+        {"index": 5, "label": "Left Putamen"},
+        {"index": 6, "label": "Left Pallidum"},
+        {"index": 7, "label": "Brain-Stem"},
+        {"index": 8, "label": "Left Hippocampus"},
+        {"index": 9, "label": "Left Amygdala"},
+        {"index": 10, "label": "Left Accumbens"},
+        {"index": 11, "label": "Right Cerebral White Matter"},
+        {"index": 12, "label": "Right Cerebral Cortex"},
+        {"index": 13, "label": "Right Lateral Ventricle"},
+        {"index": 14, "label": "Right Thalamus"},
+        {"index": 15, "label": "Right Caudate"},
+        {"index": 16, "label": "Right Putamen"},
+        {"index": 17, "label": "Right Pallidum"},
+        {"index": 18, "label": "Right Hippocampus"},
+        {"index": 19, "label": "Right Amygdala"},
+        {"index": 20, "label": "Right Accumbens"}
+      ]
+    }
+  },
+  "difumo": {
+    "name": "DiFuMo 512",
+    "version": "OSF file version 1, 2021-01-26",
+    "dimension": 512,
+    "resolutionMm": 2,
+    "interpolation": "nearest",
+    "voxelRounding": "floor(voxel + 0.5)",
+    "canonicalUrl": "https://osf.io/9b76y/download",
+    "resolvedUrl": "https://storage.googleapis.com/cos-osf-prod-files-us-east1/63af869a11312def29cbe554c900322ee65c36e37709a14a7e9bf18659827d68",
+    "archive": {
+      "filename": "512.zip",
+      "sha256": "63af869a11312def29cbe554c900322ee65c36e37709a14a7e9bf18659827d68",
+      "bytes": 3702732
+    },
+    "assets": [
+      {
+        "filename": "difumo-512-2mm.nii.gz",
+        "sha256": "1de41df48d726d43c70e420b6a7a98b57e18f65768c9224bb6b057f329de9238",
+        "bytes": 14359345
+      },
+      {
+        "filename": "difumo-512-labels.csv",
+        "sha256": "b5609f0f9aeb11d1bf3212eeef302d7241207aa90b0c84c6c7e282c585372b99",
+        "bytes": 18201
+      }
+    ],
+    "nifti": {
+      "shape": [104, 123, 104, 512],
+      "affine": [
+        [2.0, 0.0, 0.0, -96.0],
+        [0.0, 2.0, 0.0, -132.0],
+        [0.0, 0.0, 2.0, -78.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "dtype": "float32"
+    },
+    "license": {
+      "spdx": "MIT",
+      "basis": "Neurostore maintainer project assumption authorized 2026-08-27; not declared in reviewed upstream metadata or archive",
+      "upstreamDeclared": false,
+      "authorization": "project-maintainer-assumption",
+      "sourceUrl": "https://osf.io/9b76y/",
+      "noticePath": "/opt/decoder-atlases/licenses/difumo-512/MIT-PROJECT-AUTHORIZATION.txt"
+    },
+    "citation": {
+      "title": "Fine-grain atlases of functional modes for fMRI analysis",
+      "doi": "10.1016/j.neuroimage.2020.117126"
+    }
+  },
+  "integrationCoordinates": [
+    {
+      "purpose": "multiple Harvard-Oxford matches and nonzero DiFuMo modes",
+      "coordinate": {"x": -42.0, "y": 0.0, "z": 0.0},
+      "harvardOxford": {
+        "harvardoxford-cortical": [
+          {"index": 1, "label": "Insular Cortex", "value": 70.0},
+          {"index": 41, "label": "Central Opercular Cortex", "value": 4.0}
+        ],
+        "harvardoxford-subcortical": [
+          {"index": 1, "label": "Left Cerebral Cortex", "value": 95.8715},
+          {"index": 0, "label": "Left Cerebral White Matter", "value": 0.0407}
+        ]
+      },
+      "difumo": {
+        "voxel": [27, 66, 39],
+        "nonzeroCount": 3,
+        "matches": [
+          {"componentId": 467, "label": "External capsule middle LH", "value": 0.0012017411645501852},
+          {"componentId": 330, "label": "Central operculum LH", "value": 0.00047331181121990085},
+          {"componentId": 116, "label": "Planum polare superior", "value": 0.00040436722338199615}
+        ]
+      }
+    },
+    {
+      "purpose": "subcortical overlap and nonzero DiFuMo modes",
+      "coordinate": {"x": 0.0, "y": 0.0, "z": 0.0},
+      "harvardOxford": {
+        "harvardoxford-cortical": [],
+        "harvardoxford-subcortical": [
+          {"index": 0, "label": "Left Cerebral White Matter", "value": 28.5143},
+          {"index": 11, "label": "Right Cerebral White Matter", "value": 9.0551},
+          {"index": 3, "label": "Left Thalamus", "value": 4.0968},
+          {"index": 1, "label": "Left Cerebral Cortex", "value": 1.5979},
+          {"index": 14, "label": "Right Thalamus", "value": 1.5939},
+          {"index": 2, "label": "Left Lateral Ventricle", "value": 1.5023},
+          {"index": 12, "label": "Right Cerebral Cortex", "value": 0.5529},
+          {"index": 13, "label": "Right Lateral Ventricle", "value": 0.0457}
+        ]
+      },
+      "difumo": {
+        "voxel": [48, 66, 39],
+        "nonzeroCount": 3,
+        "matches": [
+          {"componentId": 11, "label": "Midbrain superior", "value": 0.00022901856573298573},
+          {"componentId": 464, "label": "Lateral ventricles anterior horns", "value": 0.00017279043095186353},
+          {"componentId": 194, "label": "Cerebrospinal fluid (between superior cerebellum and limbic lobe)", "value": 0.00014064775314182043}
+        ]
+      }
+    },
+    {
+      "purpose": "valid MNI coordinate with no atlas coverage",
+      "coordinate": {"x": 90.0, "y": 90.0, "z": 108.0},
+      "harvardOxford": {
+        "harvardoxford-cortical": [],
+        "harvardoxford-subcortical": []
+      },
+      "difumo": {
+        "voxel": [93, 111, 93],
+        "nonzeroCount": 0,
+        "matches": []
+      }
+    },
+    {
+      "purpose": "decimal coordinate exercising inverse-affine nearest sampling",
+      "coordinate": {"x": -41.5, "y": 0.5, "z": 0.5},
+      "harvardOxford": {
+        "harvardoxford-cortical": [
+          {"index": 1, "label": "Insular Cortex", "value": 70.0},
+          {"index": 41, "label": "Central Opercular Cortex", "value": 4.0}
+        ],
+        "harvardoxford-subcortical": [
+          {"index": 1, "label": "Left Cerebral Cortex", "value": 95.8715},
+          {"index": 0, "label": "Left Cerebral White Matter", "value": 0.0407}
+        ]
+      },
+      "difumo": {
+        "voxel": [27, 66, 39],
+        "nonzeroCount": 3,
+        "matches": [
+          {"componentId": 467, "label": "External capsule middle LH", "value": 0.0012017411645501852},
+          {"componentId": 330, "label": "Central operculum LH", "value": 0.00047331181121990085},
+          {"componentId": 116, "label": "Planum polare superior", "value": 0.00040436722338199615}
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+name: decoder-atlases
+channels:
+  - https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/
+  - conda-forge
+dependencies:
+  - fslpy
+  - fsl-data_atlases=2103.0
