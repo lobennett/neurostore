@@ -9,6 +9,7 @@ import nibabel as nib
 import numpy as np
 import pytest
 
+import neurosynth_compose.atlas_readout.service as atlas_service_module
 from neurosynth_compose.atlas_readout import (
     AtlasMatch,
     AtlasReadoutService,
@@ -119,6 +120,40 @@ class SameKeyReentrantProvider(RecordingProvider):
     def query(self, coordinate):
         self.coordinates.append(coordinate)
         return self.service.query(coordinate)
+
+
+class WaiterReportingCondition:
+    """Report a waiter at the condition boundary without changing locking."""
+
+    def __init__(self, condition, waiter_ready):
+        self._condition = condition
+        self._waiter_ready = waiter_ready
+
+    def wait(self, timeout=None):
+        self._waiter_ready.set()
+        return self._condition.wait(timeout)
+
+    def notify_all(self):
+        self._condition.notify_all()
+
+
+def _install_waiter_ready_handshake(monkeypatch):
+    """Expose the instant a same-key caller enters the real condition wait."""
+
+    waiter_ready = threading.Event()
+    original_in_flight = atlas_service_module._InFlightQuery
+
+    class WaiterReportingInFlight(original_in_flight):
+        def __init__(self, cache_lock):
+            super().__init__(cache_lock)
+            self.condition = WaiterReportingCondition(
+                self.condition, waiter_ready
+            )
+
+    monkeypatch.setattr(
+        atlas_service_module, "_InFlightQuery", WaiterReportingInFlight
+    )
+    return waiter_ready
 
 
 def _providers(**overrides):
@@ -267,24 +302,22 @@ def test_distinct_slow_cache_misses_execute_providers_concurrently():
     assert second_payload["coordinate"]["x"] == 2.0
 
 
-def test_same_key_concurrent_calls_query_once_and_serialize_independently():
+def test_same_key_concurrent_calls_query_once_and_serialize_independently(
+    monkeypatch,
+):
     coordinate = Coordinate(1.0, 0.0, 0.0)
     cortical = CoordinateBlockingProvider(
         _result(ATLAS_IDS[0], 1.0), coordinate
     )
     providers = _providers(**{ATLAS_IDS[0]: cortical})
     service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
-    start = threading.Barrier(3)
-
-    def query():
-        start.wait(timeout=1)
-        return service.query(coordinate)
+    waiter_ready = _install_waiter_ready_handshake(monkeypatch)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        first_future = executor.submit(query)
-        second_future = executor.submit(query)
-        start.wait(timeout=1)
+        first_future = executor.submit(service.query, coordinate)
         assert cortical.entered.wait(timeout=1)
+        second_future = executor.submit(service.query, coordinate)
+        assert waiter_ready.wait(timeout=1)
         cortical.release.set()
         first = first_future.result(timeout=1)
         second = second_future.result(timeout=1)
@@ -299,22 +332,18 @@ def test_same_key_concurrent_calls_query_once_and_serialize_independently():
     ]
 
 
-def test_same_key_failure_wakes_waiters_and_does_not_poison_retry():
+def test_same_key_failure_wakes_waiters_and_does_not_poison_retry(monkeypatch):
     coordinate = Coordinate(1.0, 0.0, 0.0)
     cortical = FailFirstBlockingProvider(_result(ATLAS_IDS[0], 1.0))
     providers = _providers(**{ATLAS_IDS[0]: cortical})
     service = AtlasReadoutService(providers, "manifest-v1", cache_size=8)
-    start = threading.Barrier(3)
-
-    def query():
-        start.wait(timeout=1)
-        return service.query(coordinate)
+    waiter_ready = _install_waiter_ready_handshake(monkeypatch)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        first_future = executor.submit(query)
-        second_future = executor.submit(query)
-        start.wait(timeout=1)
+        first_future = executor.submit(service.query, coordinate)
         assert cortical.entered.wait(timeout=1)
+        second_future = executor.submit(service.query, coordinate)
+        assert waiter_ready.wait(timeout=1)
         cortical.release.set()
         with pytest.raises(AtlasUnavailableError):
             first_future.result(timeout=1)
