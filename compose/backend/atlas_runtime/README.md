@@ -48,7 +48,11 @@ python -m neurosynth_compose.scripts.install_decoder_atlases \
 ```
 
 The installer validates the archive and normalized-file SHA-256 hashes and
-byte counts before atomic replacement.
+byte counts before publishing an immutable content-addressed release. The
+configured destination is a stable symbolic link switched with one atomic
+rename, so readers continue to see the prior release until the verified new
+release is published. A pre-existing concrete directory is rejected because
+it cannot be replaced without a visibility gap.
 
 The required real-runtime test command is:
 

@@ -179,22 +179,64 @@ def _asset_metadata(manifest, filename):
     return matches[0]
 
 
-def _replace_destination(staging, destination):
-    backup = None
-    if destination.exists():
-        backup = Path(
-            tempfile.mkdtemp(prefix=f".{destination.name}-backup-", dir=destination.parent)
+def _release_id(manifest):
+    identity = "\n".join(
+        f"{asset['filename']}:{asset['sha256']}"
+        for asset in manifest["difumo"]["assets"]
+    )
+    return hashlib.sha256(identity.encode("ascii")).hexdigest()
+
+
+def _verify_installed_release(release, manifest):
+    if release.is_symlink() or not release.is_dir():
+        raise AtlasInstallError(
+            f"published release is not an immutable directory: {release}"
         )
-        backup.rmdir()
-        os.replace(destination, backup)
+    nifti_path = release / NIFTI_FILENAME
+    labels_path = release / LABELS_FILENAME
+    _validate_nifti(nifti_path, manifest["difumo"]["nifti"])
+    _verify_file(
+        nifti_path,
+        _asset_metadata(manifest, NIFTI_FILENAME),
+        NIFTI_FILENAME,
+    )
+    _verify_file(
+        labels_path,
+        _asset_metadata(manifest, LABELS_FILENAME),
+        LABELS_FILENAME,
+    )
+
+
+def _publish_destination(staging, destination, manifest):
+    if destination.is_symlink():
+        pass
+    elif destination.exists():
+        raise AtlasInstallError(
+            "destination must be absent or a managed symbolic link; refusing "
+            "a non-atomic replacement of an existing directory"
+        )
+
+    versions = destination.parent / f".{destination.name}-versions"
+    versions.mkdir(exist_ok=True)
+    release = versions / _release_id(manifest)
+    if release.exists():
+        _verify_installed_release(release, manifest)
+        shutil.rmtree(staging)
+    else:
+        os.replace(staging, release)
+
+    publish_dir = Path(
+        tempfile.mkdtemp(
+            prefix=f".{destination.name}-publish-",
+            dir=destination.parent,
+        )
+    )
+    candidate = publish_dir / "current"
     try:
-        os.replace(staging, destination)
-    except Exception:
-        if backup is not None and backup.exists():
-            os.replace(backup, destination)
-        raise
-    if backup is not None:
-        shutil.rmtree(backup)
+        os.symlink(os.path.relpath(release, destination.parent), candidate)
+        os.replace(candidate, destination)
+    finally:
+        shutil.rmtree(publish_dir, ignore_errors=True)
 
 
 def install_decoder_atlases(manifest_path, destination, downloader=None):
@@ -242,7 +284,7 @@ def install_decoder_atlases(manifest_path, destination, downloader=None):
             _asset_metadata(manifest, LABELS_FILENAME),
             LABELS_FILENAME,
         )
-        _replace_destination(staging, destination)
+        _publish_destination(staging, destination, manifest)
         return InstallResult(resolved_url=resolved_url, destination=destination)
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)

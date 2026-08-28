@@ -38,6 +38,9 @@ license page separately identifies the Harvard–Oxford atlases as CC BY-SA 4.0.
   <https://creativecommons.org/licenses/by-sa/4.0/legalcode.en>
 - Harvard–Oxford atlas documentation:
   <https://fsl.fmrib.ox.ac.uk/fsl/docs/other/datasets.html>
+- Harvard–Oxford reference named by the official FSL documentation: Makris
+  et al. (2006), *Decreased volume of left and total anterior insular lobule in
+  schizophrenia*, <https://pubmed.ncbi.nlm.nih.gov/16448806/>.
 
 FSL's atlas-specific terms state that the Harvard–Oxford atlases "are
 released under the CC BY-SA 4.0 licence." CC BY-SA 4.0 section 2(a)(1)
