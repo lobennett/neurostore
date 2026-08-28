@@ -58,3 +58,8 @@ include = ["neurosynth_compose*"]
 
 [tool.setuptools.package-data]
 neurosynth_compose = ["openapi/**/*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "atlas_runtime: requires the real atlas runtime packaged in the Compose image",
+]

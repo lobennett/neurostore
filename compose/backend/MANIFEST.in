@@ -1,1 +1,2 @@
 recursive-include neurosynth_compose/openapi *
+recursive-include atlas_runtime *.json *.md *.txt *.yml
