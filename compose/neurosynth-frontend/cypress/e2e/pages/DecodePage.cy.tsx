@@ -284,7 +284,7 @@ describe('DecodePage', () => {
         });
         expectViewerCoordinate('Submitted map viewer', 12);
         expectViewerCoordinate('premotor association map viewer', 12);
-        cy.contains('MNI152 coordinate: x 12, y 0, z 0 mm').should('be.visible');
+        cy.contains('Selected MNI coordinate: x 12, y 0, z 0').should('be.visible');
         cy.contains('Cortical match at x 12, y 0, z 0').should('be.visible');
         cy.get('button[aria-label="Show 2 more matches for DiFuMo 512"]').click();
         cy.get('button[aria-label="Show all 4 matches for DiFuMo 512"]').click();

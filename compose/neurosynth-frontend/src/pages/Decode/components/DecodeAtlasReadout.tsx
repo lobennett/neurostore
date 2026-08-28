@@ -46,8 +46,6 @@ const valueLabel = (valueType: AtlasValueType) => {
     }
 };
 
-const signedCoordinate = (value: number) => (value < 0 ? `−${Math.abs(value)}` : String(value));
-
 interface DecodeAtlasReadoutProps {
     coordinate: Pick<IViewerState, 'x' | 'y' | 'z'>;
 }
@@ -187,15 +185,13 @@ const DecodeAtlasReadout = ({ coordinate }: DecodeAtlasReadoutProps) => {
     const [displayDepthByAtlas, setDisplayDepthByAtlas] = useState<Record<string, 'top' | 'three' | 'all'>>({});
     const id = useId();
     const headingId = `${id}-heading`;
-    const coordinateId = `${id}-coordinate`;
 
     return (
         <Box
             component="section"
             role="region"
             aria-labelledby={headingId}
-            aria-describedby={coordinateId}
-            sx={{ borderLeft: `2px solid ${DECODE_COLORS.blue}`, minHeight: 160, minWidth: 0, pl: 2 }}
+            sx={{ borderLeft: `2px solid ${DECODE_COLORS.blue}`, minWidth: 0, pl: 2 }}
         >
             <Typography
                 id={headingId}
@@ -204,20 +200,6 @@ const DecodeAtlasReadout = ({ coordinate }: DecodeAtlasReadoutProps) => {
                 sx={{ color: DECODE_COLORS.ink, fontWeight: 700 }}
             >
                 Atlas readout at selected coordinate
-            </Typography>
-            <Typography
-                id={coordinateId}
-                variant="body2"
-                sx={{
-                    color: DECODE_COLORS.navy,
-                    fontFamily: 'monospace',
-                    fontVariantNumeric: 'tabular-nums',
-                    fontWeight: 700,
-                    mt: 0.5,
-                }}
-            >
-                MNI152 coordinate: x {signedCoordinate(coordinate.x)}, y {signedCoordinate(coordinate.y)}, z{' '}
-                {signedCoordinate(coordinate.z)} mm
             </Typography>
             {isUpdating || (isInitialLoading && !isError) ? (
                 <Typography role="status" variant="body2" sx={{ color: DECODE_COLORS.navy, mt: 1 }}>

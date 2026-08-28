@@ -171,6 +171,16 @@ it('renders recorded anatomy and input assets and synchronizes canvas coordinate
     expect(onDisplayChange).toHaveBeenLastCalledWith({ x: -42, y: 8, z: 30, threshold: 0 });
 });
 
+it('places the live atlas readout directly beneath the selected coordinate in the map column', () => {
+    renderViewer({ kind: 'neurovault', imageId: '308' }, recordedVisualization);
+
+    const selectedCoordinate = screen.getByText(/Selected MNI coordinate: x 0, y 0, z 0/);
+    const mapColumn = selectedCoordinate.parentElement;
+
+    expect(mapColumn).not.toBeNull();
+    expect(within(mapColumn as HTMLElement).getByRole('region', { name: 'Live atlas readout' })).toBeVisible();
+});
+
 it('loads only anatomy and no input controls for a coordinate source with an over-complete visualization', async () => {
     renderViewer(
         { kind: 'coordinates', points: [{ id: 'p1', label: 'Seed', x: 0, y: 0, z: 0 }] },

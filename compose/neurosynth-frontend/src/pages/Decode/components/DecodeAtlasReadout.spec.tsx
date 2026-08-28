@@ -76,11 +76,11 @@ beforeEach(() => {
     mockedUseDecodeAtlasReadout.mockReturnValue(readyState);
 });
 
-it('names the live readout by its exact selected MNI coordinate and separates anatomical from functional evidence', () => {
+it('does not repeat the nearby selected coordinate and separates anatomical from functional evidence', () => {
     render(<DecodeAtlasReadout coordinate={coordinate} />);
 
     const panel = screen.getByRole('region', { name: 'Atlas readout at selected coordinate' });
-    expect(panel).toHaveAccessibleDescription(/MNI152 coordinate: x −42.5, y 0, z 8.25 mm/);
+    expect(within(panel).queryByText(/MNI152 coordinate/)).not.toBeInTheDocument();
     expect(within(panel).getByRole('heading', { name: 'Anatomical location' })).toBeVisible();
     expect(within(panel).getByRole('heading', { name: 'Decoder feature space' })).toBeVisible();
     expect(within(panel).getByRole('group', { name: 'Harvard–Oxford Cortical Structural Atlas' })).toBeVisible();
@@ -177,7 +177,6 @@ it('keeps prior matches visible while announcing a nonblocking update', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Updating atlas readout');
     expect(screen.getByText('Inferior Frontal Gyrus, pars opercularis')).toBeVisible();
-    expect(screen.getByText(/MNI152 coordinate: x 12, y −4.5, z 30 mm/)).toBeVisible();
 });
 
 it('distinguishes an empty atlas from service failure and retains its provenance', () => {

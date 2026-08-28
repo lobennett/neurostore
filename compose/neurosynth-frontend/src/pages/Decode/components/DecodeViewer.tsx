@@ -297,6 +297,9 @@ const DecodeViewer: React.FC<{
                         Selected MNI coordinate: x {signedCoordinate(value.x)}, y {signedCoordinate(value.y)}, z{' '}
                         {signedCoordinate(value.z)}
                     </Typography>
+                    <Box sx={{ mt: 2.5 }}>
+                        <DecodeAtlasReadout coordinate={value} />
+                    </Box>
                 </Box>
                 <Stack spacing={2.5}>
                     {source.kind === 'coordinates' ? (
@@ -524,7 +527,6 @@ const DecodeViewer: React.FC<{
                             </Typography>
                         </Box>
                     )}
-                    <DecodeAtlasReadout coordinate={value} />
                 </Stack>
             </Box>
         </Box>
