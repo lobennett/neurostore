@@ -9,14 +9,13 @@ const ATLAS_SECTIONS = [
     {
         id: 'anatomical',
         heading: 'Anatomical location',
-        explanation:
-            'Probabilistic atlas labels can overlap, so more than one cortical or subcortical region may match this coordinate.',
+        explanation: 'Atlas overlap probabilities; multiple regions can match this coordinate.',
         atlasIds: ['harvardoxford-cortical', 'harvardoxford-subcortical'],
     },
     {
         id: 'functional',
         heading: 'Decoder feature space',
-        explanation: 'DiFuMo loadings are native feature weights, not parcel probabilities, and are not percentages.',
+        explanation: 'Signed DiFuMo feature weights; not probabilities or percentages.',
         atlasIds: ['difumo-512'],
     },
 ] as const;
@@ -41,7 +40,7 @@ const valueLabel = (valueType: AtlasValueType) => {
         case 'probability':
             return 'Probability';
         case 'loading':
-            return 'Loading';
+            return 'Component loading';
         default:
             return assertNever(valueType);
     }
@@ -55,65 +54,115 @@ interface DecodeAtlasReadoutProps {
 
 interface AtlasGroupProps {
     atlas: AtlasReadout;
-    expanded: boolean;
+    displayDepth: 'top' | 'three' | 'all';
     headingId: string;
     onToggle: () => void;
 }
 
-const AtlasGroup = ({ atlas, expanded, headingId, onToggle }: AtlasGroupProps) => {
-    const visibleMatches = expanded ? atlas.matches : atlas.matches.slice(0, 3);
-    const canExpand = atlas.matches.length > 3;
-    const toggleLabel = expanded ? 'Show top 3' : 'Show all nonzero matches';
+const AtlasGroup = ({ atlas, displayDepth, headingId, onToggle }: AtlasGroupProps) => {
+    const visibleCount = displayDepth === 'top' ? 1 : displayDepth === 'three' ? 3 : atlas.matches.length;
+    const visibleMatches = atlas.matches.slice(0, visibleCount);
+    const canExpand = atlas.matches.length > 1;
+    const nextMatchCount = Math.min(2, atlas.matches.length - 1);
+    const toggleLabel =
+        displayDepth === 'top'
+            ? `Show ${nextMatchCount} more ${nextMatchCount === 1 ? 'match' : 'matches'}`
+            : displayDepth === 'three' && atlas.matches.length > 3
+              ? `Show all ${atlas.matches.length} matches`
+              : 'Show top match';
+    const valueTypeLabel = valueLabel(atlas.valueType);
 
     return (
         <Box
             role="group"
             aria-labelledby={headingId}
-            sx={{ borderTop: `1px solid ${DECODE_COLORS.navyBorder}`, minWidth: 0, pt: 1.5 }}
+            sx={{ borderTop: `1px solid ${DECODE_COLORS.navyBorder}`, minWidth: 0, pt: 1 }}
         >
-            <Typography id={headingId} component="h5" variant="subtitle2" sx={{ color: DECODE_COLORS.ink }}>
-                {atlas.name}
-            </Typography>
-            {visibleMatches.length ? (
-                <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, mt: 1.25, p: 0 }}>
-                    {visibleMatches.map((match) => (
-                        <Box
-                            component="li"
-                            key={match.id}
-                            sx={{
-                                display: 'grid',
-                                gap: { xs: 0.25, sm: 2 },
-                                gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'minmax(0, 1fr) auto' },
-                                minWidth: 0,
-                            }}
-                        >
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    color: DECODE_COLORS.ink,
-                                    fontWeight: 500,
-                                    minWidth: 0,
-                                    overflowWrap: 'anywhere',
-                                }}
-                            >
-                                {match.label}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    color: DECODE_COLORS.navy,
-                                    fontFamily: 'monospace',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    fontWeight: 700,
-                                }}
-                            >
-                                {valueLabel(atlas.valueType)} {formatAtlasValue(atlas.valueType, match.value)}
-                            </Typography>
-                        </Box>
-                    ))}
+            <Stack
+                direction="row"
+                flexWrap="wrap"
+                justifyContent="space-between"
+                alignItems="baseline"
+                columnGap={1.5}
+                rowGap={0.25}
+            >
+                <Typography id={headingId} component="h5" variant="subtitle2" sx={{ color: DECODE_COLORS.ink }}>
+                    {atlas.name}
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                    <Typography variant="caption" color="text.secondary">
+                        Version {atlas.version}
+                    </Typography>
+                    <Link
+                        href={atlas.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Source for ${atlas.name}`}
+                        variant="caption"
+                    >
+                        Source
+                    </Link>
                 </Stack>
+            </Stack>
+            {visibleMatches.length ? (
+                <>
+                    <Box
+                        aria-hidden="true"
+                        sx={{
+                            display: { xs: 'block', sm: 'grid' },
+                            gridTemplateColumns: 'minmax(0, 1fr) auto',
+                            mt: 0.5,
+                        }}
+                    >
+                        <span />
+                        <Typography variant="caption" color="text.secondary">
+                            {valueTypeLabel}
+                        </Typography>
+                    </Box>
+                    <Stack component="ul" spacing={0.5} sx={{ listStyle: 'none', m: 0, mt: 0.25, p: 0 }}>
+                        {visibleMatches.map((match) => {
+                            const formattedValue = formatAtlasValue(atlas.valueType, match.value);
+                            return (
+                                <Box
+                                    component="li"
+                                    key={match.id}
+                                    sx={{
+                                        display: 'grid',
+                                        gap: { xs: 0.125, sm: 2 },
+                                        gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'minmax(0, 1fr) auto' },
+                                        minWidth: 0,
+                                    }}
+                                >
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: DECODE_COLORS.ink,
+                                            fontWeight: 500,
+                                            minWidth: 0,
+                                            overflowWrap: 'anywhere',
+                                        }}
+                                    >
+                                        {match.label}
+                                    </Typography>
+                                    <Typography
+                                        variant="body2"
+                                        aria-label={`${valueTypeLabel} ${formattedValue}`}
+                                        sx={{
+                                            color: DECODE_COLORS.navy,
+                                            fontFamily: 'monospace',
+                                            fontVariantNumeric: 'tabular-nums',
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        {formattedValue}
+                                    </Typography>
+                                </Box>
+                            );
+                        })}
+                    </Stack>
+                </>
             ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1.25 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
                     No nonzero matches at this coordinate
                 </Typography>
             )}
@@ -121,48 +170,32 @@ const AtlasGroup = ({ atlas, expanded, headingId, onToggle }: AtlasGroupProps) =
                 <Button
                     type="button"
                     size="small"
-                    aria-expanded={expanded}
+                    aria-expanded={displayDepth !== 'top'}
                     aria-label={`${toggleLabel} for ${atlas.name}`}
                     onClick={onToggle}
-                    sx={{ mt: 1, px: 0.5 }}
+                    sx={{ mt: 0.25, px: 0.5 }}
                 >
                     {toggleLabel}
                 </Button>
             ) : null}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.25, sm: 1 }} sx={{ mt: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                    Version {atlas.version}
-                </Typography>
-                <Link
-                    href={atlas.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Source for ${atlas.name}`}
-                    variant="caption"
-                >
-                    Atlas source
-                </Link>
-            </Stack>
         </Box>
     );
 };
 
 const DecodeAtlasReadout = ({ coordinate }: DecodeAtlasReadoutProps) => {
     const { data, isInitialLoading, isUpdating, isError, retry } = useDecodeAtlasReadout(coordinate);
-    const [expandedByAtlas, setExpandedByAtlas] = useState<Record<string, boolean>>({});
+    const [displayDepthByAtlas, setDisplayDepthByAtlas] = useState<Record<string, 'top' | 'three' | 'all'>>({});
     const id = useId();
     const headingId = `${id}-heading`;
     const coordinateId = `${id}-coordinate`;
-    const summaryId = `${id}-summary`;
-    const provenanceId = `${id}-provenance`;
 
     return (
         <Box
             component="section"
             role="region"
             aria-labelledby={headingId}
-            aria-describedby={`${coordinateId} ${summaryId} ${provenanceId}`}
-            sx={{ borderLeft: `2px solid ${DECODE_COLORS.blue}`, minHeight: 240, minWidth: 0, pl: 2 }}
+            aria-describedby={coordinateId}
+            sx={{ borderLeft: `2px solid ${DECODE_COLORS.blue}`, minHeight: 160, minWidth: 0, pl: 2 }}
         >
             <Typography
                 id={headingId}
@@ -186,16 +219,8 @@ const DecodeAtlasReadout = ({ coordinate }: DecodeAtlasReadoutProps) => {
                 MNI152 coordinate: x {signedCoordinate(coordinate.x)}, y {signedCoordinate(coordinate.y)}, z{' '}
                 {signedCoordinate(coordinate.z)} mm
             </Typography>
-            <Typography id={summaryId} variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                Structural atlas overlap and functional decoder loadings are reported separately because their values
-                have different meanings.
-            </Typography>
-            <Typography id={provenanceId} variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                Pinned atlas versions and source links appear with each group.
-            </Typography>
-
             {isUpdating || (isInitialLoading && !isError) ? (
-                <Typography role="status" variant="body2" sx={{ color: DECODE_COLORS.navy, mt: 1.5 }}>
+                <Typography role="status" variant="body2" sx={{ color: DECODE_COLORS.navy, mt: 1 }}>
                     {isUpdating ? 'Updating atlas readout' : 'Loading atlas readout'}
                 </Typography>
             ) : null}
@@ -222,7 +247,7 @@ const DecodeAtlasReadout = ({ coordinate }: DecodeAtlasReadoutProps) => {
                     </Button>
                 </Box>
             ) : (
-                <Stack spacing={2.5} sx={{ mt: 2 }}>
+                <Stack spacing={1.5} sx={{ mt: 1.25 }}>
                     {ATLAS_SECTIONS.map((section) => {
                         const sectionHeadingId = `${id}-${section.id}-heading`;
                         return (
@@ -235,28 +260,36 @@ const DecodeAtlasReadout = ({ coordinate }: DecodeAtlasReadoutProps) => {
                                 >
                                     {section.heading}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
                                     {section.explanation}
                                 </Typography>
                                 {isInitialLoading || !data ? (
                                     <Box aria-hidden="true" sx={{ minHeight: 32 }} />
                                 ) : (
-                                    <Stack spacing={2} sx={{ mt: 1.5 }}>
+                                    <Stack spacing={1.25} sx={{ mt: 0.75 }}>
                                         {section.atlasIds.map((atlasId) => {
                                             const atlas = data.atlases.find(
                                                 ({ id: candidateId }) => candidateId === atlasId
                                             );
                                             if (!atlas) return null;
+                                            const displayDepth = displayDepthByAtlas[atlas.id] ?? 'top';
                                             return (
                                                 <AtlasGroup
                                                     key={atlas.id}
                                                     atlas={atlas}
-                                                    expanded={Boolean(expandedByAtlas[atlas.id])}
+                                                    displayDepth={displayDepth}
                                                     headingId={`${id}-${atlas.id}-heading`}
                                                     onToggle={() =>
-                                                        setExpandedByAtlas((current) => ({
+                                                        setDisplayDepthByAtlas((current) => ({
                                                             ...current,
-                                                            [atlas.id]: !current[atlas.id],
+                                                            [atlas.id]:
+                                                                displayDepth === 'top'
+                                                                    ? atlas.matches.length > 3
+                                                                        ? 'three'
+                                                                        : 'all'
+                                                                    : displayDepth === 'three'
+                                                                      ? 'all'
+                                                                      : 'top',
                                                         }))
                                                     }
                                                 />

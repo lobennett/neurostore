@@ -286,7 +286,8 @@ describe('DecodePage', () => {
         expectViewerCoordinate('premotor association map viewer', 12);
         cy.contains('MNI152 coordinate: x 12, y 0, z 0 mm').should('be.visible');
         cy.contains('Cortical match at x 12, y 0, z 0').should('be.visible');
-        cy.get('button[aria-label="Show all nonzero matches for DiFuMo 512"]').click();
+        cy.get('button[aria-label="Show 2 more matches for DiFuMo 512"]').click();
+        cy.get('button[aria-label="Show all 4 matches for DiFuMo 512"]').click();
         cy.contains('A deliberately long DiFuMo coordinate-encoded functional mode at x 12, y 0, z 0').should(
             'be.visible'
         );
@@ -354,7 +355,8 @@ describe('DecodePage', () => {
         cy.visit('/decode?example=neurovault-308');
 
         cy.wait('@atlasReadout').its('response.statusCode').should('equal', 200);
-        cy.get('button[aria-label="Show all nonzero matches for DiFuMo 512"]').click();
+        cy.get('button[aria-label="Show 2 more matches for DiFuMo 512"]').click();
+        cy.get('button[aria-label="Show all 4 matches for DiFuMo 512"]').click();
         cy.document().then((applicationDocument) => {
             cy.contains('A deliberately long DiFuMo coordinate-encoded functional mode at x 0, y 0, z 0')
                 .parents('li')

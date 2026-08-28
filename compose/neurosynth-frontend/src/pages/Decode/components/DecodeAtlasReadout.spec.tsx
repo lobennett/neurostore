@@ -88,7 +88,7 @@ it('names the live readout by its exact selected MNI coordinate and separates an
     expect(within(panel).getByRole('group', { name: 'DiFuMo 512' })).toBeVisible();
 });
 
-it('shows the top three matches in fixed atlas order and expands each atlas independently', async () => {
+it('shows one match first, then reveals the top three and all matches independently', async () => {
     const user = userEvent.setup();
     render(<DecodeAtlasReadout coordinate={coordinate} />);
 
@@ -102,23 +102,32 @@ it('shows the top three matches in fixed atlas order and expands each atlas inde
     const cortical = groups[0];
     const subcortical = groups[1];
     const corticalToggle = within(cortical).getByRole('button', {
-        name: 'Show all nonzero matches for Harvard–Oxford Cortical Structural Atlas',
+        name: 'Show 2 more matches for Harvard–Oxford Cortical Structural Atlas',
     });
     const subcorticalToggle = within(subcortical).getByRole('button', {
-        name: 'Show all nonzero matches for Harvard–Oxford Subcortical Structural Atlas',
+        name: 'Show 2 more matches for Harvard–Oxford Subcortical Structural Atlas',
     });
 
     expect(corticalToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(within(cortical).queryByText('Precentral Gyrus')).not.toBeInTheDocument();
+    expect(within(cortical).queryByText('Middle Frontal Gyrus')).not.toBeInTheDocument();
     expect(within(cortical).queryByText(/deliberately long cortical/)).not.toBeInTheDocument();
     expect(within(subcortical).queryByText('Brain-Stem')).not.toBeInTheDocument();
 
     await user.click(corticalToggle);
 
     expect(corticalToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(corticalToggle).toHaveTextContent('Show top 3');
-    expect(within(cortical).getByText(/deliberately long cortical/)).toBeVisible();
+    expect(corticalToggle).toHaveTextContent('Show all 4 matches');
+    expect(within(cortical).getByText('Precentral Gyrus')).toBeVisible();
+    expect(within(cortical).getByText('Middle Frontal Gyrus')).toBeVisible();
+    expect(within(cortical).queryByText(/deliberately long cortical/)).not.toBeInTheDocument();
     expect(subcorticalToggle).toHaveAttribute('aria-expanded', 'false');
     expect(within(subcortical).queryByText('Brain-Stem')).not.toBeInTheDocument();
+
+    await user.click(corticalToggle);
+
+    expect(within(cortical).getByText(/deliberately long cortical/)).toBeVisible();
+    expect(corticalToggle).toHaveTextContent('Show top match');
 });
 
 it('formats probabilities as percentages and native DiFuMo loadings without percent signs', () => {
@@ -127,14 +136,13 @@ it('formats probabilities as percentages and native DiFuMo loadings without perc
     const cortical = screen.getByRole('group', { name: 'Harvard–Oxford Cortical Structural Atlas' });
     const difumo = screen.getByRole('group', { name: 'DiFuMo 512' });
 
-    expect(within(cortical).getByText('Probability 54%')).toBeVisible();
-    expect(within(cortical).getByText('Probability 21.5%')).toBeVisible();
-    expect(within(difumo).getByText('Loading 0.712')).toBeVisible();
-    within(difumo)
-        .getAllByText(/^Loading /)
-        .forEach((value) => expect(value).not.toHaveTextContent('%'));
-    expect(screen.getByText(/Probabilistic atlas labels can overlap/)).toBeVisible();
-    expect(screen.getByText(/loadings are native feature weights, not parcel probabilities/)).toBeVisible();
+    expect(within(cortical).getByText('Probability')).toBeVisible();
+    expect(within(cortical).getByText('54%')).toHaveAccessibleName('Probability 54%');
+    expect(within(difumo).getByText('Component loading')).toBeVisible();
+    expect(within(difumo).getByText('0.712')).toHaveAccessibleName('Component loading 0.712');
+    expect(within(difumo).getByText('0.712')).not.toHaveTextContent('%');
+    expect(screen.getByText(/Atlas overlap probabilities; multiple regions can match/)).toBeVisible();
+    expect(screen.getByText(/Signed DiFuMo feature weights; not probabilities or percentages/)).toBeVisible();
 });
 
 it('shows pinned versions and source provenance for every atlas', () => {
@@ -211,7 +219,7 @@ it('contains failures locally and retries the current atlas readout', async () =
 it('preserves control focus while live status changes', () => {
     const { rerender } = render(<DecodeAtlasReadout coordinate={coordinate} />);
     const toggle = screen.getByRole('button', {
-        name: 'Show all nonzero matches for Harvard–Oxford Cortical Structural Atlas',
+        name: 'Show 2 more matches for Harvard–Oxford Cortical Structural Atlas',
     });
     toggle.focus();
 
@@ -227,11 +235,11 @@ it('allows long scientific labels to wrap at a 390px viewport', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
     render(<DecodeAtlasReadout coordinate={coordinate} />);
 
-    await user.click(
-        screen.getByRole('button', {
-            name: 'Show all nonzero matches for Harvard–Oxford Cortical Structural Atlas',
-        })
-    );
+    const toggle = screen.getByRole('button', {
+        name: 'Show 2 more matches for Harvard–Oxford Cortical Structural Atlas',
+    });
+    await user.click(toggle);
+    await user.click(toggle);
     const label = screen.getByText(/deliberately long cortical atlas label/);
 
     expect(label).toBeVisible();
